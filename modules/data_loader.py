@@ -60,8 +60,8 @@ def cargar_proyectos():
         from test_data import crear_df_prueba
         df = crear_df_prueba()
         
-        # Filtrar solo PRELANZAMIENTO y FINANCIÁNDOSE
-        df_primaria = df[df['ESTADO'].isin(['PRELANZAMIENTO', 'FINANCIÁNDOSE'])]
+        # Filtrar solo FINANCIÁNDOSE
+        df_primaria = df[df['ESTADO'].isin(['FINANCIÁNDOSE'])]
         
         st.success(f"✅ Cargados {len(df_primaria)} proyectos en venta primaria")
         return df_primaria
