@@ -67,11 +67,17 @@ def cargar_proyectos():
         sheet = client.open_by_key(SHEET_INTERMEDIO_GSHEET_ID)
         worksheet = sheet.worksheet(SHEET_INTERMEDIO_WORKSHEET_NAME)
         
-        # Obtener todos los datos
-        datos = worksheet.get_all_records()
+        # Obtener todos los datos (el header está en fila 2, no 1)
+        datos = worksheet.get_all_records(expected_headers=1)
         df = pd.DataFrame(datos)
         
-        # Filtrar SOLO FINANCIÁNDOSE (sin PRELANZAMIENTO)
+        # Limpiar columnas completamente vacías
+        df = df.dropna(axis=1, how='all')
+        
+        # Limpiar datos
+        df = limpiar_datos_proyectos(df)
+        
+        # Filtrar SOLO FINANCIÁNDOSE
         df_financiando = df[df['ESTADO'] == 'FINANCIÁNDOSE']
         
         st.success(f"✅ Cargados {len(df_financiando)} proyectos en FINANCIÁNDOSE")
