@@ -222,9 +222,9 @@ def calcular_score_similitud(proyecto, criterios_cliente, estatus_cliente):
     # Duración
     if 'Estimación Nº Meses desde Lanzamiento' in proyecto:
         meses = proyecto['Estimación Nº Meses desde Lanzamiento']
-        if criterios_cliente.get('duracion') == 'Corto plazo' and meses < 18:
+        if criterios_cliente.get('duracion') == 'Corto plazo' and meses <= 18:
             similitud += 1
-        elif criterios_cliente.get('duracion') == 'Largo plazo' and meses >= 18:
+        elif criterios_cliente.get('duracion') == 'Largo plazo' and meses > 18:
             similitud += 1
     
     # Rendimiento
