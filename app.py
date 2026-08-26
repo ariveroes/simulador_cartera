@@ -40,10 +40,10 @@ if 'datos_cliente' not in st.session_state:
         'es_inversor': True,
         'capital': 50000,
         'estatus': 'SuperReentel',
-        'duracion': 'Corto plazo',
-        'mercados': ['España', 'USA'],
+        'duracion': 'Corto plazo (≤18 meses)',
+        'mercados': ['España', 'EE.UU.'],
         'tipo_rendimientos': 'Rendimientos periódicos',
-        'objetivo': 'Periódicas',
+        'objetivo': 'Recibir rentas periódicas (crecimiento gradual)',
     }
 
 if 'df_proyectos' not in st.session_state:
@@ -92,8 +92,9 @@ if st.session_state.paso_actual == 1:
             index=0 if st.session_state.datos_cliente['es_inversor'] else 1
         )
         
+        divisa_label = st.session_state.datos_cliente['divisa']
         st.session_state.datos_cliente['capital'] = st.number_input(
-            "Capital disponible (orientativo en €)",
+            f"Capital disponible (orientativo en {divisa_label})",
             min_value=1000,
             value=int(st.session_state.datos_cliente['capital']),
             step=1000
@@ -158,33 +159,46 @@ if st.session_state.paso_actual == 1:
     
     col1, col2 = st.columns(2)
     
+    duracion_options = ["Corto plazo (≤18 meses)", "Largo plazo (>18 meses)"]
+    mercado_options = ["Todos", "Global", "EE.UU.", "México", "República Dominicana", "Argentina", "España", "Emiratos Árabes"]
+    rendimientos_options = ["Final", "Rendimientos periódicos"]
+    objetivo_options = [
+        "Maximizar rentabilidad (esperar más tiempo)",
+        "Recibir rentas periódicas (crecimiento gradual)"
+    ]
+    
     with col1:
+        duracion_idx = 0 if "Corto" in st.session_state.datos_cliente['duracion'] else 1
         st.session_state.datos_cliente['duracion'] = st.radio(
             "Duración",
-            ["Corto plazo (≤18 meses)", "Largo plazo (>18 meses)"],
-            index=0 if "Corto" in st.session_state.datos_cliente['duracion'] else 1
+            duracion_options,
+            index=duracion_idx
         )
+        
+        # Filtrar mercados seleccionados para que solo incluyan opciones válidas
+        mercados_validos = [m for m in st.session_state.datos_cliente['mercados'] if m in mercado_options]
+        if not mercados_validos:
+            mercados_validos = ['España', 'EE.UU.']
         
         st.session_state.datos_cliente['mercados'] = st.multiselect(
             "Mercado",
-            ["Todos", "Global", "EE.UU.", "México", "República Dominicana", "Argentina", "España", "Emiratos Árabes"],
-            default=st.session_state.datos_cliente['mercados']
+            mercado_options,
+            default=mercados_validos
         )
     
     with col2:
+        rendimientos_idx = 0 if "Final" in st.session_state.datos_cliente['tipo_rendimientos'] else 1
         st.session_state.datos_cliente['tipo_rendimientos'] = st.radio(
             "Tipo de rendimientos",
-            ["Final", "Rendimientos periódicos"],
-            index=0 if "Final" in st.session_state.datos_cliente['tipo_rendimientos'] else 1
+            rendimientos_options,
+            index=rendimientos_idx
         )
         
+        objetivo_idx = 0 if "Maximizar" in st.session_state.datos_cliente['objetivo'] else 1
         st.session_state.datos_cliente['objetivo'] = st.radio(
             "Objetivo",
-            [
-                "Maximizar rentabilidad (esperar más tiempo)",
-                "Recibir rentas periódicas (crecimiento gradual)"
-            ],
-            index=0 if "Maximizar" in st.session_state.datos_cliente['objetivo'] else 1
+            objetivo_options,
+            index=objetivo_idx
         )
     
     st.markdown("---")
@@ -267,12 +281,15 @@ elif st.session_state.paso_actual == 2:
             st.markdown("---")
             st.markdown("#### ¿Cómo quieres distribuir el capital?")
             
+            dist_options = ["Homogénea (igual para cada proyecto)", "Proporcional (según tamaño)", "Manual (tú eliges %)"]
+            dist_idx = 0 if "Homogénea" in st.session_state.tipo_distribucion else (
+                1 if "Proporcional" in st.session_state.tipo_distribucion else 2
+            )
+            
             st.session_state.tipo_distribucion = st.radio(
                 "Tipo de distribución",
-                ["Homogénea (igual para cada proyecto)", "Proporcional (según tamaño)", "Manual (tú eliges %)"],
-                index=0 if st.session_state.tipo_distribucion == "Igual" else (
-                    1 if st.session_state.tipo_distribucion == "Proporcional" else 2
-                ),
+                dist_options,
+                index=dist_idx,
                 key="dist_radio"
             )
             
@@ -328,10 +345,11 @@ elif st.session_state.paso_actual == 3:
                 'Rentab_Recurrente', 'Rentab_Plusvalia'
             ]].copy()
             
-            df_cartera_display.columns = ['ID', 'Nombre', 'Inversión (€)', '% Cartera', 'Rent. Recurrente', 'Rent. Plusvalía']
+            divisa = st.session_state.datos_cliente['divisa']
+            df_cartera_display.columns = ['ID', 'Nombre', f'Inversión ({divisa})', '% Cartera', 'Rent. Recurrente', 'Rent. Plusvalía']
             
             # Formatear valores
-            df_cartera_display['Inversión (€)'] = df_cartera_display['Inversión (€)'].apply(lambda x: f"€ {x:,.0f}")
+            df_cartera_display[f'Inversión ({divisa})'] = df_cartera_display[f'Inversión ({divisa})'].apply(lambda x: f"{divisa} {x:,.0f}")
             df_cartera_display['% Cartera'] = df_cartera_display['% Cartera'].apply(lambda x: f"{x:.1f}%")
             df_cartera_display['Rent. Recurrente'] = df_cartera_display['Rent. Recurrente'].apply(lambda x: f"{x*100:.2f}%")
             df_cartera_display['Rent. Plusvalía'] = df_cartera_display['Rent. Plusvalía'].apply(lambda x: f"{x*100:.2f}%")
@@ -354,7 +372,7 @@ elif st.session_state.paso_actual == 3:
                     res = resultados[horizonte]
                     st.metric(
                         f"{horizonte}M",
-                        f"€ {res['ganancia']:,.0f}",
+                        f"{divisa} {res['ganancia']:,.0f}",
                         f"{res['rentabilidad_anualizada']*100:.2f}%/año"
                     )
             
@@ -366,8 +384,8 @@ elif st.session_state.paso_actual == 3:
                 res = resultados[horizonte]
                 datos_tabla.append({
                     'Horizonte': f'{horizonte} meses',
-                    'Valor Final': f'€ {res["valor_final"]:,.0f}',
-                    'Ganancia': f'€ {res["ganancia"]:,.0f}',
+                    'Valor Final': f'{divisa} {res["valor_final"]:,.0f}',
+                    'Ganancia': f'{divisa} {res["ganancia"]:,.0f}',
                     'Rent. Acumulada': f'{res["rentabilidad_acumulada"]*100:.2f}%',
                     'Rent. Anualizada': f'{res["rentabilidad_anualizada"]*100:.2f}%'
                 })
