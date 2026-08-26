@@ -1,6 +1,6 @@
 """
 HERRAMIENTA CONSTRUCCIÓN DE CARTERA INMOBILIARIA - App Guiada (3 Pasos)
-Diseñada para que clientes construyan su cartera paso a paso
+Versión mejorada con manejo robusto de columnas
 """
 
 import streamlit as st
@@ -24,6 +24,83 @@ st.set_page_config(
 )
 
 st.title("🏠 Simulador de Cartera Inmobiliaria Reental")
+
+# ============================================================================
+# FUNCIONES AUXILIARES
+# ============================================================================
+
+def obtener_columna(df, posibles_nombres):
+    """
+    Busca una columna en el DataFrame probando múltiples nombres posibles.
+    Útil cuando no sabemos exactamente el nombre de la columna.
+    """
+    if df is None or df.empty:
+        return None
+    
+    for nombre in posibles_nombres:
+        if nombre in df.columns:
+            return nombre
+    
+    # Si no encuentra, retorna None
+    return None
+
+def preparar_tabla_proyectos(df_proyectos):
+    """
+    Prepara la tabla de proyectos para mostrar en Paso 2
+    """
+    if df_proyectos is None or df_proyectos.empty:
+        return None
+    
+    df_display = df_proyectos.copy()
+    
+    # Seleccionar columnas disponibles
+    cols_a_mostrar = []
+    
+    # ID
+    col_id = obtener_columna(df_display, ['ID'])
+    if col_id:
+        cols_a_mostrar.append(col_id)
+    
+    # Nombre
+    col_nombre = obtener_columna(df_display, ['Nombre del proyecto', 'Nombre', 'nombre'])
+    if col_nombre:
+        cols_a_mostrar.append(col_nombre)
+    
+    # Ubicación
+    col_ubicacion = obtener_columna(df_display, ['Ubicación', 'ubicacion'])
+    if col_ubicacion:
+        cols_a_mostrar.append(col_ubicacion)
+    
+    # Tipología de Dividendos
+    col_tipo_div = obtener_columna(df_display, ['Tipología de Dividendos', 'Tipología de dividendos', 'tipo_dividendo'])
+    if col_tipo_div:
+        cols_a_mostrar.append(col_tipo_div)
+    
+    # Plazo
+    col_plazo = obtener_columna(df_display, [
+        'Estimación Nº Meses desde inicio de renta en base a Financiación',
+        'Nº Meses desde inicio de renta',
+        'meses_plazo'
+    ])
+    if col_plazo:
+        cols_a_mostrar.append(col_plazo)
+    
+    if len(cols_a_mostrar) > 0:
+        df_display = df_display[cols_a_mostrar].copy()
+        
+        # Renombrar columnas para la visualización
+        nombre_mapeo = {
+            cols_a_mostrar[0]: 'ID',
+            cols_a_mostrar[1]: 'Nombre' if len(cols_a_mostrar) > 1 else '',
+            cols_a_mostrar[2]: 'Ubicación' if len(cols_a_mostrar) > 2 else '',
+            cols_a_mostrar[3]: 'Rendimientos' if len(cols_a_mostrar) > 3 else '',
+            cols_a_mostrar[4]: 'Plazo (meses)' if len(cols_a_mostrar) > 4 else '',
+        }
+        
+        df_display.columns = [nombre_mapeo.get(col, col) for col in df_display.columns]
+        return df_display
+    
+    return None
 
 # ============================================================================
 # INICIALIZAR SESSION STATE
@@ -103,7 +180,6 @@ if st.session_state.paso_actual == 1:
     st.markdown("---")
     st.markdown("### ¿Qué estatus quieres considerar?")
     
-    # Tarjetas de estatus
     col1, col2, col3 = st.columns(3)
     
     estatus_info = {
@@ -175,7 +251,6 @@ if st.session_state.paso_actual == 1:
             index=duracion_idx
         )
         
-        # Filtrar mercados seleccionados para que solo incluyan opciones válidas
         mercados_validos = [m for m in st.session_state.datos_cliente['mercados'] if m in mercado_options]
         if not mercados_validos:
             mercados_validos = ['España', 'EE.UU.']
@@ -203,41 +278,41 @@ if st.session_state.paso_actual == 1:
     
     st.markdown("---")
     
-    # Botón Continuar
     col1, col2, col3 = st.columns([1, 1, 1])
     with col3:
         if st.button("Continuar →", use_container_width=True, key="btn_paso1"):
-            # Cargar proyectos
             with st.spinner("Buscando proyectos..."):
-                st.session_state.df_proyectos = cargar_proyectos()
-                
-                if st.session_state.df_proyectos is not None and len(st.session_state.df_proyectos) > 0:
-                    # Rankear
-                    mercados_map = {
-                        'España': 'España',
-                        'EE.UU.': 'USA',
-                        'Global': 'Global',
-                        'México': 'México',
-                        'República Dominicana': 'República Dominicana',
-                        'Argentina': 'Argentina',
-                        'Emiratos Árabes': 'Emiratos Árabes'
-                    }
+                try:
+                    st.session_state.df_proyectos = cargar_proyectos()
                     
-                    mercados_filtrados = [mercados_map.get(m, m) for m in st.session_state.datos_cliente['mercados'] if m != 'Todos']
-                    
-                    df_ranked = rankear_proyectos(
-                        st.session_state.df_proyectos,
-                        {
-                            'duracion': 'Corto plazo' if 'Corto' in st.session_state.datos_cliente['duracion'] else 'Largo plazo',
-                            'ubicaciones': mercados_filtrados if 'Todos' not in st.session_state.datos_cliente['mercados'] else st.session_state.df_proyectos['Ubicación'].unique().tolist()
-                        },
-                        st.session_state.datos_cliente['estatus']
-                    )
-                    st.session_state.df_proyectos = df_ranked
-                    st.session_state.paso_actual = 2
-                    st.rerun()
-                else:
-                    st.error("No se encontraron proyectos con tus criterios")
+                    if st.session_state.df_proyectos is not None and len(st.session_state.df_proyectos) > 0:
+                        mercados_map = {
+                            'España': 'España',
+                            'EE.UU.': 'USA',
+                            'Global': 'Global',
+                            'México': 'México',
+                            'República Dominicana': 'República Dominicana',
+                            'Argentina': 'Argentina',
+                            'Emiratos Árabes': 'Emiratos Árabes'
+                        }
+                        
+                        mercados_filtrados = [mercados_map.get(m, m) for m in st.session_state.datos_cliente['mercados'] if m != 'Todos']
+                        
+                        df_ranked = rankear_proyectos(
+                            st.session_state.df_proyectos,
+                            {
+                                'duracion': 'Corto plazo' if 'Corto' in st.session_state.datos_cliente['duracion'] else 'Largo plazo',
+                                'ubicaciones': mercados_filtrados if 'Todos' not in st.session_state.datos_cliente['mercados'] else st.session_state.df_proyectos['Ubicación'].unique().tolist() if 'Ubicación' in st.session_state.df_proyectos.columns else []
+                            },
+                            st.session_state.datos_cliente['estatus']
+                        )
+                        st.session_state.df_proyectos = df_ranked
+                        st.session_state.paso_actual = 2
+                        st.rerun()
+                    else:
+                        st.error("No se encontraron proyectos con tus criterios")
+                except Exception as e:
+                    st.error(f"Error cargando proyectos: {e}")
 
 # ============================================================================
 # PASO 2: SELECCIÓN DE PROYECTOS
@@ -248,65 +323,70 @@ elif st.session_state.paso_actual == 2:
     st.markdown("---")
     
     if st.session_state.df_proyectos is not None and len(st.session_state.df_proyectos) > 0:
-        
-        # Tabla de proyectos
         st.markdown("#### Proyectos disponibles (ordenados por relevancia)")
         
-        df_display = st.session_state.df_proyectos[[
-            'ID', 'Nombre del proyecto', 'Ubicación', 
-            'Tipología de Dividendos', 'Estimación Nº Meses desde inicio de renta en base a Financiación',
-            'Estimación Rentab. Rendim. Recurr. anualizados Reentel',
-            'Estimación Rentab. Plusvalía Reentel'
-        ]].copy()
-        
-        df_display.columns = ['ID', 'Nombre', 'Ubicación', 'Rendimientos', 'Plazo (meses)', 'Rent. Total', 'Rent. Anualizada']
-        
-        st.dataframe(df_display, use_container_width=True, hide_index=True)
+        try:
+            df_display = preparar_tabla_proyectos(st.session_state.df_proyectos)
+            
+            if df_display is not None:
+                st.dataframe(df_display, use_container_width=True, hide_index=True)
+            else:
+                st.warning("No se pudieron mostrar los proyectos")
+                st.info("Columnas disponibles en el DataFrame:")
+                for col in st.session_state.df_proyectos.columns:
+                    st.write(f"  - {col}")
+        except Exception as e:
+            st.error(f"Error mostrando proyectos: {e}")
         
         st.markdown("---")
         st.markdown("#### Selecciona los proyectos que te interesan")
         
-        proyectos_disponibles = st.session_state.df_proyectos['ID'].tolist()
+        col_id = obtener_columna(st.session_state.df_proyectos, ['ID'])
         
-        st.session_state.proyectos_seleccionados = st.multiselect(
-            "Proyectos",
-            proyectos_disponibles,
-            default=st.session_state.proyectos_seleccionados,
-            key="select_proyectos"
-        )
-        
-        if st.session_state.proyectos_seleccionados:
-            st.success(f"✅ {len(st.session_state.proyectos_seleccionados)} proyecto(s) seleccionado(s)")
+        if col_id:
+            proyectos_disponibles = st.session_state.df_proyectos[col_id].tolist()
             
-            st.markdown("---")
-            st.markdown("#### ¿Cómo quieres distribuir el capital?")
-            
-            dist_options = ["Homogénea (igual para cada proyecto)", "Proporcional (según tamaño)", "Manual (tú eliges %)"]
-            dist_idx = 0 if "Homogénea" in st.session_state.tipo_distribucion else (
-                1 if "Proporcional" in st.session_state.tipo_distribucion else 2
+            st.session_state.proyectos_seleccionados = st.multiselect(
+                "Proyectos",
+                proyectos_disponibles,
+                default=st.session_state.proyectos_seleccionados,
+                key="select_proyectos"
             )
             
-            st.session_state.tipo_distribucion = st.radio(
-                "Tipo de distribución",
-                dist_options,
-                index=dist_idx,
-                key="dist_radio"
-            )
-            
-            st.markdown("---")
-            
-            col1, col2, col3 = st.columns([1, 1, 1])
-            with col1:
-                if st.button("← Atrás", use_container_width=True):
-                    st.session_state.paso_actual = 1
-                    st.rerun()
-            
-            with col3:
-                if st.button("Continuar →", use_container_width=True):
-                    st.session_state.paso_actual = 3
-                    st.rerun()
+            if st.session_state.proyectos_seleccionados:
+                st.success(f"✅ {len(st.session_state.proyectos_seleccionados)} proyecto(s) seleccionado(s)")
+                
+                st.markdown("---")
+                st.markdown("#### ¿Cómo quieres distribuir el capital?")
+                
+                dist_options = ["Homogénea (igual para cada proyecto)", "Proporcional (según tamaño)", "Manual (tú eliges %)"]
+                dist_idx = 0 if "Homogénea" in st.session_state.tipo_distribucion else (
+                    1 if "Proporcional" in st.session_state.tipo_distribucion else 2
+                )
+                
+                st.session_state.tipo_distribucion = st.radio(
+                    "Tipo de distribución",
+                    dist_options,
+                    index=dist_idx,
+                    key="dist_radio"
+                )
+                
+                st.markdown("---")
+                
+                col1, col2, col3 = st.columns([1, 1, 1])
+                with col1:
+                    if st.button("← Atrás", use_container_width=True):
+                        st.session_state.paso_actual = 1
+                        st.rerun()
+                
+                with col3:
+                    if st.button("Continuar →", use_container_width=True):
+                        st.session_state.paso_actual = 3
+                        st.rerun()
+            else:
+                st.warning("Selecciona al menos un proyecto para continuar")
         else:
-            st.warning("Selecciona al menos un proyecto para continuar")
+            st.error("No se encontró columna de ID en los proyectos")
     else:
         st.error("No hay proyectos disponibles")
 
@@ -320,86 +400,86 @@ elif st.session_state.paso_actual == 3:
     
     if st.session_state.proyectos_seleccionados and st.session_state.df_proyectos is not None:
         
-        # Filtrar proyectos seleccionados
-        df_seleccionados = st.session_state.df_proyectos[
-            st.session_state.df_proyectos['ID'].isin(st.session_state.proyectos_seleccionados)
-        ]
+        col_id = obtener_columna(st.session_state.df_proyectos, ['ID'])
         
-        # Distribución
-        tipo_dist_map = {
-            "Homogénea (igual para cada proyecto)": "Igual",
-            "Proporcional (según tamaño)": "Proporcional",
-            "Manual (tú eliges %)": "Manual"
-        }
-        tipo_dist_short = tipo_dist_map.get(st.session_state.tipo_distribucion, "Igual")
-        
-        distribucion = distribuir_capital(df_seleccionados, st.session_state.datos_cliente['capital'], tipo_dist_short)
-        
-        if distribucion:
-            # Tabla resumen cartera
-            st.markdown("#### Tu Cartera")
+        if col_id:
+            df_seleccionados = st.session_state.df_proyectos[
+                st.session_state.df_proyectos[col_id].isin(st.session_state.proyectos_seleccionados)
+            ]
             
-            df_cartera = pd.DataFrame(distribucion)
-            df_cartera_display = df_cartera[[
-                'ID', 'Nombre', 'Inversion', 'Porcentaje',
-                'Rentab_Recurrente', 'Rentab_Plusvalia'
-            ]].copy()
+            tipo_dist_map = {
+                "Homogénea (igual para cada proyecto)": "Igual",
+                "Proporcional (según tamaño)": "Proporcional",
+                "Manual (tú eliges %)": "Manual"
+            }
+            tipo_dist_short = tipo_dist_map.get(st.session_state.tipo_distribucion, "Igual")
             
-            divisa = st.session_state.datos_cliente['divisa']
-            df_cartera_display.columns = ['ID', 'Nombre', f'Inversión ({divisa})', '% Cartera', 'Rent. Recurrente', 'Rent. Plusvalía']
-            
-            # Formatear valores
-            df_cartera_display[f'Inversión ({divisa})'] = df_cartera_display[f'Inversión ({divisa})'].apply(lambda x: f"{divisa} {x:,.0f}")
-            df_cartera_display['% Cartera'] = df_cartera_display['% Cartera'].apply(lambda x: f"{x:.1f}%")
-            df_cartera_display['Rent. Recurrente'] = df_cartera_display['Rent. Recurrente'].apply(lambda x: f"{x*100:.2f}%")
-            df_cartera_display['Rent. Plusvalía'] = df_cartera_display['Rent. Plusvalía'].apply(lambda x: f"{x*100:.2f}%")
-            
-            st.dataframe(df_cartera_display, use_container_width=True, hide_index=True)
-            
-            st.markdown("---")
-            
-            # Cálculos
-            cartera_norm = normalizar_cartera(distribucion)
-            calculadora = CalculadoraCartera(st.session_state.datos_cliente['estatus'])
-            resultados = calculadora.calcular_cartera_completa(cartera_norm, st.session_state.datos_cliente['capital'])
-            
-            # Métricas
-            st.markdown("#### Proyección de Ganancias")
-            
-            cols = st.columns(5)
-            for idx, horizonte in enumerate([6, 12, 24, 36, 60]):
-                with cols[idx]:
-                    res = resultados[horizonte]
-                    st.metric(
-                        f"{horizonte}M",
-                        f"{divisa} {res['ganancia']:,.0f}",
-                        f"{res['rentabilidad_anualizada']*100:.2f}%/año"
-                    )
-            
-            st.markdown("---")
-            st.markdown("#### Detalles de la Proyección")
-            
-            datos_tabla = []
-            for horizonte in [6, 12, 24, 36, 60]:
-                res = resultados[horizonte]
-                datos_tabla.append({
-                    'Horizonte': f'{horizonte} meses',
-                    'Valor Final': f'{divisa} {res["valor_final"]:,.0f}',
-                    'Ganancia': f'{divisa} {res["ganancia"]:,.0f}',
-                    'Rent. Acumulada': f'{res["rentabilidad_acumulada"]*100:.2f}%',
-                    'Rent. Anualizada': f'{res["rentabilidad_anualizada"]*100:.2f}%'
-                })
-            
-            df_resultados = pd.DataFrame(datos_tabla)
-            st.dataframe(df_resultados, use_container_width=True, hide_index=True)
-            
-            st.markdown("---")
-            
-            col1, col2, col3 = st.columns([1, 1, 1])
-            with col1:
-                if st.button("← Atrás", use_container_width=True):
-                    st.session_state.paso_actual = 2
-                    st.rerun()
+            try:
+                distribucion = distribuir_capital(df_seleccionados, st.session_state.datos_cliente['capital'], tipo_dist_short)
+                
+                if distribucion:
+                    st.markdown("#### Tu Cartera")
+                    
+                    df_cartera = pd.DataFrame(distribucion)
+                    divisa = st.session_state.datos_cliente['divisa']
+                    
+                    # Formatear para mostrar
+                    df_mostrar = df_cartera[['ID', 'Nombre', 'Inversion', 'Porcentaje']].copy()
+                    df_mostrar.columns = ['ID', 'Nombre', f'Inversión ({divisa})', '% Cartera']
+                    df_mostrar[f'Inversión ({divisa})'] = df_mostrar[f'Inversión ({divisa})'].apply(lambda x: f"{divisa} {x:,.0f}")
+                    df_mostrar['% Cartera'] = df_mostrar['% Cartera'].apply(lambda x: f"{x:.1f}%")
+                    
+                    st.dataframe(df_mostrar, use_container_width=True, hide_index=True)
+                    
+                    st.markdown("---")
+                    st.markdown("#### Proyección de Ganancias")
+                    
+                    cartera_norm = normalizar_cartera(distribucion)
+                    calculadora = CalculadoraCartera(st.session_state.datos_cliente['estatus'])
+                    resultados = calculadora.calcular_cartera_completa(cartera_norm, st.session_state.datos_cliente['capital'])
+                    
+                    cols = st.columns(5)
+                    for idx, horizonte in enumerate([6, 12, 24, 36, 60]):
+                        with cols[idx]:
+                            res = resultados[horizonte]
+                            st.metric(
+                                f"{horizonte}M",
+                                f"{divisa} {res['ganancia']:,.0f}",
+                                f"{res['rentabilidad_anualizada']*100:.2f}%/año"
+                            )
+                    
+                    st.markdown("---")
+                    st.markdown("#### Detalles de la Proyección")
+                    
+                    datos_tabla = []
+                    for horizonte in [6, 12, 24, 36, 60]:
+                        res = resultados[horizonte]
+                        datos_tabla.append({
+                            'Horizonte': f'{horizonte} meses',
+                            'Valor Final': f'{divisa} {res["valor_final"]:,.0f}',
+                            'Ganancia': f'{divisa} {res["ganancia"]:,.0f}',
+                            'Rent. Acumulada': f'{res["rentabilidad_acumulada"]*100:.2f}%',
+                            'Rent. Anualizada': f'{res["rentabilidad_anualizada"]*100:.2f}%'
+                        })
+                    
+                    df_resultados = pd.DataFrame(datos_tabla)
+                    st.dataframe(df_resultados, use_container_width=True, hide_index=True)
+                    
+                    st.markdown("---")
+                    
+                    col1, col2, col3 = st.columns([1, 1, 1])
+                    with col1:
+                        if st.button("← Atrás", use_container_width=True):
+                            st.session_state.paso_actual = 2
+                            st.rerun()
+                else:
+                    st.error("Error distribuyendo capital")
+            except Exception as e:
+                st.error(f"Error en los cálculos: {e}")
+        else:
+            st.error("No se encontró la columna ID")
+    else:
+        st.info("Vuelve al Paso 2 para seleccionar proyectos")
 
 # ============================================================================
 # FOOTER
