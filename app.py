@@ -161,7 +161,7 @@ with tab1:
     with col1:
         duracion = st.selectbox(
             "Duración",
-            ["Corto plazo (<18 meses)", "Largo plazo (≥18 meses)"]
+            ["Corto plazo (<=18 meses)", "Largo plazo (>18 meses)"]
         )
         duracion_valor = "Corto plazo" if "Corto" in duracion else "Largo plazo"
     
