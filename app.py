@@ -1,5 +1,6 @@
 """
-HERRAMIENTA CONSTRUCCIÓN DE CARTERA INMOBILIARIA - Streamlit App
+HERRAMIENTA CONSTRUCCIÓN DE CARTERA INMOBILIARIA - App Guiada (3 Pasos)
+Diseñada para que clientes construyan su cartera paso a paso
 """
 
 import streamlit as st
@@ -18,7 +19,8 @@ from modules.distribucion_capital import distribuir_capital, normalizar_cartera
 st.set_page_config(
     page_title="Simulador Cartera Reental",
     page_icon="🏠",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
 st.title("🏠 Simulador de Cartera Inmobiliaria Reental")
@@ -27,123 +29,277 @@ st.title("🏠 Simulador de Cartera Inmobiliaria Reental")
 # INICIALIZAR SESSION STATE
 # ============================================================================
 
+if 'paso_actual' not in st.session_state:
+    st.session_state.paso_actual = 1
+
+if 'datos_cliente' not in st.session_state:
+    st.session_state.datos_cliente = {
+        'nombre': '',
+        'email': '',
+        'divisa': 'EUR',
+        'es_inversor': True,
+        'capital': 50000,
+        'estatus': 'SuperReentel',
+        'duracion': 'Corto plazo',
+        'mercados': ['España', 'USA'],
+        'tipo_rendimientos': 'Rendimientos periódicos',
+        'objetivo': 'Periódicas',
+    }
+
 if 'df_proyectos' not in st.session_state:
     st.session_state.df_proyectos = None
+
 if 'proyectos_seleccionados' not in st.session_state:
     st.session_state.proyectos_seleccionados = []
-if 'tipo_cambio' not in st.session_state:
-    st.session_state.tipo_cambio = 1.167
+
+if 'tipo_distribucion' not in st.session_state:
+    st.session_state.tipo_distribucion = 'Igual'
 
 # ============================================================================
-# SIDEBAR - DATOS INVERSOR
+# PASO 1: ONBOARDING
 # ============================================================================
 
-with st.sidebar:
-    st.header("📋 Tus Datos")
-    
-    nombre_inversor = st.text_input("Nombre completo", placeholder="Juan Pérez")
-    email_inversor = st.text_input("Email", placeholder="juan@example.com")
-    divisa_seleccionada = st.selectbox("Divisa", ["EUR", "USD"])
-    capital_disponible = st.number_input("Capital a invertir (€)", min_value=1000, value=50000)
-    estatus_cliente = st.selectbox("Estatus Reental", ["Reentel", "ReentelPro", "SuperReentel"])
-    
+if st.session_state.paso_actual == 1:
+    st.markdown("### Paso 1/3: Cuéntanos sobre ti")
     st.markdown("---")
     
-    st.header("⚙️ Tipo de cambio")
-    tipo_cambio_manual = st.number_input("EUR a USD (manual)", value=1.167, step=0.001)
-    st.session_state.tipo_cambio = tipo_cambio_manual
-    
-    st.markdown("---")
-    st.markdown("<small>*Herramienta de Reental Wealth*</small>", unsafe_allow_html=True)
-
-# ============================================================================
-# TABS PRINCIPALES
-# ============================================================================
-
-tab1, tab2, tab3 = st.tabs(["Preferencias", "Ranking", "Proyección"])
-
-# ============================================================================
-# TAB 1: PREFERENCIAS
-# ============================================================================
-
-with tab1:
-    st.header("Tus Preferencias de Inversión")
-    
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("Duración")
-        duracion = st.radio("Elige plazo", ["Corto plazo (<18 meses)", "Largo plazo (≥18 meses)"])
-        duracion_key = "Corto plazo" if "Corto" in duracion else "Largo plazo"
+        st.session_state.datos_cliente['nombre'] = st.text_input(
+            "Nombre completo",
+            value=st.session_state.datos_cliente['nombre'],
+            placeholder="Juan Pérez"
+        )
+        
+        st.session_state.datos_cliente['email'] = st.text_input(
+            "Email",
+            value=st.session_state.datos_cliente['email'],
+            placeholder="juan@example.com"
+        )
+        
+        st.session_state.datos_cliente['divisa'] = st.selectbox(
+            "Divisa preferida",
+            ["EUR", "USD"],
+            index=0 if st.session_state.datos_cliente['divisa'] == 'EUR' else 1
+        )
     
     with col2:
-        st.subheader("Tipología")
-        tipologia = st.multiselect("Tipo de dividendo", 
-            ["Periódicos", "Finales", "Ambos"],
-            default=["Periódicos"])
+        st.session_state.datos_cliente['es_inversor'] = st.radio(
+            "¿Ya eres inversor de Reental?",
+            [True, False],
+            format_func=lambda x: "Sí" if x else "No",
+            index=0 if st.session_state.datos_cliente['es_inversor'] else 1
+        )
+        
+        st.session_state.datos_cliente['capital'] = st.number_input(
+            "Capital disponible (orientativo en €)",
+            min_value=1000,
+            value=int(st.session_state.datos_cliente['capital']),
+            step=1000
+        )
+    
+    st.markdown("---")
+    st.markdown("### ¿Qué estatus quieres considerar?")
+    
+    # Tarjetas de estatus
+    col1, col2, col3 = st.columns(3)
+    
+    estatus_info = {
+        'SuperReentel': {
+            'descripcion': 'Consigue hasta un 50% más de rentabilidad en tus inversiones inmobiliarias y acceso prioritario.',
+            'tasa': '16% reinversión anual'
+        },
+        'ReentelPro': {
+            'descripcion': 'Consigue hasta un 25% más de rentabilidad en tus inversiones inmobiliarias y acceso a los proyectos tras los SuperReentel.',
+            'tasa': '13% reinversión anual'
+        },
+        'Reentel': {
+            'descripcion': 'Solo quiero invertir en inmobiliario.',
+            'tasa': '11% reinversión anual'
+        }
+    }
+    
+    with col1:
+        is_selected = st.session_state.datos_cliente['estatus'] == 'SuperReentel'
+        if st.button(
+            f"{'✅ ' if is_selected else ''}SuperReentel\n{estatus_info['SuperReentel']['tasa']}",
+            use_container_width=True,
+            key="btn_super"
+        ):
+            st.session_state.datos_cliente['estatus'] = 'SuperReentel'
+            st.rerun()
+        st.caption(estatus_info['SuperReentel']['descripcion'])
+    
+    with col2:
+        is_selected = st.session_state.datos_cliente['estatus'] == 'ReentelPro'
+        if st.button(
+            f"{'✅ ' if is_selected else ''}ReentelPro\n{estatus_info['ReentelPro']['tasa']}",
+            use_container_width=True,
+            key="btn_pro"
+        ):
+            st.session_state.datos_cliente['estatus'] = 'ReentelPro'
+            st.rerun()
+        st.caption(estatus_info['ReentelPro']['descripcion'])
     
     with col3:
-        st.subheader("Ubicaciones")
-        ubicaciones = st.multiselect("Dónde invertir",
-            ["España", "USA", "Global", "México", "Argentina"],
-            default=["España", "USA"])
+        is_selected = st.session_state.datos_cliente['estatus'] == 'Reentel'
+        if st.button(
+            f"{'✅ ' if is_selected else ''}Reentel\n{estatus_info['Reentel']['tasa']}",
+            use_container_width=True,
+            key="btn_reentel"
+        ):
+            st.session_state.datos_cliente['estatus'] = 'Reentel'
+            st.rerun()
+        st.caption(estatus_info['Reentel']['descripcion'])
+    
+    st.markdown("---")
+    st.markdown("### ¿Qué tipo de proyectos te interesan?")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.session_state.datos_cliente['duracion'] = st.radio(
+            "Duración",
+            ["Corto plazo (≤18 meses)", "Largo plazo (>18 meses)"],
+            index=0 if "Corto" in st.session_state.datos_cliente['duracion'] else 1
+        )
+        
+        st.session_state.datos_cliente['mercados'] = st.multiselect(
+            "Mercado",
+            ["Todos", "Global", "EE.UU.", "México", "República Dominicana", "Argentina", "España", "Emiratos Árabes"],
+            default=st.session_state.datos_cliente['mercados']
+        )
+    
+    with col2:
+        st.session_state.datos_cliente['tipo_rendimientos'] = st.radio(
+            "Tipo de rendimientos",
+            ["Final", "Rendimientos periódicos"],
+            index=0 if "Final" in st.session_state.datos_cliente['tipo_rendimientos'] else 1
+        )
+        
+        st.session_state.datos_cliente['objetivo'] = st.radio(
+            "Objetivo",
+            [
+                "Maximizar rentabilidad (esperar más tiempo)",
+                "Recibir rentas periódicas (crecimiento gradual)"
+            ],
+            index=0 if "Maximizar" in st.session_state.datos_cliente['objetivo'] else 1
+        )
     
     st.markdown("---")
     
-    if st.button("🔍 Buscar Proyectos", use_container_width=True, key="buscar"):
-        st.session_state.df_proyectos = cargar_proyectos()
-        
-        if st.session_state.df_proyectos is not None and len(st.session_state.df_proyectos) > 0:
-            # Rankear
-            df_ranked = rankear_proyectos(
-                st.session_state.df_proyectos,
-                {'duracion': duracion_key, 'ubicaciones': ubicaciones},
-                estatus_cliente
-            )
-            st.session_state.df_proyectos = df_ranked
-            st.success(f"✅ Encontrados {len(df_ranked)} proyectos")
-        else:
-            st.error("❌ No se encontraron proyectos")
+    # Botón Continuar
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col3:
+        if st.button("Continuar →", use_container_width=True, key="btn_paso1"):
+            # Cargar proyectos
+            with st.spinner("Buscando proyectos..."):
+                st.session_state.df_proyectos = cargar_proyectos()
+                
+                if st.session_state.df_proyectos is not None and len(st.session_state.df_proyectos) > 0:
+                    # Rankear
+                    mercados_map = {
+                        'España': 'España',
+                        'EE.UU.': 'USA',
+                        'Global': 'Global',
+                        'México': 'México',
+                        'República Dominicana': 'República Dominicana',
+                        'Argentina': 'Argentina',
+                        'Emiratos Árabes': 'Emiratos Árabes'
+                    }
+                    
+                    mercados_filtrados = [mercados_map.get(m, m) for m in st.session_state.datos_cliente['mercados'] if m != 'Todos']
+                    
+                    df_ranked = rankear_proyectos(
+                        st.session_state.df_proyectos,
+                        {
+                            'duracion': 'Corto plazo' if 'Corto' in st.session_state.datos_cliente['duracion'] else 'Largo plazo',
+                            'ubicaciones': mercados_filtrados if 'Todos' not in st.session_state.datos_cliente['mercados'] else st.session_state.df_proyectos['Ubicación'].unique().tolist()
+                        },
+                        st.session_state.datos_cliente['estatus']
+                    )
+                    st.session_state.df_proyectos = df_ranked
+                    st.session_state.paso_actual = 2
+                    st.rerun()
+                else:
+                    st.error("No se encontraron proyectos con tus criterios")
 
 # ============================================================================
-# TAB 2: RANKING
+# PASO 2: SELECCIÓN DE PROYECTOS
 # ============================================================================
 
-with tab2:
-    st.header("Proyectos Rankeados")
+elif st.session_state.paso_actual == 2:
+    st.markdown("### Paso 2/3: Elige tus proyectos")
+    st.markdown("---")
     
     if st.session_state.df_proyectos is not None and len(st.session_state.df_proyectos) > 0:
         
-        # Mostrar tabla de ranking
-        df_display = st.session_state.df_proyectos[[
-            'ID', 'Nombre del proyecto', 'Ubicación', 'ESTADO', 
-            'score_ranking'
-        ]].copy() if 'score_ranking' in st.session_state.df_proyectos.columns else st.session_state.df_proyectos
+        # Tabla de proyectos
+        st.markdown("#### Proyectos disponibles (ordenados por relevancia)")
         
-        st.dataframe(df_display, use_container_width=True)
+        df_display = st.session_state.df_proyectos[[
+            'ID', 'Nombre del proyecto', 'Ubicación', 
+            'Tipología de Dividendos', 'Estimación Nº Meses desde inicio de renta en base a Financiación',
+            'Estimación Rentab. Rendim. Recurr. anualizados Reentel',
+            'Estimación Rentab. Plusvalía Reentel'
+        ]].copy()
+        
+        df_display.columns = ['ID', 'Nombre', 'Ubicación', 'Rendimientos', 'Plazo (meses)', 'Rent. Total', 'Rent. Anualizada']
+        
+        st.dataframe(df_display, use_container_width=True, hide_index=True)
         
         st.markdown("---")
-        st.subheader("Selecciona proyectos")
+        st.markdown("#### Selecciona los proyectos que te interesan")
         
-        # Multiselect de proyectos
         proyectos_disponibles = st.session_state.df_proyectos['ID'].tolist()
+        
         st.session_state.proyectos_seleccionados = st.multiselect(
-            "Elige proyectos",
+            "Proyectos",
             proyectos_disponibles,
-            key="proyectos_select"
+            default=st.session_state.proyectos_seleccionados,
+            key="select_proyectos"
         )
         
         if st.session_state.proyectos_seleccionados:
             st.success(f"✅ {len(st.session_state.proyectos_seleccionados)} proyecto(s) seleccionado(s)")
+            
+            st.markdown("---")
+            st.markdown("#### ¿Cómo quieres distribuir el capital?")
+            
+            st.session_state.tipo_distribucion = st.radio(
+                "Tipo de distribución",
+                ["Homogénea (igual para cada proyecto)", "Proporcional (según tamaño)", "Manual (tú eliges %)"],
+                index=0 if st.session_state.tipo_distribucion == "Igual" else (
+                    1 if st.session_state.tipo_distribucion == "Proporcional" else 2
+                ),
+                key="dist_radio"
+            )
+            
+            st.markdown("---")
+            
+            col1, col2, col3 = st.columns([1, 1, 1])
+            with col1:
+                if st.button("← Atrás", use_container_width=True):
+                    st.session_state.paso_actual = 1
+                    st.rerun()
+            
+            with col3:
+                if st.button("Continuar →", use_container_width=True):
+                    st.session_state.paso_actual = 3
+                    st.rerun()
+        else:
+            st.warning("Selecciona al menos un proyecto para continuar")
     else:
-        st.info("👆 Primero, busca proyectos en la pestaña 'Preferencias'")
+        st.error("No hay proyectos disponibles")
 
 # ============================================================================
-# TAB 3: PROYECCIÓN
+# PASO 3: RESULTADOS
 # ============================================================================
 
-with tab3:
-    st.header("Proyección de Rentabilidad")
+elif st.session_state.paso_actual == 3:
+    st.markdown("### Paso 3/3: Tus Resultados")
+    st.markdown("---")
     
     if st.session_state.proyectos_seleccionados and st.session_state.df_proyectos is not None:
         
@@ -152,43 +308,58 @@ with tab3:
             st.session_state.df_proyectos['ID'].isin(st.session_state.proyectos_seleccionados)
         ]
         
-        # PASO 1: Distribución
-        st.subheader("Paso 1: Distribución de Capital")
+        # Distribución
+        tipo_dist_map = {
+            "Homogénea (igual para cada proyecto)": "Igual",
+            "Proporcional (según tamaño)": "Proporcional",
+            "Manual (tú eliges %)": "Manual"
+        }
+        tipo_dist_short = tipo_dist_map.get(st.session_state.tipo_distribucion, "Igual")
         
-        tipo_dist = st.radio("¿Cómo distribuir?", 
-            ["Igual", "Proporcional", "Manual"],
-            key="dist_type")
-        
-        distribucion = distribuir_capital(df_seleccionados, capital_disponible, tipo_dist)
+        distribucion = distribuir_capital(df_seleccionados, st.session_state.datos_cliente['capital'], tipo_dist_short)
         
         if distribucion:
-            df_dist = pd.DataFrame(distribucion)
-            st.dataframe(df_dist[['ID', 'Nombre', 'Inversion', 'Porcentaje']], use_container_width=True)
+            # Tabla resumen cartera
+            st.markdown("#### Tu Cartera")
+            
+            df_cartera = pd.DataFrame(distribucion)
+            df_cartera_display = df_cartera[[
+                'ID', 'Nombre', 'Inversion', 'Porcentaje',
+                'Rentab_Recurrente', 'Rentab_Plusvalia'
+            ]].copy()
+            
+            df_cartera_display.columns = ['ID', 'Nombre', 'Inversión (€)', '% Cartera', 'Rent. Recurrente', 'Rent. Plusvalía']
+            
+            # Formatear valores
+            df_cartera_display['Inversión (€)'] = df_cartera_display['Inversión (€)'].apply(lambda x: f"€ {x:,.0f}")
+            df_cartera_display['% Cartera'] = df_cartera_display['% Cartera'].apply(lambda x: f"{x:.1f}%")
+            df_cartera_display['Rent. Recurrente'] = df_cartera_display['Rent. Recurrente'].apply(lambda x: f"{x*100:.2f}%")
+            df_cartera_display['Rent. Plusvalía'] = df_cartera_display['Rent. Plusvalía'].apply(lambda x: f"{x*100:.2f}%")
+            
+            st.dataframe(df_cartera_display, use_container_width=True, hide_index=True)
             
             st.markdown("---")
             
-            # PASO 2: Cálculos
-            st.subheader("Paso 2: Proyección Rentabilidades")
-            
+            # Cálculos
             cartera_norm = normalizar_cartera(distribucion)
-            calculadora = CalculadoraCartera(estatus_cliente)
-            resultados = calculadora.calcular_cartera_completa(cartera_norm, capital_disponible)
+            calculadora = CalculadoraCartera(st.session_state.datos_cliente['estatus'])
+            resultados = calculadora.calcular_cartera_completa(cartera_norm, st.session_state.datos_cliente['capital'])
             
-            # Mostrar resultados
+            # Métricas
+            st.markdown("#### Proyección de Ganancias")
+            
             cols = st.columns(5)
             for idx, horizonte in enumerate([6, 12, 24, 36, 60]):
                 with cols[idx]:
                     res = resultados[horizonte]
                     st.metric(
-                        f"{horizonte} meses",
+                        f"{horizonte}M",
                         f"€ {res['ganancia']:,.0f}",
                         f"{res['rentabilidad_anualizada']*100:.2f}%/año"
                     )
             
             st.markdown("---")
-            
-            # Tabla detallada
-            st.subheader("Detalles por Horizonte")
+            st.markdown("#### Detalles de la Proyección")
             
             datos_tabla = []
             for horizonte in [6, 12, 24, 36, 60]:
@@ -197,19 +368,20 @@ with tab3:
                     'Horizonte': f'{horizonte} meses',
                     'Valor Final': f'€ {res["valor_final"]:,.0f}',
                     'Ganancia': f'€ {res["ganancia"]:,.0f}',
-                    'Rent. Acum.': f'{res["rentabilidad_acumulada"]*100:.2f}%',
-                    'Rent. Anual': f'{res["rentabilidad_anualizada"]*100:.2f}%'
+                    'Rent. Acumulada': f'{res["rentabilidad_acumulada"]*100:.2f}%',
+                    'Rent. Anualizada': f'{res["rentabilidad_anualizada"]*100:.2f}%'
                 })
             
             df_resultados = pd.DataFrame(datos_tabla)
-            st.dataframe(df_resultados, use_container_width=True)
+            st.dataframe(df_resultados, use_container_width=True, hide_index=True)
             
-            st.success("✅ Proyección completada")
-        else:
-            st.error("Error distribuindo capital")
-    
-    else:
-        st.info("👆 Selecciona proyectos en la pestaña 'Ranking'")
+            st.markdown("---")
+            
+            col1, col2, col3 = st.columns([1, 1, 1])
+            with col1:
+                if st.button("← Atrás", use_container_width=True):
+                    st.session_state.paso_actual = 2
+                    st.rerun()
 
 # ============================================================================
 # FOOTER
