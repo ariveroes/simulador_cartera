@@ -6,7 +6,7 @@ Usa reportlab para máximo control sobre el diseño
 from reportlab.lib.pagesizes import A4, letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch, cm
-from reportlab.lib.colors import HexColor, black, grey, lightgrey
+from reportlab.lib.colors import HexColor, black, grey, lightgrey, white
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
 from reportlab.platypus import Image as RLImage
 from reportlab.pdfgen import canvas
@@ -56,15 +56,16 @@ class PDFCartera:
         # Subtítulos
         self.styles.add(ParagraphStyle(
             name='Subtitulo',
-            parent=self.styles['NormalText'],
+            parent=self.styles['BodyText'],
             fontSize=10,
             textColor=black,
             spaceAfter=6
         ))
         
-        # Normal
+        # Texto normal personalizado
         self.styles.add(ParagraphStyle(
             name='NormalText',
+            parent=self.styles['BodyText'],
             fontSize=9,
             textColor=black,
             spaceAfter=6
@@ -73,6 +74,7 @@ class PDFCartera:
         # Métrica
         self.styles.add(ParagraphStyle(
             name='Metrica',
+            parent=self.styles['BodyText'],
             fontSize=11,
             textColor=HexColor('#1f77b4'),
             fontName='Helvetica-Bold',
@@ -150,7 +152,7 @@ class PDFCartera:
             ('BOTTOMPADDING', (0, 0), (2, -1), 6),
             ('TOPPADDING', (0, 0), (2, -1), 6),
             ('GRID', (0, 0), (2, -1), 0.5, lightgrey),
-            ('ROWBACKGROUND', (0, 6), (2, 6), white),  # Línea en blanco
+            ('ROWBACKGROUND', (0, 6), (2, 6), white),
         ]))
         
         self.story.append(tabla)
