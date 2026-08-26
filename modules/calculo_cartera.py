@@ -316,7 +316,7 @@ def rankear_proyectos(df_proyectos, criterios_cliente, estatus_cliente):
     
     # Calcular scores individuales
     max_rent = df['Estimación Rentab. Total (Alq. + Plusv.) anualizado Reentel'].max()
-    max_meses = df['Nº Meses restantes de renta hasta Estimacion fin'].max()
+    max_meses = df['Estimación Nº Meses desde inicio de renta en base a Financiación'].max()
     
     # Normalizar
     if pd.isna(max_rent) or max_rent == 0:
