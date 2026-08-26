@@ -68,8 +68,8 @@ class PDFCarteraProf:
             spaceAfter=8
         ))
         
-        self.styles.add(ParagraphStyle(
-            name='Normal',
+       self.styles.add(ParagraphStyle(
+    name='NormalCustom',
             fontSize=9,
             textColor=COLOR_TEXT_LIGHT
         ))
@@ -222,7 +222,7 @@ class PDFCarteraProf:
             self.story.append(img_rentabilidad)
             self.story.append(Spacer(1, 0.2*inch))
         except:
-            self.story.append(Paragraph("Error al generar gráficos", self.styles['Normal']))
+            self.story.append(Paragraph("Error al generar gráficos", self.styles['NormalCustom']))
     
     def agregar_tabla_proyectos(self, cartera_lista):
         """Tabla con detalles de proyectos"""
@@ -268,7 +268,7 @@ class PDFCarteraProf:
             'Consulta con tu asesor Reental antes de invertir.'
             '</font>'
         )
-        self.story.append(Paragraph(footer_text, self.styles['Normal']))
+        self.story.append(Paragraph(footer_text, self.styles['NormalCustom']))
     
     def generar(self, nombre_inversor, email, estatus, tipo_cambio,
                 num_inmuebles, inversion_total_eur, rentabilidad_anual,
