@@ -1,6 +1,6 @@
 """
 HERRAMIENTA CONSTRUCCIÓN DE CARTERA INMOBILIARIA - App Guiada (3 Pasos)
-Versión final verificada y corregida
+Versión con tabla completa en Paso 2
 """
 
 import streamlit as st
@@ -41,45 +41,66 @@ def obtener_columna(df, posibles_nombres):
     return None
 
 def preparar_tabla_proyectos(df_proyectos):
-    """Prepara la tabla de proyectos para mostrar en Paso 2"""
+    """
+    Prepara la tabla de proyectos para mostrar en Paso 2
+    Incluye: Nombre, Ubicación, Tipología, Plazo, Rentabilidad Total, Rentabilidad Anualizada
+    """
     if df_proyectos is None or df_proyectos.empty:
         return None
     
     df_display = df_proyectos.copy()
-    cols_resultado = []
     
-    # Obtener columnas disponibles
-    col_id = obtener_columna(df_display, ['ID'])
-    col_nombre = obtener_columna(df_display, ['Nombre del proyecto', 'Nombre', 'nombre'])
-    col_ubicacion = obtener_columna(df_display, ['Ubicación', 'ubicacion'])
-    col_tipo_div = obtener_columna(df_display, ['Tipología de Dividendos', 'Tipología de dividendos', 'tipo_dividendo'])
-    col_plazo = obtener_columna(df_display, [
-        'Estimación Nº Meses desde inicio de renta en base a Financiación',
-        'Nº Meses desde inicio de renta',
-        'meses_plazo'
-    ])
-    
-    # Construir lista de columnas disponibles
-    cols_disponibles = [
-        (col_id, 'ID'),
-        (col_nombre, 'Nombre'),
-        (col_ubicacion, 'Ubicación'),
-        (col_tipo_div, 'Rendimientos'),
-        (col_plazo, 'Plazo (meses)')
+    # Mapear columnas disponibles
+    cols_config = [
+        ('Nombre', ['Nombre del proyecto', 'Nombre', 'nombre']),
+        ('Ubicación', ['Ubicación', 'ubicacion']),
+        ('Tipología de Dividendos', ['Tipología de Dividendos', 'Tipología de dividendos', 'tipo_dividendo']),
+        ('Plazo (meses)', [
+            'Estimación Nº Meses desde inicio de renta en base a Financiación',
+            'Nº Meses desde inicio de renta',
+            'meses_plazo'
+        ]),
+        ('Rent. Total (%)', [
+            'Estimación Rentab. Total Reentel',
+            'Estimación Rentab. Rendim. Recurr. anualizados Reentel',
+            'Rentabilidad Total'
+        ]),
+        ('Rent. Anualizada (%)', [
+            'Estimación Rentab. Plusvalía Reentel',
+            'Rentabilidad Anualizada',
+            'Rent. Anual'
+        ])
     ]
     
-    # Filtrar solo las que existen
-    cols_para_mostrar = []
-    nombres_nuevos = []
-    for col, nombre_nuevo in cols_disponibles:
-        if col is not None:
-            cols_para_mostrar.append(col)
-            nombres_nuevos.append(nombre_nuevo)
+    cols_a_usar = []
+    nombres_display = []
     
-    # Si hay columnas, crear el DataFrame de display
-    if len(cols_para_mostrar) > 0:
-        df_display = df_display[cols_para_mostrar].copy()
-        df_display.columns = nombres_nuevos
+    for nombre_display, posibles_nombres in cols_config:
+        col = obtener_columna(df_display, posibles_nombres)
+        if col is not None:
+            cols_a_usar.append(col)
+            nombres_display.append(nombre_display)
+    
+    # Si encontramos al menos Nombre y Ubicación, crear tabla
+    if len(cols_a_usar) >= 2:
+        df_display = df_display[cols_a_usar].copy()
+        df_display.columns = nombres_display
+        
+        # Formatear números si existen columnas de rentabilidad
+        for col in df_display.columns:
+            if 'Rent.' in col:
+                try:
+                    df_display[col] = pd.to_numeric(df_display[col], errors='coerce')
+                    df_display[col] = df_display[col].apply(lambda x: f"{x*100:.2f}%" if pd.notna(x) else "N/A")
+                except:
+                    pass
+            elif 'Plazo' in col:
+                try:
+                    df_display[col] = pd.to_numeric(df_display[col], errors='coerce')
+                    df_display[col] = df_display[col].apply(lambda x: f"{int(x)}" if pd.notna(x) else "N/A")
+                except:
+                    pass
+        
         return df_display
     
     return None
@@ -317,7 +338,6 @@ elif st.session_state.paso_actual == 2:
                 st.dataframe(df_display, use_container_width=True, hide_index=True)
             else:
                 st.warning("No se pudieron preparar los datos de proyectos")
-                st.info(f"Columnas disponibles: {', '.join(st.session_state.df_proyectos.columns.tolist()[:10])}")
         except Exception as e:
             st.error(f"Error mostrando proyectos: {e}")
         
@@ -406,7 +426,6 @@ elif st.session_state.paso_actual == 3:
                     df_cartera = pd.DataFrame(distribucion)
                     divisa = st.session_state.datos_cliente['divisa']
                     
-                    # Formatear para mostrar
                     df_mostrar = df_cartera[['ID', 'Nombre', 'Inversion', 'Porcentaje']].copy()
                     df_mostrar.columns = ['ID', 'Nombre', f'Inversión ({divisa})', '% Cartera']
                     df_mostrar[f'Inversión ({divisa})'] = df_mostrar[f'Inversión ({divisa})'].apply(lambda x: f"{divisa} {x:,.0f}")
