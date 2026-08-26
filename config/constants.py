@@ -108,7 +108,7 @@ UBICACIONES = [
 # ============================================================================
 SHEET_INTERMEDIO_URL = "https://docs.google.com/spreadsheets/d/1sL6fynVPKtfaNs22t019ItKbzMFaOHbO5kqVzMxXHIY/edit?gid=0#gid=0"
 SHEET_INTERMEDIO_GSHEET_ID = "1sL6fynVPKtfaNs22t019ItKbzMFaOHbO5kqVzMxXHIY"
-SHEET_INTERMEDIO_WORKSHEET_NAME = "Copy Master_Inmuebles"
+SHEET_INTERMEDIO_WORKSHEET_NAME = "Master Inmuebles Pro"
 
 # ============================================================================
 # COLUMNAS NECESARIAS DEL SHEET (mapping)
