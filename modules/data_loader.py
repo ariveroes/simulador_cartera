@@ -67,9 +67,17 @@ def cargar_proyectos():
         sheet = client.open_by_key(SHEET_INTERMEDIO_GSHEET_ID)
         worksheet = sheet.worksheet(SHEET_INTERMEDIO_WORKSHEET_NAME)
         
-        # Obtener todos los datos (el header está en fila 2, no 1)
-        datos = worksheet.get_all_records(expected_headers=1)
-        df = pd.DataFrame(datos)
+        # Obtener todos los valores
+        todas_las_filas = worksheet.get_all_values()
+        
+        # La fila 2 (índice 1) tiene los headers
+        headers = todas_las_filas[1]
+        
+        # Los datos empiezan en fila 3 (índice 2)
+        datos_filas = todas_las_filas[2:]
+        
+        # Crear DataFrame
+        df = pd.DataFrame(datos_filas, columns=headers)
         
         # Limpiar columnas completamente vacías
         df = df.dropna(axis=1, how='all')
