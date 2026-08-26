@@ -53,18 +53,30 @@ def obtener_cliente_gspread():
 @st.cache_data(ttl=3600)
 def cargar_proyectos():
     """
-    Carga proyectos desde datos simulados (sin Google Sheets)
-    Solo retorna proyectos en VENTA PRIMARIA (PRELANZAMIENTO + FINANCIÁNDOSE)
+    Carga proyectos desde Google Sheet Intermedio
+    Solo retorna proyectos en FINANCIÁNDOSE
     """
     try:
-        from test_data import crear_df_prueba
-        df = crear_df_prueba()
+        client = obtener_cliente_gspread()
         
-        # Filtrar solo FINANCIÁNDOSE
-        df_primaria = df[df['ESTADO'].isin(['FINANCIÁNDOSE'])]
+        if client is None:
+            st.error("No se pudo conectar a Google Sheets")
+            return pd.DataFrame()
         
-        st.success(f"✅ Cargados {len(df_primaria)} proyectos en venta primaria")
-        return df_primaria
+        # Abrir el sheet
+        sheet = client.open_by_key(SHEET_INTERMEDIO_GSHEET_ID)
+        worksheet = sheet.worksheet(SHEET_INTERMEDIO_WORKSHEET_NAME)
+        
+        # Obtener todos los datos
+        datos = worksheet.get_all_records()
+        df = pd.DataFrame(datos)
+        
+        # Filtrar SOLO FINANCIÁNDOSE (sin PRELANZAMIENTO)
+        df_financiando = df[df['ESTADO'] == 'FINANCIÁNDOSE']
+        
+        st.success(f"✅ Cargados {len(df_financiando)} proyectos en FINANCIÁNDOSE")
+        return df_financiando
+        
     except Exception as e:
         st.error(f"Error cargando proyectos: {e}")
         return pd.DataFrame()
