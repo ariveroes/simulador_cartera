@@ -281,7 +281,7 @@ with tab3:
         # Importar módulos necesarios
         from modules.distribucion_capital import distribuir_capital, normalizar_cartera
         from modules.calculo_cartera import CalculadoraCartera
-        from modules.pdf_generator import PDFCartera
+        from modules.pdf_generator import PDFCarteraProf
         
         # PASO 1: Seleccionar tipo de distribución
         st.markdown("#### Paso 1: Distribución del capital")
@@ -415,21 +415,19 @@ with tab3:
                                              for d in distribucion) / inversion_total_eur if inversion_total_eur > 0 else 0
                         rent_total_anual = rent_rec_prom + rent_plusv_prom
                         
-                        # Generar PDF
-                        pdf_gen = PDFCartera()
+                        # Calcular media de meses
+                        media_meses = df_seleccionados.get('Estimación Nº Meses desde Lanzamiento', [24]).mean() if len(df_seleccionados) > 0 else 24
+                        
+                        # Generar PDF profesional
+                        pdf_gen = PDFCarteraProf()
                         pdf_bytes = pdf_gen.generar(
                             nombre_inversor=nombre_inversor or "Inversor",
                             email=email_inversor or "email@example.com",
                             estatus=estatus_cliente,
                             tipo_cambio=st.session_state.tipo_cambio,
                             num_inmuebles=len(distribucion),
-                            media_meses=media_meses,
                             inversion_total_eur=inversion_total_eur,
-                            inversion_total_usd=inversion_total_usd,
-                            coste_estatus=coste_estatus,
-                            rent_recurrente=rent_rec_prom,
-                            rent_plusvalia=rent_plusv_prom,
-                            rent_total_anualizada=rent_total_anual,
+                            rentabilidad_anual=rent_total_anual,
                             resultados_por_horizonte=resultados,
                             cartera_lista=distribucion
                         )
