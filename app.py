@@ -1,6 +1,6 @@
 """
 HERRAMIENTA CONSTRUCCIÓN DE CARTERA INMOBILIARIA - App Guiada (3 Pasos)
-Versión mejorada con manejo robusto de columnas
+Versión final verificada y corregida
 """
 
 import streamlit as st
@@ -30,10 +30,7 @@ st.title("🏠 Simulador de Cartera Inmobiliaria Reental")
 # ============================================================================
 
 def obtener_columna(df, posibles_nombres):
-    """
-    Busca una columna en el DataFrame probando múltiples nombres posibles.
-    Útil cuando no sabemos exactamente el nombre de la columna.
-    """
+    """Busca una columna en el DataFrame probando múltiples nombres posibles"""
     if df is None or df.empty:
         return None
     
@@ -41,63 +38,48 @@ def obtener_columna(df, posibles_nombres):
         if nombre in df.columns:
             return nombre
     
-    # Si no encuentra, retorna None
     return None
 
 def preparar_tabla_proyectos(df_proyectos):
-    """
-    Prepara la tabla de proyectos para mostrar en Paso 2
-    """
+    """Prepara la tabla de proyectos para mostrar en Paso 2"""
     if df_proyectos is None or df_proyectos.empty:
         return None
     
     df_display = df_proyectos.copy()
+    cols_resultado = []
     
-    # Seleccionar columnas disponibles
-    cols_a_mostrar = []
-    
-    # ID
+    # Obtener columnas disponibles
     col_id = obtener_columna(df_display, ['ID'])
-    if col_id:
-        cols_a_mostrar.append(col_id)
-    
-    # Nombre
     col_nombre = obtener_columna(df_display, ['Nombre del proyecto', 'Nombre', 'nombre'])
-    if col_nombre:
-        cols_a_mostrar.append(col_nombre)
-    
-    # Ubicación
     col_ubicacion = obtener_columna(df_display, ['Ubicación', 'ubicacion'])
-    if col_ubicacion:
-        cols_a_mostrar.append(col_ubicacion)
-    
-    # Tipología de Dividendos
     col_tipo_div = obtener_columna(df_display, ['Tipología de Dividendos', 'Tipología de dividendos', 'tipo_dividendo'])
-    if col_tipo_div:
-        cols_a_mostrar.append(col_tipo_div)
-    
-    # Plazo
     col_plazo = obtener_columna(df_display, [
         'Estimación Nº Meses desde inicio de renta en base a Financiación',
         'Nº Meses desde inicio de renta',
         'meses_plazo'
     ])
-    if col_plazo:
-        cols_a_mostrar.append(col_plazo)
     
-    if len(cols_a_mostrar) > 0:
-        df_display = df_display[cols_a_mostrar].copy()
-        
-        # Renombrar columnas para la visualización
-        nombre_mapeo = {
-            cols_a_mostrar[0]: 'ID',
-            cols_a_mostrar[1]: 'Nombre' if len(cols_a_mostrar) > 1 else '',
-            cols_a_mostrar[2]: 'Ubicación' if len(cols_a_mostrar) > 2 else '',
-            cols_a_mostrar[3]: 'Rendimientos' if len(cols_a_mostrar) > 3 else '',
-            cols_a_mostrar[4]: 'Plazo (meses)' if len(cols_a_mostrar) > 4 else '',
-        }
-        
-        df_display.columns = [nombre_mapeo.get(col, col) for col in df_display.columns]
+    # Construir lista de columnas disponibles
+    cols_disponibles = [
+        (col_id, 'ID'),
+        (col_nombre, 'Nombre'),
+        (col_ubicacion, 'Ubicación'),
+        (col_tipo_div, 'Rendimientos'),
+        (col_plazo, 'Plazo (meses)')
+    ]
+    
+    # Filtrar solo las que existen
+    cols_para_mostrar = []
+    nombres_nuevos = []
+    for col, nombre_nuevo in cols_disponibles:
+        if col is not None:
+            cols_para_mostrar.append(col)
+            nombres_nuevos.append(nombre_nuevo)
+    
+    # Si hay columnas, crear el DataFrame de display
+    if len(cols_para_mostrar) > 0:
+        df_display = df_display[cols_para_mostrar].copy()
+        df_display.columns = nombres_nuevos
         return df_display
     
     return None
@@ -298,11 +280,14 @@ if st.session_state.paso_actual == 1:
                         
                         mercados_filtrados = [mercados_map.get(m, m) for m in st.session_state.datos_cliente['mercados'] if m != 'Todos']
                         
+                        col_ubicacion = obtener_columna(st.session_state.df_proyectos, ['Ubicación', 'ubicacion'])
+                        ubicaciones_unicas = st.session_state.df_proyectos[col_ubicacion].unique().tolist() if col_ubicacion else []
+                        
                         df_ranked = rankear_proyectos(
                             st.session_state.df_proyectos,
                             {
                                 'duracion': 'Corto plazo' if 'Corto' in st.session_state.datos_cliente['duracion'] else 'Largo plazo',
-                                'ubicaciones': mercados_filtrados if 'Todos' not in st.session_state.datos_cliente['mercados'] else st.session_state.df_proyectos['Ubicación'].unique().tolist() if 'Ubicación' in st.session_state.df_proyectos.columns else []
+                                'ubicaciones': mercados_filtrados if 'Todos' not in st.session_state.datos_cliente['mercados'] else ubicaciones_unicas
                             },
                             st.session_state.datos_cliente['estatus']
                         )
@@ -331,10 +316,8 @@ elif st.session_state.paso_actual == 2:
             if df_display is not None:
                 st.dataframe(df_display, use_container_width=True, hide_index=True)
             else:
-                st.warning("No se pudieron mostrar los proyectos")
-                st.info("Columnas disponibles en el DataFrame:")
-                for col in st.session_state.df_proyectos.columns:
-                    st.write(f"  - {col}")
+                st.warning("No se pudieron preparar los datos de proyectos")
+                st.info(f"Columnas disponibles: {', '.join(st.session_state.df_proyectos.columns.tolist()[:10])}")
         except Exception as e:
             st.error(f"Error mostrando proyectos: {e}")
         
@@ -344,7 +327,7 @@ elif st.session_state.paso_actual == 2:
         col_id = obtener_columna(st.session_state.df_proyectos, ['ID'])
         
         if col_id:
-            proyectos_disponibles = st.session_state.df_proyectos[col_id].tolist()
+            proyectos_disponibles = st.session_state.df_proyectos[col_id].unique().tolist()
             
             st.session_state.proyectos_seleccionados = st.multiselect(
                 "Proyectos",
