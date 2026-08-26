@@ -68,15 +68,14 @@ class PDFCarteraProf:
             spaceAfter=8
         ))
         
-       self.styles.add(ParagraphStyle(
-    name='NormalCustom',
+        self.styles.add(ParagraphStyle(
+            name='NormalCustom',
             fontSize=9,
             textColor=COLOR_TEXT_LIGHT
         ))
     
     def agregar_portada(self, nombre_inversor, estatus):
         """Portada profesional"""
-        # Fondo oscuro simulado con tabla
         portada_data = [
             [''],
             [''],
@@ -117,7 +116,7 @@ class PDFCarteraProf:
         for h in horizontes:
             if h in resultados:
                 ganancias_reentel.append(resultados[h]['ganancia'])
-                ganancias_sr.append(resultados[h]['ganancia'] * 1.1)  # Simulado
+                ganancias_sr.append(resultados[h]['ganancia'] * 1.1)
         
         fig, ax = plt.subplots(figsize=(10, 6), facecolor=COLOR_DARK)
         ax.set_facecolor(COLOR_DARK)
@@ -170,7 +169,6 @@ class PDFCarteraProf:
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
         
-        # Agregar valores en los puntos
         for i, (h, r) in enumerate(zip(horizontes, rentabilidades)):
             ax.text(h, r + 1, f'{r:.1f}%', ha='center', color=COLOR_ORANGE, fontweight='bold')
         
@@ -208,12 +206,10 @@ class PDFCarteraProf:
         self.story.append(Paragraph("PROYECCIÓN CON REINVERSIÓN", self.styles['Subtitulo']))
         self.story.append(Spacer(1, 0.1*inch))
         
-        # Crear gráficos
-        self.crear_grafico_ganancia(resultados, '/tmp/ganancia.png')
-        self.crear_grafico_rentabilidad(resultados, '/tmp/rentabilidad.png')
-        
-        # Agregar gráficos al PDF
         try:
+            self.crear_grafico_ganancia(resultados, '/tmp/ganancia.png')
+            self.crear_grafico_rentabilidad(resultados, '/tmp/rentabilidad.png')
+            
             img_ganancia = RLImage('/tmp/ganancia.png', width=6*inch, height=3.5*inch)
             self.story.append(img_ganancia)
             self.story.append(Spacer(1, 0.2*inch))
@@ -221,8 +217,8 @@ class PDFCarteraProf:
             img_rentabilidad = RLImage('/tmp/rentabilidad.png', width=6*inch, height=3.5*inch)
             self.story.append(img_rentabilidad)
             self.story.append(Spacer(1, 0.2*inch))
-        except:
-            self.story.append(Paragraph("Error al generar gráficos", self.styles['NormalCustom']))
+        except Exception as e:
+            self.story.append(Paragraph(f"Error al generar gráficos: {str(e)}", self.styles['NormalCustom']))
     
     def agregar_tabla_proyectos(self, cartera_lista):
         """Tabla con detalles de proyectos"""
@@ -236,11 +232,11 @@ class PDFCarteraProf:
         
         for proyecto in cartera_lista:
             datos.append([
-                proyecto.get('id', ''),
-                proyecto.get('nombre', '')[:20],
-                f"€ {proyecto.get('inversion_eur', 0):,.0f}",
-                f"{proyecto.get('porcentaje', 0):.1f}%",
-                f"{proyecto.get('rentabilidad', 0)*100:.1f}%"
+                proyecto.get('ID', ''),
+                proyecto.get('Nombre', '')[:20],
+                f"€ {proyecto.get('Inversion', 0):,.0f}",
+                f"{proyecto.get('Porcentaje', 0):.1f}%",
+                f"{proyecto.get('Rentab_Recurrente', 0)*100:.1f}%"
             ])
         
         tabla = Table(datos, colWidths=[1.5*cm, 3*cm, 2*cm, 2*cm, 2*cm])
@@ -281,9 +277,6 @@ class PDFCarteraProf:
         self.agregar_tabla_proyectos(cartera_lista)
         self.agregar_footer()
         
-        # Build PDF
         self.doc.build(self.story)
-        
-        # Obtener bytes
         self.buffer.seek(0)
         return self.buffer.getvalue()
