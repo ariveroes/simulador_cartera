@@ -56,7 +56,7 @@ class PDFCartera:
         # Subtítulos
         self.styles.add(ParagraphStyle(
             name='Subtitulo',
-            parent=self.styles['Normal'],
+            parent=self.styles['NormalText'],
             fontSize=10,
             textColor=black,
             spaceAfter=6
@@ -64,7 +64,7 @@ class PDFCartera:
         
         # Normal
         self.styles.add(ParagraphStyle(
-            name='Normal',
+            name='NormalText',
             fontSize=9,
             textColor=black,
             spaceAfter=6
@@ -311,7 +311,7 @@ class PDFCartera:
             'Este documento es una propuesta de inversión basada en datos estimados. '
             'Las rentabilidades reales pueden variar. Consulta con tu asesor Reental antes de invertir.'
             '</font>',
-            self.styles['Normal']
+            self.styles['NormalText']
         )
         self.story.append(pie)
     
