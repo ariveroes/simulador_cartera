@@ -275,24 +275,46 @@ def calcular_score_rentabilidad(proyecto, estatus_cliente, max_rentabilidad):
     return 0
 
 
-def calcular_score_duracion(proyecto, max_meses):
+def calcular_score_rentabilidad(row, estatus_cliente, max_rentabilidad):
     """
-    Calcula score de duración (inverso: menos meses = más score).
+    Calcula score de rentabilidad según estatus del cliente.
     
     Args:
-        proyecto: dict/row del proyecto
-        max_meses: float (máximos meses en dataset)
+        row: fila del DataFrame
+        estatus_cliente: str ('Reentel', 'ReentelPro', 'SuperReentel')
+        max_rentabilidad: float (máximo de rentabilidades)
     
     Returns:
-        float (0-1)
+        float: score 0-1
     """
-    if 'Nº Meses restantes de renta hasta Estimacion fin' in proyecto:
-        meses = proyecto['Nº Meses restantes de renta hasta Estimacion fin']
-        if isinstance(meses, (int, float)) and max_meses > 0:
-            # Inverso: menos meses = mayor score
-            return max(1 - (meses / max_meses), 0)
-    
-    return 0.5  # Valor por defecto
+    try:
+        # Mapear estatus a columnas de rentabilidad
+        if estatus_cliente == 'Reentel':
+            col_rent = 'Estimación Rentab. Rendim. Recurr. anualizados Reentel'
+        elif estatus_cliente == 'ReentelPro' or estatus_cliente == 'RP':
+            col_rent = 'Estimación Rentab. Rendim. Recurr. anualizados RP'
+        elif estatus_cliente == 'SuperReentel' or estatus_cliente == 'SR':
+            col_rent = 'Estimación Rentab. Rendim. Recurr. anualizados SR'
+        else:
+            col_rent = 'Estimación Rentab. Rendim. Recurr. anualizados Reentel'
+        
+        # Obtener rentabilidad
+        rent = float(row[col_rent]) if col_rent in row.index else 0
+        
+        # Convertir a número si es string
+        if isinstance(rent, str):
+            rent = float(rent.replace('%', '').replace(',', '.'))
+        
+        # Evitar división por cero
+        if max_rentabilidad > 0:
+            score = min(rent / max_rentabilidad, 1.0)
+        else:
+            score = 0.5
+        
+        return max(0, min(score, 1.0))
+        
+    except Exception as e:
+        return 0.5
 
 
 def rankear_proyectos(df_proyectos, criterios_cliente, estatus_cliente):
