@@ -52,12 +52,19 @@ def obtener_cliente_gspread():
 
 @st.cache_data(ttl=3600)
 def cargar_proyectos():
-    """Carga proyectos desde datos simulados (sin Google Sheets)"""
+    """
+    Carga proyectos desde datos simulados (sin Google Sheets)
+    Solo retorna proyectos en VENTA PRIMARIA (PRELANZAMIENTO + FINANCIÁNDOSE)
+    """
     try:
         from test_data import crear_df_prueba
         df = crear_df_prueba()
-        st.success(f"✅ Cargados {len(df)} proyectos (datos simulados)")
-        return df
+        
+        # Filtrar solo PRELANZAMIENTO y FINANCIÁNDOSE
+        df_primaria = df[df['ESTADO'].isin(['PRELANZAMIENTO', 'FINANCIÁNDOSE'])]
+        
+        st.success(f"✅ Cargados {len(df_primaria)} proyectos en venta primaria")
+        return df_primaria
     except Exception as e:
         st.error(f"Error cargando proyectos: {e}")
         return pd.DataFrame()
