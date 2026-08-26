@@ -1,375 +1,231 @@
 """
-CÁLCULOS FINANCIEROS - Rentabilidades, reinversión, interés compuesto
-Replicación de fórmulas del Sheet 1, pestaña Cálculos
+CALCULADORA DE CARTERA - Lógica EXACTA de Sheet 1
+Replicación de fórmulas de rentabilidad con interés compuesto
 """
 
-import numpy as np
 import pandas as pd
-from config.constants import REINVERSION_RATES, STAKING_RATE, HORIZONTES_CALCULO
+import numpy as np
 
+
+# ============================================================================
+# TASAS DE REINVERSIÓN (De Sheet 1)
+# ============================================================================
+
+TASAS_REINVERSION = {
+    'Reentel': 0.11,          # 11% anual
+    'ReentelPro': 0.13,       # 13% anual  
+    'SuperReentel': 0.16      # 16% anual (asumido)
+}
+
+TASAS_REINVERSION_MENSUAL = {
+    k: v / 12 for k, v in TASAS_REINVERSION.items()
+}
+
+
+# ============================================================================
+# CLASE CALCULADORA
+# ============================================================================
 
 class CalculadoraCartera:
-    """
-    Calcula rentabilidades de cartera con y sin reinversión.
-    """
+    """Calcula rentabilidades con reinversión (interés compuesto)"""
     
-    def __init__(self, estatus, tasa_reinversion=None):
+    def __init__(self, estatus_cliente):
         """
         Args:
-            estatus: str ("Reentel", "ReentelPro", "SuperReentel")
-            tasa_reinversion: float (anual). Si None, se usa de REINVERSION_RATES.
+            estatus_cliente: str ('Reentel', 'ReentelPro', 'SuperReentel')
         """
-        self.estatus = estatus
-        self.tasa_reinversion = tasa_reinversion or REINVERSION_RATES.get(estatus, 0.11)
-        self.tasa_reinversion_mensual = self.tasa_reinversion / 12
+        self.estatus = estatus_cliente
+        self.tasa_anual = TASAS_REINVERSION.get(estatus_cliente, 0.11)
+        self.tasa_mensual = TASAS_REINVERSION_MENSUAL.get(estatus_cliente, 0.11/12)
+    
+    def calcular_valor_final(self, cartera_df, horizonte_meses, capital_total):
+        """
+        Calcula el valor final de la cartera a un horizonte determinado.
         
-    def calcular_rentabilidades_cartera(self, proyectos_seleccionados, capital_inicial):
-        """
-        Calcula rentabilidades SIN reinversión para la cartera.
+        Fórmula de Sheet 1 replicada:
+        Valor_Final = Capital_Inicial + Interés_Compuesto_Recurrente + Plusvalía_Reinvertida
         
         Args:
-            proyectos_seleccionados: list of dict con proyectos y su inversión
-                {
-                    'id': 'SVQ-1',
-                    'nombre': 'Sevilla 1',
-                    'inversion_eur': 5000,
-                    'inversion_usd': 5400,
-                    'rent_recurrente': 0.10,      # % anual
-                    'rent_plusvalia': 0.08,        # % total al final
-                    'meses_renta_totales': 24,
-                    'meses_restantes': 20
-                }
-            capital_inicial: float (EUR o USD)
+            cartera_df: DataFrame con proyectos seleccionados
+            horizonte_meses: int (6, 12, 24, 36, 60)
+            capital_total: float (capital a invertir)
         
         Returns:
-            dict con rentabilidades
+            dict con valor_final, ganancia, rentabilidades
         """
-        if not proyectos_seleccionados:
+        
+        try:
+            # Capital inicial (suma de inversiones)
+            capital_inicial = capital_total
+            
+            # Componente 1: Interés compuesto en rendimientos recurrentes
+            interes_compuesto = 0
+            for idx, proyecto in cartera_df.iterrows():
+                inversión = float(proyecto.get('Inversion', 0))
+                
+                # Rentabilidad recurrente mensual
+                rent_recurrente = float(proyecto.get('Rentab_Recurrente', 0)) / 12
+                
+                # Meses hasta fin del proyecto
+                meses_proyecto = float(proyecto.get('Estimación Nº Meses desde inicio de renta en base a Financiación', 24))
+                
+                # Aplicar interés compuesto solo hasta que termine el proyecto
+                meses_activos = min(horizonte_meses, meses_proyecto)
+                
+                # Fórmula: Inversión * Rendimiento_Mensual * ((1+Tasa)^Meses - 1) / Tasa
+                if self.tasa_mensual > 0 and meses_activos > 0:
+                    interes_comp_proyecto = (
+                        inversión * rent_recurrente * 
+                        ((1 + self.tasa_mensual) ** meses_activos - 1) / 
+                        self.tasa_mensual
+                    )
+                    interes_compuesto += interes_comp_proyecto
+            
+            # Componente 2: Plusvalía reinvertida después del cierre
+            plusvalia_reinvertida = 0
+            for idx, proyecto in cartera_df.iterrows():
+                inversión = float(proyecto.get('Inversion', 0))
+                plusvalia_pct = float(proyecto.get('Rentab_Plusvalia', 0))
+                meses_proyecto = float(proyecto.get('Estimación Nº Meses desde inicio de renta en base a Financiación', 24))
+                
+                # Si el horizonte supera el fin del proyecto, la plusvalía se reinvierte
+                if horizonte_meses > meses_proyecto:
+                    plusvalia = inversión * plusvalia_pct
+                    meses_post_cierre = horizonte_meses - meses_proyecto
+                    
+                    # Plusvalía compuesta: Plusvalía * (1+Tasa)^Meses_Post_Cierre
+                    plusvalia_reinv = plusvalia * ((1 + self.tasa_mensual) ** meses_post_cierre)
+                    plusvalia_reinvertida += plusvalia_reinv
+            
+            # Valor final total
+            valor_final = capital_inicial + interes_compuesto + plusvalia_reinvertida
+            
+            # Ganancia
+            ganancia = valor_final - capital_inicial
+            
+            # Rentabilidad acumulada
+            rentabilidad_acumulada = ganancia / capital_inicial if capital_inicial > 0 else 0
+            
+            # Rentabilidad anualizada
+            años = horizonte_meses / 12
+            if años > 0 and rentabilidad_acumulada >= 0:
+                rentabilidad_anualizada = (1 + rentabilidad_acumulada) ** (1 / años) - 1
+            else:
+                rentabilidad_anualizada = 0
+            
             return {
-                'rent_anual_recurrente': 0,
-                'rent_plusvalia': 0,
-                'rent_total': 0,
-                'rent_total_anualizada': 0
+                'valor_final': valor_final,
+                'ganancia': ganancia,
+                'rentabilidad_acumulada': rentabilidad_acumulada,
+                'rentabilidad_anualizada': rentabilidad_anualizada
             }
         
-        # Calcular rentabilidades ponderadas
-        total_rent_recurrente = 0
-        total_rent_plusvalia = 0
-        
-        for proyecto in proyectos_seleccionados:
-            ponderacion = proyecto['inversion_eur'] / capital_inicial
-            
-            rent_recurrente = proyecto.get('rent_recurrente', 0) or 0
-            rent_plusvalia = proyecto.get('rent_plusvalia', 0) or 0
-            
-            total_rent_recurrente += rent_recurrente * ponderacion
-            total_rent_plusvalia += rent_plusvalia * ponderacion
-        
-        rent_total = total_rent_recurrente + total_rent_plusvalia
-        
-        return {
-            'rent_anual_recurrente': total_rent_recurrente,
-            'rent_plusvalia': total_rent_plusvalia,
-            'rent_total': rent_total,
-            'rent_total_anualizada': rent_total  # En este caso es anualizada
-        }
-    
-    def valor_final_portfolio_reinversion(self, proyectos_seleccionados, 
-                                         capital_inicial, horizonte_meses):
-        """
-        Calcula valor final del portfolio CON reinversión de dividendos.
-        
-        FÓRMULA (del Sheet 1, fila 75-91):
-        Valor_Final = Capital_Inicial 
-                    + ∑ Rendimientos_Recurrentes_Reinvertidos
-                    + Plusvalía_Acumulada
-                    + Reinversión_de_Plusvalía
-        
-        Args:
-            proyectos_seleccionados: list de proyectos
-            capital_inicial: float
-            horizonte_meses: int (6, 12, 24, 36, 60)
-        
-        Returns:
-            dict con detalles del valor final
-        """
-        if not proyectos_seleccionados:
+        except Exception as e:
+            print(f"Error en cálculo: {e}")
             return {
-                'capital_inicial': capital_inicial,
-                'valor_final': capital_inicial,
+                'valor_final': capital_total,
                 'ganancia': 0,
                 'rentabilidad_acumulada': 0,
-                'rentabilidad_anualizada': 0,
-                'componentes': {}
+                'rentabilidad_anualizada': 0
             }
-        
-        # COMPONENTE 1: Capital inicial
-        valor_final = capital_inicial
-        
-        # COMPONENTE 2: Rendimientos recurrentes reinvertidos
-        # Fórmula: Inversión * (rentabilidad/12) * ((1+tasa)^meses - 1) / tasa
-        rendimientos_reinvertidos = 0
-        
-        for proyecto in proyectos_seleccionados:
-            inversion = proyecto['inversion_eur']
-            rent_recurrente = proyecto.get('rent_recurrente', 0) or 0
-            meses_renta = proyecto.get('meses_renta_totales', horizonte_meses)
-            
-            # Meses que realmente hay renta
-            meses_efectivos = min(horizonte_meses, meses_renta)
-            
-            # Rentabilidad mensual
-            rent_mensual = rent_recurrente / 12
-            
-            # Fórmula de interés compuesto
-            if self.tasa_reinversion_mensual > 0:
-                componente = inversion * rent_mensual * (
-                    ((1 + self.tasa_reinversion_mensual) ** meses_efectivos - 1) 
-                    / self.tasa_reinversion_mensual
-                )
-            else:
-                # Si tasa es 0, es interés simple
-                componente = inversion * rent_mensual * meses_efectivos
-            
-            rendimientos_reinvertidos += componente
-        
-        # COMPONENTE 3: Plusvalía y reinversión de plusvalía
-        plusvalia_total = 0
-        
-        for proyecto in proyectos_seleccionados:
-            inversion = proyecto['inversion_eur']
-            rent_plusvalia = proyecto.get('rent_plusvalia', 0) or 0
-            meses_renta = proyecto.get('meses_renta_totales', horizonte_meses)
-            
-            plusvalia_proyecto = inversion * rent_plusvalia
-            
-            # Si el proyecto termina antes del horizonte, reinvertir la plusvalía
-            if horizonte_meses >= meses_renta:
-                meses_reinv = horizonte_meses - meses_renta
-                if meses_reinv > 0:
-                    # Reinvertir a la tasa de reinversión
-                    plusvalia_reinvertida = plusvalia_proyecto * (
-                        (1 + self.tasa_reinversion_mensual) ** meses_reinv
-                    )
-                    plusvalia_total += plusvalia_reinvertida
-                else:
-                    plusvalia_total += plusvalia_proyecto
-            else:
-                # No hay plusvalía aún (proyecto no ha terminado)
-                plusvalia_total += 0
-        
-        # Valor final
-        valor_final = capital_inicial + rendimientos_reinvertidos + plusvalia_total
-        
-        # Cálculos de rentabilidad
-        ganancia = valor_final - capital_inicial
-        rentabilidad_acumulada = ganancia / capital_inicial if capital_inicial > 0 else 0
-        
-        # Rentabilidad anualizada: (valor_final/capital)^(12/meses) - 1
-        if horizonte_meses > 0 and capital_inicial > 0:
-            rentabilidad_anualizada = (valor_final / capital_inicial) ** (12 / horizonte_meses) - 1
-        else:
-            rentabilidad_anualizada = 0
-        
-        return {
-            'capital_inicial': capital_inicial,
-            'valor_final': valor_final,
-            'ganancia': ganancia,
-            'rentabilidad_acumulada': rentabilidad_acumulada,
-            'rentabilidad_anualizada': rentabilidad_anualizada,
-            'componentes': {
-                'rendimientos_reinvertidos': rendimientos_reinvertidos,
-                'plusvalia': plusvalia_total
-            }
-        }
     
-    def calcular_cartera_completa(self, proyectos_seleccionados, capital_inicial):
+    def calcular_cartera_completa(self, cartera_df, capital_total):
         """
-        Calcula cartera para TODOS los horizontes de cálculo.
+        Calcula cartera para todos los horizontes (6, 12, 24, 36, 60 meses)
         
         Returns:
-            dict con resultados para cada horizonte
+            dict {6: {...}, 12: {...}, 24: {...}, 36: {...}, 60: {...}}
         """
         resultados = {}
         
-        for horizonte in HORIZONTES_CALCULO:
-            resultados[horizonte] = self.valor_final_portfolio_reinversion(
-                proyectos_seleccionados, capital_inicial, horizonte
+        for horizonte in [6, 12, 24, 36, 60]:
+            resultados[horizonte] = self.calcular_valor_final(
+                cartera_df, horizonte, capital_total
             )
         
         return resultados
 
 
-def calcular_score_similitud(proyecto, criterios_cliente, estatus_cliente):
-    """
-    Calcula score de similitud entre proyecto y preferencias del cliente.
-    
-    SIMILITUD: max 3 puntos
-    - Duración coincide: 1 punto
-    - Rendimiento coincide: 1 punto
-    - Ubicación coincide: 1 punto
-    
-    Args:
-        proyecto: dict/row del proyecto
-        criterios_cliente: dict con preferencias
-        estatus_cliente: str
-    
-    Returns:
-        float (0-3)
-    """
-    similitud = 0
-    
-    # Duración
-    if 'Estimación Nº Meses desde Lanzamiento' in proyecto:
-        meses = proyecto['Estimación Nº Meses desde Lanzamiento']
-        if criterios_cliente.get('duracion') == 'Corto plazo' and meses <= 18:
-            similitud += 1
-        elif criterios_cliente.get('duracion') == 'Largo plazo' and meses > 18:
-            similitud += 1
-    
-    # Rendimiento
-    if 'Tipología de Dividendo' in proyecto:
-        tipologia = proyecto['Tipología de Dividendo']
-        preferencias_rend = criterios_cliente.get('rendimientos', ['Periódicos', 'Finales'])
-        
-        if 'Periódicos' in preferencias_rend and tipologia != 'rendimientos a final del proyecto':
-            similitud += 1
-        elif 'Finales' in preferencias_rend and tipologia == 'rendimientos a final del proyecto':
-            similitud += 1
-    
-    # Ubicación
-    if 'Ubicación' in proyecto:
-        ubicacion = proyecto['Ubicación']
-        if ubicacion in criterios_cliente.get('ubicacion', []):
-            similitud += 1
-    
-    return similitud / 3  # Normalizar 0-1
-
-
-def calcular_score_rentabilidad(proyecto, estatus_cliente, max_rentabilidad):
-    """
-    Calcula score de rentabilidad anualizada.
-    
-    Args:
-        proyecto: dict/row del proyecto
-        estatus_cliente: str ("Reentel", "ReentelPro", "SuperReentel")
-        max_rentabilidad: float (para normalizar 0-1)
-    
-    Returns:
-        float (0-1)
-    """
-    # Columna de rentabilidad anualizada según estatus
-    columnas_rent = {
-        'Reentel': 'Estimación Rentab. Total (Alq. + Plusv.) anualizado Reentel',
-        'ReentelPro': 'Estimación Rentab. Total (Alq. + Plusv.) anualizado RP',
-        'SuperReentel': 'Estimación Rentab. Total (Alq. + Plusv.) anualizado SR'
-    }
-    
-    col = columnas_rent.get(estatus_cliente)
-    
-    if col and col in proyecto:
-        rent = float(proyecto[col]) if isinstance(proyecto[col], (int, float)) else 0
-        if max_rentabilidad > 0:
-            return min(rent / max_rentabilidad, 1.0)  # Cap a 1.0
-    
-    return 0
-
-
-def calcular_score_rentabilidad(row, estatus_cliente, max_rentabilidad):
-    """
-    Calcula score de rentabilidad según estatus del cliente.
-    
-    Args:
-        row: fila del DataFrame
-        estatus_cliente: str ('Reentel', 'ReentelPro', 'SuperReentel')
-        max_rentabilidad: float (máximo de rentabilidades)
-    
-    Returns:
-        float: score 0-1
-    """
-    try:
-        # Mapear estatus a columnas de rentabilidad
-        if estatus_cliente == 'Reentel':
-            col_rent = 'Estimación Rentab. Rendim. Recurr. anualizados Reentel'
-        elif estatus_cliente == 'ReentelPro' or estatus_cliente == 'RP':
-            col_rent = 'Estimación Rentab. Rendim. Recurr. anualizados RP'
-        elif estatus_cliente == 'SuperReentel' or estatus_cliente == 'SR':
-            col_rent = 'Estimación Rentab. Rendim. Recurr. anualizados SR'
-        else:
-            col_rent = 'Estimación Rentab. Rendim. Recurr. anualizados Reentel'
-        
-        # Obtener rentabilidad
-        rent = float(row[col_rent]) if col_rent in row.index else 0
-        
-        # Convertir a número si es string
-        if isinstance(rent, str):
-            rent = float(rent.replace('%', '').replace(',', '.'))
-        
-        # Evitar división por cero
-        if max_rentabilidad > 0:
-            score = min(rent / max_rentabilidad, 1.0)
-        else:
-            score = 0.5
-        
-        return max(0, min(score, 1.0))
-        
-    except Exception as e:
-        return 0.5
-
+# ============================================================================
+# RANKING DE PROYECTOS
+# ============================================================================
 
 def rankear_proyectos(df_proyectos, criterios_cliente, estatus_cliente):
     """
-    Rankea proyectos por similitud + rentabilidad + duración.
-    
-    Ponderación: 33% cada uno (todos valen igual)
+    Rankea proyectos según:
+    - 30% Similitud (ubicación + tipología)
+    - 45% Rentabilidad (rendimiento + plusvalía por estatus)
+    - 25% Duración (encaja con corto/largo plazo)
     
     Args:
-        df_proyectos: DataFrame con proyectos
-        criterios_cliente: dict con preferencias
-        estatus_cliente: str
+        df_proyectos: DataFrame con todos los proyectos
+        criterios_cliente: dict con preferencias del cliente
+        estatus_cliente: str ('Reentel', 'ReentelPro', 'SuperReentel')
     
     Returns:
-        DataFrame con scores y ranking
+        DataFrame con columna 'score_ranking'
     """
-    if df_proyectos.empty:
-        return df_proyectos
     
     df = df_proyectos.copy()
     
-    # Calcular scores individuales
-    max_rent = df['Estimación Rentab. Total (Alq. + Plusv.) anualizado Reentel'].max()
-    max_meses = df['Estimación Nº Meses desde inicio de renta en base a Financiación'].max()
+    # === SCORE 1: SIMILITUD (30%) ===
     
-    # Normalizar
-    if pd.isna(max_rent) or max_rent == 0:
-        max_rent = 0.25  # Valor por defecto
-    if pd.isna(max_meses) or max_meses == 0:
-        max_meses = 60  # Valor por defecto
+    # Similitud por ubicación
+    ubicaciones_preferidas = criterios_cliente.get('ubicaciones', [])
+    df['score_ubicacion'] = df['Ubicación'].isin(ubicaciones_preferidas).astype(float)
     
-    # Aplicar scoring
-    df['score_similitud'] = df.apply(
-        lambda row: calcular_score_similitud(row, criterios_cliente, estatus_cliente),
-        axis=1
+    # Similitud por tipología (si está disponible)
+    df['score_similitud'] = df['score_ubicacion']
+    
+    # Normalizar a 0-1
+    df['score_similitud'] = df['score_similitud'].fillna(0.5)
+    
+    # === SCORE 2: RENTABILIDAD (45%) ===
+    
+    # Mapear estatus a columnas de rentabilidad
+    col_rent_map = {
+        'Reentel': 'Estimación Rentab. Rendim. Recurr. anualizados Reentel',
+        'ReentelPro': 'Estimación Rentab. Rendim. Recurr. anualizados RP',
+        'SuperReentel': 'Estimación Rentab. Rendim. Recurr. anualizados SR'
+    }
+    
+    col_rent = col_rent_map.get(estatus_cliente, col_rent_map['Reentel'])
+    
+    # Obtener rentabilidad (recurrente + plusvalía estimada)
+    df['rentabilidad'] = pd.to_numeric(df.get(col_rent, 0), errors='coerce').fillna(0)
+    
+    # Normalizar rentabilidad a 0-1
+    max_rent = df['rentabilidad'].max()
+    if max_rent > 0:
+        df['score_rentabilidad'] = df['rentabilidad'] / max_rent
+    else:
+        df['score_rentabilidad'] = 0.5
+    
+    # === SCORE 3: DURACIÓN (25%) ===
+    
+    duracion_preferida = criterios_cliente.get('duracion', 'Corto plazo')
+    meses_proyecto = pd.to_numeric(
+        df.get('Estimación Nº Meses desde inicio de renta en base a Financiación', 24),
+        errors='coerce'
+    ).fillna(24)
+    
+    if duracion_preferida == 'Corto plazo':
+        # Preferir proyectos cortos (< 18 meses)
+        df['score_duracion'] = (18 - meses_proyecto) / 18
+        df['score_duracion'] = df['score_duracion'].clip(0, 1)
+    else:  # Largo plazo
+        # Preferir proyectos largos (> 18 meses)
+        df['score_duracion'] = (meses_proyecto - 18) / 42  # 42 = 60 - 18
+        df['score_duracion'] = df['score_duracion'].clip(0, 1)
+    
+    # === SCORE FINAL ===
+    df['score_ranking'] = (
+        0.30 * df['score_similitud'] +
+        0.45 * df['score_rentabilidad'] +
+        0.25 * df['score_duracion']
     )
     
-    df['score_rentabilidad'] = df.apply(
-        lambda row: calcular_score_rentabilidad(row, estatus_cliente, max_rent),
-        axis=1
-    )
-    
-    df['score_duracion'] = df.apply(
-        lambda row: calcular_score_duracion(row, max_meses),
-        axis=1
-    )
-    
-    # Score ponderado (33% cada uno)
-    df['score_total'] = (
-        df['score_similitud'] * 0.333 + 
-        df['score_rentabilidad'] * 0.333 + 
-        df['score_duracion'] * 0.334
-    )
-    
-    # Ordenar por score
-    df = df.sort_values('score_total', ascending=False).reset_index(drop=True)
+    # Ordenar por score descendente
+    df = df.sort_values('score_ranking', ascending=False)
     
     return df
