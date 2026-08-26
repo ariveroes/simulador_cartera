@@ -50,36 +50,17 @@ def obtener_cliente_gspread():
         return None
 
 
-@st.cache_data(ttl=3600)  # Caché de 1 hora
+@st.cache_data(ttl=3600)
 def cargar_proyectos():
-    """
-    Carga proyectos desde Google Sheet Intermedio.
-    
-    Returns:
-        DataFrame con proyectos
-    """
+    """Carga proyectos desde datos simulados (sin Google Sheets)"""
     try:
-        client = obtener_cliente_gspread()
-        
-        if client is None:
-            st.error("No se pudo conectar a Google Sheets")
-            return pd.DataFrame()
-        
-        # Abrir el sheet
-        sheet = client.open_by_key(SHEET_INTERMEDIO_GSHEET_ID)
-        worksheet = sheet.worksheet(SHEET_INTERMEDIO_WORKSHEET_NAME)
-        
-        # Obtener todos los datos
-        datos = worksheet.get_all_records()
-        df = pd.DataFrame(datos)
-        
-        st.success(f"✅ Cargados {len(df)} proyectos")
+        from test_data import crear_df_prueba
+        df = crear_df_prueba()
+        st.success(f"✅ Cargados {len(df)} proyectos (datos simulados)")
         return df
-        
     except Exception as e:
         st.error(f"Error cargando proyectos: {e}")
         return pd.DataFrame()
-
 
 @st.cache_data(ttl=86400)  # Caché de 24 horas (fin del día)
 def obtener_tipo_cambio_eur_usd():
