@@ -344,7 +344,11 @@ with col_main:
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.markdown(f"**SuperReentel**")
+            st.markdown("""
+            <div style="background-color: #22c55e; color: white; padding: 10px 15px; border-radius: 8px; text-align: center; font-weight: 700; margin-bottom: 15px;">
+                SUPERREENTEL
+            </div>
+            """, unsafe_allow_html=True)
             st.markdown(estatus_info['SuperReentel']['desc'])
             is_selected = st.radio(
                 "Opción 1",
@@ -358,7 +362,11 @@ with col_main:
                 st.session_state.datos_cliente['estatus'] = 'SuperReentel'
         
         with col2:
-            st.markdown(f"**ReentelPro**")
+            st.markdown("""
+            <div style="background-color: #a855f7; color: white; padding: 10px 15px; border-radius: 8px; text-align: center; font-weight: 700; margin-bottom: 15px;">
+                REENTELPRO
+            </div>
+            """, unsafe_allow_html=True)
             st.markdown(estatus_info['ReentelPro']['desc'])
             is_selected = st.radio(
                 "Opción 2",
@@ -372,7 +380,11 @@ with col_main:
                 st.session_state.datos_cliente['estatus'] = 'ReentelPro'
         
         with col3:
-            st.markdown(f"**Reentel**")
+            st.markdown("""
+            <div style="background-color: #9ca3af; color: white; padding: 10px 15px; border-radius: 8px; text-align: center; font-weight: 700; margin-bottom: 15px;">
+                REENTEL
+            </div>
+            """, unsafe_allow_html=True)
             st.markdown(estatus_info['Reentel']['desc'])
             is_selected = st.radio(
                 "Opción 3",
