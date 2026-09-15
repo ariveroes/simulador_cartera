@@ -1,6 +1,6 @@
 """
-HERRAMIENTA CONSTRUCCIÓN DE CARTERA INMOBILIARIA - App Guiada (3 Pasos)
-Versión con tabla completa en Paso 2
+SIMULADOR DE CARTERA INMOBILIARIA REENTAL
+Layout: Sidebar 3 pasos + Diseño PDF (azul marino + naranja)
 """
 
 import streamlit as st
@@ -13,97 +13,110 @@ from modules.calculo_cartera import CalculadoraCartera, rankear_proyectos
 from modules.distribucion_capital import distribuir_capital, normalizar_cartera
 
 # ============================================================================
-# CONFIG PÁGINA
+# CONFIG PÁGINA Y DISEÑO
 # ============================================================================
 
 st.set_page_config(
     page_title="Simulador Cartera Reental",
     page_icon="🏠",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
-st.title("🏠 Simulador de Cartera Inmobiliaria Reental")
-
-# ============================================================================
-# FUNCIONES AUXILIARES
-# ============================================================================
-
-def obtener_columna(df, posibles_nombres):
-    """Busca una columna en el DataFrame probando múltiples nombres posibles"""
-    if df is None or df.empty:
-        return None
+# Estilos personalizados (colores PDF: azul marino #1a2332 + naranja #ff8c00)
+st.markdown("""
+<style>
+    /* Colores principales */
+    :root {
+        --azul-marino: #1a2332;
+        --naranja: #ff8c00;
+        --gris-oscuro: #2c3e50;
+    }
     
-    for nombre in posibles_nombres:
-        if nombre in df.columns:
-            return nombre
+    /* Background */
+    .stApp {
+        background-color: #1a2332;
+        color: #ffffff;
+    }
     
-    return None
-
-def preparar_tabla_proyectos(df_proyectos):
-    """
-    Prepara la tabla de proyectos para mostrar en Paso 2
-    Incluye: Nombre, Ubicación, Tipología, Plazo, Rentabilidad Total, Rentabilidad Anualizada
-    """
-    if df_proyectos is None or df_proyectos.empty:
-        return None
+    /* Sidebar */
+    [data-testid="stSidebar"] {
+        background-color: #0f1419;
+        border-right: 2px solid #ff8c00;
+    }
     
-    df_display = df_proyectos.copy()
+    /* Títulos */
+    h1, h2, h3 {
+        color: #ffffff;
+        font-weight: 700;
+    }
     
-    # Mapear columnas disponibles
-    cols_config = [
-        ('Nombre', ['Nombre del proyecto', 'Nombre', 'nombre']),
-        ('Ubicación', ['Ubicación', 'ubicacion']),
-        ('Tipología de Dividendos', ['Tipología de Dividendos', 'Tipología de dividendos', 'tipo_dividendo']),
-        ('Plazo (meses)', [
-            'Estimación Nº Meses desde inicio de renta en base a Financiación',
-            'Nº Meses desde inicio de renta',
-            'meses_plazo'
-        ]),
-        ('Rent. Total (%)', [
-            'Estimación Rentab. Total Reentel',
-            'Estimación Rentab. Rendim. Recurr. anualizados Reentel',
-            'Rentabilidad Total'
-        ]),
-        ('Rent. Anualizada (%)', [
-            'Estimación Rentab. Plusvalía Reentel',
-            'Rentabilidad Anualizada',
-            'Rent. Anual'
-        ])
-    ]
+    /* Titles naranja */
+    .sidebar-title {
+        color: #ff8c00;
+        font-weight: 700;
+        font-size: 18px;
+        margin-bottom: 15px;
+    }
     
-    cols_a_usar = []
-    nombres_display = []
+    /* Labels */
+    label {
+        color: #ffffff !important;
+        font-weight: 600;
+        font-size: 14px;
+    }
     
-    for nombre_display, posibles_nombres in cols_config:
-        col = obtener_columna(df_display, posibles_nombres)
-        if col is not None:
-            cols_a_usar.append(col)
-            nombres_display.append(nombre_display)
+    /* Botones */
+    .stButton > button {
+        background-color: #ff8c00;
+        color: #1a2332;
+        font-weight: 700;
+        border: none;
+        border-radius: 8px;
+        padding: 12px 24px;
+    }
     
-    # Si encontramos al menos Nombre y Ubicación, crear tabla
-    if len(cols_a_usar) >= 2:
-        df_display = df_display[cols_a_usar].copy()
-        df_display.columns = nombres_display
-        
-        # Formatear números si existen columnas de rentabilidad
-        for col in df_display.columns:
-            if 'Rent.' in col:
-                try:
-                    df_display[col] = pd.to_numeric(df_display[col], errors='coerce')
-                    df_display[col] = df_display[col].apply(lambda x: f"{x*100:.2f}%" if pd.notna(x) else "N/A")
-                except:
-                    pass
-            elif 'Plazo' in col:
-                try:
-                    df_display[col] = pd.to_numeric(df_display[col], errors='coerce')
-                    df_display[col] = df_display[col].apply(lambda x: f"{int(x)}" if pd.notna(x) else "N/A")
-                except:
-                    pass
-        
-        return df_display
+    .stButton > button:hover {
+        background-color: #e67e00;
+    }
     
-    return None
+    /* Input fields */
+    .stTextInput > div > div > input,
+    .stNumberInput > div > div > input,
+    .stSelectbox > div > div > select {
+        background-color: #2c3e50;
+        color: #ffffff;
+        border: 1px solid #ff8c00;
+    }
+    
+    /* Radio buttons */
+    .stRadio > div {
+        background-color: #0f1419;
+    }
+    
+    /* Multiselect */
+    .stMultiSelect > div > div {
+        background-color: #2c3e50;
+        border: 1px solid #ff8c00;
+    }
+    
+    /* Cards */
+    .stContainer {
+        background-color: #0f1419;
+        border: 1px solid #ff8c00;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    /* Info/Warning boxes */
+    .stInfo, .stWarning {
+        background-color: #2c3e50;
+        border: 1px solid #ff8c00;
+        color: #ffffff;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # ============================================================================
 # INICIALIZAR SESSION STATE
@@ -117,13 +130,11 @@ if 'datos_cliente' not in st.session_state:
         'nombre': '',
         'email': '',
         'divisa': 'EUR',
-        'es_inversor': True,
-        'capital': 50000,
+        'es_inversor': 'No',
+        'capital': 'Entre 10.000 y 50.000',
         'estatus': 'SuperReentel',
-        'duracion': 'Corto plazo (≤18 meses)',
-        'mercados': ['España', 'EE.UU.'],
-        'tipo_rendimientos': 'Rendimientos periódicos',
-        'objetivo': 'Recibir rentas periódicas (crecimiento gradual)',
+        'objetivo': 'Busco rentas periódicas, ver cómo periódicamente voy recibiendo rendimientos',
+        'mercados': ['España'],
     }
 
 if 'df_proyectos' not in st.session_state:
@@ -132,360 +143,234 @@ if 'df_proyectos' not in st.session_state:
 if 'proyectos_seleccionados' not in st.session_state:
     st.session_state.proyectos_seleccionados = []
 
-if 'tipo_distribucion' not in st.session_state:
-    st.session_state.tipo_distribucion = 'Igual'
-
 # ============================================================================
-# PASO 1: ONBOARDING
+# SIDEBAR - FORMULARIO (3 PASOS)
 # ============================================================================
 
-if st.session_state.paso_actual == 1:
-    st.markdown("### Paso 1/3: Cuéntanos sobre ti")
+with st.sidebar:
+    st.markdown("# 🏠 SIMULADOR DE CARTERA")
+    st.markdown("**INMOBILIARIA**")
     st.markdown("---")
     
-    col1, col2 = st.columns(2)
-    
-    with col1:
+    # ========== PASO 1 ==========
+    if st.session_state.paso_actual == 1:
+        st.markdown('<div class="sidebar-title">PASO 1: CUÉNTANOS SOBRE TI</div>', unsafe_allow_html=True)
+        st.markdown("")
+        
         st.session_state.datos_cliente['nombre'] = st.text_input(
             "Nombre completo",
             value=st.session_state.datos_cliente['nombre'],
-            placeholder="Juan Pérez"
+            placeholder="Juan Pérez",
+            key="input_nombre"
         )
         
         st.session_state.datos_cliente['email'] = st.text_input(
             "Email",
             value=st.session_state.datos_cliente['email'],
-            placeholder="juan@example.com"
+            placeholder="juan@example.com",
+            key="input_email"
         )
         
         st.session_state.datos_cliente['divisa'] = st.selectbox(
             "Divisa preferida",
             ["EUR", "USD"],
-            index=0 if st.session_state.datos_cliente['divisa'] == 'EUR' else 1
+            index=0 if st.session_state.datos_cliente['divisa'] == 'EUR' else 1,
+            key="select_divisa"
         )
-    
-    with col2:
+        
         st.session_state.datos_cliente['es_inversor'] = st.radio(
-            "¿Ya eres inversor de Reental?",
-            [True, False],
-            format_func=lambda x: "Sí" if x else "No",
-            index=0 if st.session_state.datos_cliente['es_inversor'] else 1
+            "¿Ya eres inversor en Reental?",
+            ["Sí", "No"],
+            index=0 if st.session_state.datos_cliente['es_inversor'] == 'Sí' else 1,
+            key="radio_inversor"
         )
         
-        divisa_label = st.session_state.datos_cliente['divisa']
-        st.session_state.datos_cliente['capital'] = st.number_input(
-            f"Capital disponible (orientativo en {divisa_label})",
-            min_value=1000,
-            value=int(st.session_state.datos_cliente['capital']),
-            step=1000
+        capital_options = [
+            "Menos de 5.000",
+            "Entre 5.000 y 10.000",
+            "Entre 10.000 y 50.000",
+            "Más de 50.000"
+        ]
+        
+        idx_capital = capital_options.index(st.session_state.datos_cliente['capital'])
+        st.session_state.datos_cliente['capital'] = st.selectbox(
+            "Capital disponible (orientativo)",
+            capital_options,
+            index=idx_capital,
+            key="select_capital"
         )
+        
+        st.markdown("---")
+        
+        col1, col2 = st.columns([1, 1])
+        with col2:
+            if st.button("Continuar →", use_container_width=True, key="btn_paso1_next"):
+                st.session_state.paso_actual = 2
+                st.rerun()
     
-    st.markdown("---")
-    st.markdown("### ¿Qué estatus quieres considerar?")
-    
-    col1, col2, col3 = st.columns(3)
-    
-    estatus_info = {
-        'SuperReentel': {
-            'descripcion': 'Consigue hasta un 50% más de rentabilidad en tus inversiones inmobiliarias y acceso prioritario.',
-            'tasa': '16% reinversión anual'
-        },
-        'ReentelPro': {
-            'descripcion': 'Consigue hasta un 25% más de rentabilidad en tus inversiones inmobiliarias y acceso a los proyectos tras los SuperReentel.',
-            'tasa': '13% reinversión anual'
-        },
-        'Reentel': {
-            'descripcion': 'Solo quiero invertir en inmobiliario.',
-            'tasa': '11% reinversión anual'
+    # ========== PASO 2 ==========
+    elif st.session_state.paso_actual == 2:
+        st.markdown('<div class="sidebar-title">PASO 2: ¿QUÉ ESTATUS RNT QUIERES CONSIDERAR?</div>', unsafe_allow_html=True)
+        st.markdown("")
+        
+        estatus_options = {
+            'SuperReentel': 'SuperReentel: quiero conseguir hasta un 50% más de rentabilidad en mis inversiones inmobiliarias y acceso prioritario a los proyectos.',
+            'ReentelPro': 'ReentelPro: quiero conseguir hasta un 25% más de rentabilidad en mis inversiones inmobiliarias y acceder a los proyectos tras los SuperReentel.',
+            'Reentel': 'Reentel: por ahora no quiero estatus.'
         }
-    }
-    
-    with col1:
-        is_selected = st.session_state.datos_cliente['estatus'] == 'SuperReentel'
-        if st.button(
-            f"{'✅ ' if is_selected else ''}SuperReentel\n{estatus_info['SuperReentel']['tasa']}",
-            use_container_width=True,
-            key="btn_super"
-        ):
-            st.session_state.datos_cliente['estatus'] = 'SuperReentel'
-            st.rerun()
-        st.caption(estatus_info['SuperReentel']['descripcion'])
-    
-    with col2:
-        is_selected = st.session_state.datos_cliente['estatus'] == 'ReentelPro'
-        if st.button(
-            f"{'✅ ' if is_selected else ''}ReentelPro\n{estatus_info['ReentelPro']['tasa']}",
-            use_container_width=True,
-            key="btn_pro"
-        ):
-            st.session_state.datos_cliente['estatus'] = 'ReentelPro'
-            st.rerun()
-        st.caption(estatus_info['ReentelPro']['descripcion'])
-    
-    with col3:
-        is_selected = st.session_state.datos_cliente['estatus'] == 'Reentel'
-        if st.button(
-            f"{'✅ ' if is_selected else ''}Reentel\n{estatus_info['Reentel']['tasa']}",
-            use_container_width=True,
-            key="btn_reentel"
-        ):
-            st.session_state.datos_cliente['estatus'] = 'Reentel'
-            st.rerun()
-        st.caption(estatus_info['Reentel']['descripcion'])
-    
-    st.markdown("---")
-    st.markdown("### ¿Qué tipo de proyectos te interesan?")
-    
-    col1, col2 = st.columns(2)
-    
-    duracion_options = ["Corto plazo (≤18 meses)", "Largo plazo (>18 meses)"]
-    mercado_options = ["Todos", "Global", "EE.UU.", "México", "República Dominicana", "Argentina", "España", "Emiratos Árabes"]
-    rendimientos_options = ["Final", "Rendimientos periódicos"]
-    objetivo_options = [
-        "Maximizar rentabilidad (esperar más tiempo)",
-        "Recibir rentas periódicas (crecimiento gradual)"
-    ]
-    
-    with col1:
-        duracion_idx = 0 if "Corto" in st.session_state.datos_cliente['duracion'] else 1
-        st.session_state.datos_cliente['duracion'] = st.radio(
-            "Duración",
-            duracion_options,
-            index=duracion_idx
+        
+        estatus_idx = 0 if st.session_state.datos_cliente['estatus'] == 'SuperReentel' else (
+            1 if st.session_state.datos_cliente['estatus'] == 'ReentelPro' else 2
         )
         
-        mercados_validos = [m for m in st.session_state.datos_cliente['mercados'] if m in mercado_options]
-        if not mercados_validos:
-            mercados_validos = ['España', 'EE.UU.']
-        
-        st.session_state.datos_cliente['mercados'] = st.multiselect(
-            "Mercado",
-            mercado_options,
-            default=mercados_validos
+        estatus_seleccionado = st.radio(
+            "Elige tu estatus",
+            list(estatus_options.keys()),
+            index=estatus_idx,
+            format_func=lambda x: estatus_options[x],
+            key="radio_estatus"
         )
+        
+        st.session_state.datos_cliente['estatus'] = estatus_seleccionado
+        
+        st.markdown("")
+        st.info("💡 **¿Quieres más información sobre qué es el estatus RNT y cómo puede ayudarte a maximizar tu rentabilidad inmobiliaria?** Agenda con nuestro equipo de Onboarding.")
+        
+        st.markdown("---")
+        
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            if st.button("← Atrás", use_container_width=True, key="btn_paso2_back"):
+                st.session_state.paso_actual = 1
+                st.rerun()
+        
+        with col2:
+            if st.button("Continuar →", use_container_width=True, key="btn_paso2_next"):
+                st.session_state.paso_actual = 3
+                st.rerun()
     
-    with col2:
-        rendimientos_idx = 0 if "Final" in st.session_state.datos_cliente['tipo_rendimientos'] else 1
-        st.session_state.datos_cliente['tipo_rendimientos'] = st.radio(
-            "Tipo de rendimientos",
-            rendimientos_options,
-            index=rendimientos_idx
-        )
+    # ========== PASO 3 ==========
+    elif st.session_state.paso_actual == 3:
+        st.markdown('<div class="sidebar-title">PASO 3: ¿QUÉ CARACTERIZA TU CARTERA?</div>', unsafe_allow_html=True)
+        st.markdown("")
         
-        objetivo_idx = 0 if "Maximizar" in st.session_state.datos_cliente['objetivo'] else 1
+        # Objetivo
+        st.markdown("**Objetivo**")
+        objetivo_options = [
+            "Busco rentas periódicas, ver cómo periódicamente voy recibiendo rendimientos",
+            "Busco maximizar la rentabilidad. No me importa esperar más, si eso me permite tener más rendimiento."
+        ]
+        
+        idx_objetivo = 0 if "periódicas" in st.session_state.datos_cliente['objetivo'] else 1
         st.session_state.datos_cliente['objetivo'] = st.radio(
-            "Objetivo",
+            "¿Qué objetivo buscas?",
             objetivo_options,
-            index=objetivo_idx
+            index=idx_objetivo,
+            key="radio_objetivo",
+            label_visibility="collapsed"
         )
-    
+        
+        st.markdown("")
+        st.markdown("**Mercados**")
+        
+        mercado_options = [
+            "Todos",
+            "España",
+            "EE.UU.",
+            "México",
+            "República Dominicana",
+            "Argentina",
+            "EUA (Emiratos Árabes Unidos)"
+        ]
+        
+        # Lógica: si "Todos" está seleccionado, no mostrar otros
+        mercados_default = st.session_state.datos_cliente['mercados']
+        mercados_seleccionados = st.multiselect(
+            "¿En qué mercados quieres operar?",
+            mercado_options,
+            default=mercados_default,
+            key="select_mercados",
+            label_visibility="collapsed"
+        )
+        
+        if "Todos" in mercados_seleccionados:
+            st.session_state.datos_cliente['mercados'] = ["Todos"]
+        else:
+            st.session_state.datos_cliente['mercados'] = mercados_seleccionados if mercados_seleccionados else ['España']
+        
+        st.markdown("---")
+        
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            if st.button("← Atrás", use_container_width=True, key="btn_paso3_back"):
+                st.session_state.paso_actual = 2
+                st.rerun()
+        
+        with col2:
+            if st.button("Continuar →", use_container_width=True, key="btn_paso3_next"):
+                with st.spinner("Buscando proyectos..."):
+                    try:
+                        st.session_state.df_proyectos = cargar_proyectos()
+                        if st.session_state.df_proyectos is not None and len(st.session_state.df_proyectos) > 0:
+                            st.session_state.paso_actual = 4
+                            st.rerun()
+                        else:
+                            st.error("No se encontraron proyectos")
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+
+# ============================================================================
+# CONTENIDO PRINCIPAL
+# ============================================================================
+
+# PORTADA (Pasos 1-3)
+if st.session_state.paso_actual in [1, 2, 3]:
+    st.markdown("# 🏠 SIMULADOR DE CARTERA INMOBILIARIA")
+    st.markdown("**Reental Wealth**", help="Elaborado por el servicio Reental Wealth")
     st.markdown("---")
     
-    col1, col2, col3 = st.columns([1, 1, 1])
-    with col3:
-        if st.button("Continuar →", use_container_width=True, key="btn_paso1"):
-            with st.spinner("Buscando proyectos..."):
-                try:
-                    st.session_state.df_proyectos = cargar_proyectos()
-                    
-                    if st.session_state.df_proyectos is not None and len(st.session_state.df_proyectos) > 0:
-                        mercados_map = {
-                            'España': 'España',
-                            'EE.UU.': 'USA',
-                            'Global': 'Global',
-                            'México': 'México',
-                            'República Dominicana': 'República Dominicana',
-                            'Argentina': 'Argentina',
-                            'Emiratos Árabes': 'Emiratos Árabes'
-                        }
-                        
-                        mercados_filtrados = [mercados_map.get(m, m) for m in st.session_state.datos_cliente['mercados'] if m != 'Todos']
-                        
-                        col_ubicacion = obtener_columna(st.session_state.df_proyectos, ['Ubicación', 'ubicacion'])
-                        ubicaciones_unicas = st.session_state.df_proyectos[col_ubicacion].unique().tolist() if col_ubicacion else []
-                        
-                        df_ranked = rankear_proyectos(
-                            st.session_state.df_proyectos,
-                            {
-                                'duracion': 'Corto plazo' if 'Corto' in st.session_state.datos_cliente['duracion'] else 'Largo plazo',
-                                'ubicaciones': mercados_filtrados if 'Todos' not in st.session_state.datos_cliente['mercados'] else ubicaciones_unicas
-                            },
-                            st.session_state.datos_cliente['estatus']
-                        )
-                        st.session_state.df_proyectos = df_ranked
-                        st.session_state.paso_actual = 2
-                        st.rerun()
-                    else:
-                        st.error("No se encontraron proyectos con tus criterios")
-                except Exception as e:
-                    st.error(f"Error cargando proyectos: {e}")
+    # Mostrar resumen según paso
+    if st.session_state.paso_actual == 1:
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            st.markdown("## Paso 1: Cuéntanos sobre ti")
+            if st.session_state.datos_cliente['nombre']:
+                st.success(f"✅ {st.session_state.datos_cliente['nombre']}")
+            else:
+                st.warning("⏳ Ingresa tu nombre")
+    
+    elif st.session_state.paso_actual == 2:
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            st.markdown("## Paso 2: ¿Qué estatus RNT?")
+            st.info(f"📊 Estatus seleccionado: **{st.session_state.datos_cliente['estatus']}**")
+    
+    elif st.session_state.paso_actual == 3:
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            st.markdown("## Paso 3: Caracteriza tu cartera")
+            st.info(f"""
+            **Objetivo:** {st.session_state.datos_cliente['objetivo'][:60]}...
+            
+            **Mercados:** {', '.join(st.session_state.datos_cliente['mercados'])}
+            """)
 
-# ============================================================================
-# PASO 2: SELECCIÓN DE PROYECTOS
-# ============================================================================
-
-elif st.session_state.paso_actual == 2:
-    st.markdown("### Paso 2/3: Elige tus proyectos")
+# PASO 4: Selección de proyectos
+elif st.session_state.paso_actual == 4:
+    st.markdown("# 🏠 SIMULADOR DE CARTERA INMOBILIARIA")
+    st.markdown("**Paso 4: Selecciona tus proyectos**")
     st.markdown("---")
     
     if st.session_state.df_proyectos is not None and len(st.session_state.df_proyectos) > 0:
-        st.markdown("#### Proyectos disponibles (ordenados por relevancia)")
-        
-        try:
-            df_display = preparar_tabla_proyectos(st.session_state.df_proyectos)
-            
-            if df_display is not None:
-                st.dataframe(df_display, use_container_width=True, hide_index=True)
-            else:
-                st.warning("No se pudieron preparar los datos de proyectos")
-        except Exception as e:
-            st.error(f"Error mostrando proyectos: {e}")
-        
-        st.markdown("---")
-        st.markdown("#### Selecciona los proyectos que te interesan")
-        
-        col_id = obtener_columna(st.session_state.df_proyectos, ['ID'])
-        
-        if col_id:
-            proyectos_disponibles = st.session_state.df_proyectos[col_id].unique().tolist()
-            
-            st.session_state.proyectos_seleccionados = st.multiselect(
-                "Proyectos",
-                proyectos_disponibles,
-                default=st.session_state.proyectos_seleccionados,
-                key="select_proyectos"
-            )
-            
-            if st.session_state.proyectos_seleccionados:
-                st.success(f"✅ {len(st.session_state.proyectos_seleccionados)} proyecto(s) seleccionado(s)")
-                
-                st.markdown("---")
-                st.markdown("#### ¿Cómo quieres distribuir el capital?")
-                
-                dist_options = ["Homogénea (igual para cada proyecto)", "Proporcional (según tamaño)", "Manual (tú eliges %)"]
-                dist_idx = 0 if "Homogénea" in st.session_state.tipo_distribucion else (
-                    1 if "Proporcional" in st.session_state.tipo_distribucion else 2
-                )
-                
-                st.session_state.tipo_distribucion = st.radio(
-                    "Tipo de distribución",
-                    dist_options,
-                    index=dist_idx,
-                    key="dist_radio"
-                )
-                
-                st.markdown("---")
-                
-                col1, col2, col3 = st.columns([1, 1, 1])
-                with col1:
-                    if st.button("← Atrás", use_container_width=True):
-                        st.session_state.paso_actual = 1
-                        st.rerun()
-                
-                with col3:
-                    if st.button("Continuar →", use_container_width=True):
-                        st.session_state.paso_actual = 3
-                        st.rerun()
-            else:
-                st.warning("Selecciona al menos un proyecto para continuar")
-        else:
-            st.error("No se encontró columna de ID en los proyectos")
+        st.markdown("### Proyectos disponibles (ordenados por relevancia)")
+        st.dataframe(st.session_state.df_proyectos, use_container_width=True, hide_index=True)
     else:
-        st.error("No hay proyectos disponibles")
-
-# ============================================================================
-# PASO 3: RESULTADOS
-# ============================================================================
-
-elif st.session_state.paso_actual == 3:
-    st.markdown("### Paso 3/3: Tus Resultados")
-    st.markdown("---")
-    
-    if st.session_state.proyectos_seleccionados and st.session_state.df_proyectos is not None:
-        
-        col_id = obtener_columna(st.session_state.df_proyectos, ['ID'])
-        
-        if col_id:
-            df_seleccionados = st.session_state.df_proyectos[
-                st.session_state.df_proyectos[col_id].isin(st.session_state.proyectos_seleccionados)
-            ]
-            
-            tipo_dist_map = {
-                "Homogénea (igual para cada proyecto)": "Igual",
-                "Proporcional (según tamaño)": "Proporcional",
-                "Manual (tú eliges %)": "Manual"
-            }
-            tipo_dist_short = tipo_dist_map.get(st.session_state.tipo_distribucion, "Igual")
-            
-            try:
-                distribucion = distribuir_capital(df_seleccionados, st.session_state.datos_cliente['capital'], tipo_dist_short)
-                
-                if distribucion:
-                    st.markdown("#### Tu Cartera")
-                    
-                    df_cartera = pd.DataFrame(distribucion)
-                    divisa = st.session_state.datos_cliente['divisa']
-                    
-                    df_mostrar = df_cartera[['ID', 'Nombre', 'Inversion', 'Porcentaje']].copy()
-                    df_mostrar.columns = ['ID', 'Nombre', f'Inversión ({divisa})', '% Cartera']
-                    df_mostrar[f'Inversión ({divisa})'] = df_mostrar[f'Inversión ({divisa})'].apply(lambda x: f"{divisa} {x:,.0f}")
-                    df_mostrar['% Cartera'] = df_mostrar['% Cartera'].apply(lambda x: f"{x:.1f}%")
-                    
-                    st.dataframe(df_mostrar, use_container_width=True, hide_index=True)
-                    
-                    st.markdown("---")
-                    st.markdown("#### Proyección de Ganancias")
-                    
-                    cartera_norm = normalizar_cartera(distribucion)
-                    calculadora = CalculadoraCartera(st.session_state.datos_cliente['estatus'])
-                    resultados = calculadora.calcular_cartera_completa(cartera_norm, st.session_state.datos_cliente['capital'])
-                    
-                    cols = st.columns(5)
-                    for idx, horizonte in enumerate([6, 12, 24, 36, 60]):
-                        with cols[idx]:
-                            res = resultados[horizonte]
-                            st.metric(
-                                f"{horizonte}M",
-                                f"{divisa} {res['ganancia']:,.0f}",
-                                f"{res['rentabilidad_anualizada']*100:.2f}%/año"
-                            )
-                    
-                    st.markdown("---")
-                    st.markdown("#### Detalles de la Proyección")
-                    
-                    datos_tabla = []
-                    for horizonte in [6, 12, 24, 36, 60]:
-                        res = resultados[horizonte]
-                        datos_tabla.append({
-                            'Horizonte': f'{horizonte} meses',
-                            'Valor Final': f'{divisa} {res["valor_final"]:,.0f}',
-                            'Ganancia': f'{divisa} {res["ganancia"]:,.0f}',
-                            'Rent. Acumulada': f'{res["rentabilidad_acumulada"]*100:.2f}%',
-                            'Rent. Anualizada': f'{res["rentabilidad_anualizada"]*100:.2f}%'
-                        })
-                    
-                    df_resultados = pd.DataFrame(datos_tabla)
-                    st.dataframe(df_resultados, use_container_width=True, hide_index=True)
-                    
-                    st.markdown("---")
-                    
-                    col1, col2, col3 = st.columns([1, 1, 1])
-                    with col1:
-                        if st.button("← Atrás", use_container_width=True):
-                            st.session_state.paso_actual = 2
-                            st.rerun()
-                else:
-                    st.error("Error distribuyendo capital")
-            except Exception as e:
-                st.error(f"Error en los cálculos: {e}")
-        else:
-            st.error("No se encontró la columna ID")
-    else:
-        st.info("Vuelve al Paso 2 para seleccionar proyectos")
+        st.error("No se cargaron proyectos")
 
 # ============================================================================
 # FOOTER
 # ============================================================================
 
-st.markdown("---")
-st.markdown("<small>🏠 Simulador de Cartera Inmobiliaria Reental © 2026</small>", unsafe_allow_html=True)
+if st.session_state.paso_actual <= 3:
+    st.markdown("---")
+    st.markdown("<small>Elaborado por el servicio Reental Wealth | " + datetime.now().strftime("%d de %B de %Y") + "</small>", unsafe_allow_html=True)
