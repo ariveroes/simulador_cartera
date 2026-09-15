@@ -40,7 +40,7 @@ st.markdown("""
     
     /* Sidebar header - BAJADO PARA ALINEAR CON CONTENIDO */
     [data-testid="stSidebar"] > div:first-child {
-        padding-top: 60px !important;
+        padding-top: 100px !important;
         margin-top: 0 !important;
     }
     
