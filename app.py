@@ -38,9 +38,10 @@ st.markdown("""
         border-right: 3px solid #ff8c00;
     }
     
-    /* Sidebar header */
+    /* Sidebar header - BAJADO PARA ALINEAR CON CONTENIDO */
     [data-testid="stSidebar"] > div:first-child {
-        padding-top: 20px !important;
+        padding-top: 60px !important;
+        margin-top: 0 !important;
     }
     
     /* Main content area */
