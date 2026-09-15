@@ -1,6 +1,6 @@
 """
 SIMULADOR DE CARTERA INMOBILIARIA REENTAL
-Layout final: Sidebar color EXACTO #0d1b2e
+Layout final: Sidebar alineado perfectamente con el contenido
 """
 
 import streamlit as st
@@ -32,25 +32,37 @@ st.markdown("""
         color: #ffffff;
     }
     
-    /* Remover padding superior */
+    /* Remover padding superior completamente */
     .stApp > div:first-child {
         padding-top: 0 !important;
+        margin-top: 0 !important;
     }
     
-    /* Sidebar - COLOR EXACTO #0d1b2e */
+    /* Sidebar - COLOR EXACTO #0d1b2e - ALINEADO */
     [data-testid="stSidebar"] {
         background-color: #0d1b2e;
         border-right: 3px solid #ff8c00;
+        padding-top: 0 !important;
+        margin-top: 0 !important;
     }
     
-    /* Sidebar header */
+    /* Sidebar content alineado */
     [data-testid="stSidebar"] > div:first-child {
-        padding-top: 20px !important;
+        padding-top: 0 !important;
+        margin-top: 0 !important;
     }
     
     /* Main content area */
     .main {
         background-color: #162436;
+        padding-top: 0 !important;
+        margin-top: 0 !important;
+    }
+    
+    /* Remover margen top del contenedor principal */
+    .stContainer {
+        padding-top: 0 !important;
+        margin-top: 0 !important;
     }
     
     /* Títulos principales */
@@ -220,12 +232,12 @@ if 'proyectos_seleccionados' not in st.session_state:
     st.session_state.proyectos_seleccionados = []
 
 # ============================================================================
-# SIDEBAR - BRANDING FIJO (Color EXACTO #0d1b2e)
+# SIDEBAR - BRANDING FIJO (Color EXACTO #0d1b2e - ALINEADO)
 # ============================================================================
 
 with st.sidebar:
     st.markdown("""
-    <div style="text-align: center; padding: 20px 0;">
+    <div style="text-align: center; padding: 20px 0; margin: 0;">
         <div style="color: #ff8c00; font-weight: 800; font-size: 28px; margin-bottom: 15px;">Reental</div>
         <div style="color: #ffffff; font-weight: 700; font-size: 16px; line-height: 1.4;">
             Simulador de<br>Cartera<br>Inmobiliaria
