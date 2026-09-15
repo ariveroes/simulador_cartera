@@ -1,6 +1,6 @@
 """
 SIMULADOR DE CARTERA INMOBILIARIA REENTAL
-Layout: Centrado mejorado con mejor UX/UI
+Layout: Centrado mejorado con radio buttons visibles
 """
 
 import streamlit as st
@@ -56,11 +56,11 @@ st.markdown("""
         margin-bottom: 50px;
     }
     
-    /* Labels - Preguntas EN NARANJA + NEGRITA */
+    /* Labels - Preguntas EN NARANJA + NEGRITA + 20px */
     label {
         color: #ff8c00 !important;
         font-weight: 700 !important;
-        font-size: 16px !important;
+        font-size: 20px !important;
         margin-bottom: 12px !important;
     }
     
@@ -79,31 +79,31 @@ st.markdown("""
         background-color: #e67e00;
     }
     
-    /* Input fields - GRIS CLARO */
+    /* Input fields - GRIS CLARO + 18px */
     .stTextInput > div > div > input {
         background-color: #4a5a6a !important;
         color: #ffffff !important;
         border: 2px solid #ff8c00 !important;
         border-radius: 8px !important;
         padding: 12px !important;
-        font-size: 15px !important;
+        font-size: 18px !important;
     }
     
     .stTextInput > div > div > input::placeholder {
         color: #999999 !important;
     }
     
-    /* Selectbox - GRIS CLARO */
+    /* Selectbox - GRIS CLARO + 18px */
     .stSelectbox > div > div > select {
         background-color: #4a5a6a !important;
         color: #ffffff !important;
         border: 2px solid #ff8c00 !important;
         border-radius: 8px !important;
         padding: 12px !important;
-        font-size: 15px !important;
+        font-size: 18px !important;
     }
     
-    /* Radio buttons - MÁS VISIBLES */
+    /* Radio buttons - TEXTO GRANDE Y VISIBLE */
     .stRadio > div {
         background-color: transparent;
     }
@@ -111,9 +111,15 @@ st.markdown("""
     .stRadio > div > label {
         color: #ffffff !important;
         font-weight: 600 !important;
-        font-size: 15px !important;
+        font-size: 18px !important;
         margin-left: 10px !important;
-        padding: 10px !important;
+        padding: 12px 10px !important;
+        line-height: 1.6 !important;
+    }
+    
+    .stRadio > div > label > div {
+        color: #ffffff !important;
+        font-size: 18px !important;
     }
     
     .stRadio > div > label > div:first-child {
@@ -121,14 +127,22 @@ st.markdown("""
     }
     
     /* Multiselect - GRIS CLARO */
-    .stMultiSelect > div > div > input {
+    .stMultiSelect > div > div {
         background-color: #4a5a6a !important;
         border: 2px solid #ff8c00 !important;
+        border-radius: 8px !important;
+        font-size: 18px !important;
+    }
+    
+    .stMultiSelect > div > div > input {
+        font-size: 18px !important;
+        color: #ffffff !important;
     }
     
     .stMultiSelect [data-baseweb="tag"] {
         background-color: #ff8c00 !important;
         color: #1a2332 !important;
+        font-size: 16px !important;
     }
     
     /* Info boxes */
@@ -138,6 +152,7 @@ st.markdown("""
         color: #ffffff;
         border-radius: 8px;
         padding: 15px;
+        font-size: 16px;
     }
     
     /* Espaciado */
@@ -177,7 +192,7 @@ if 'datos_cliente' not in st.session_state:
         'capital': 'Entre 10.000 y 50.000',
         'estatus': 'SuperReentel',
         'objetivo': 'Busco rentas periódicas, ver cómo periódicamente voy recibiendo rendimientos',
-        'mercados': ['España'],
+        'mercados': [],
     }
 
 if 'df_proyectos' not in st.session_state:
@@ -266,28 +281,27 @@ if st.session_state.paso_actual == 1:
             st.rerun()
 
 # ============================================================================
-# PASO 2
+# PASO 2 - ESTATUS (TEXTO VISIBLE)
 # ============================================================================
 
 elif st.session_state.paso_actual == 2:
     st.markdown("## Paso 2: ¿Qué estatus RNT quieres considerar?")
     st.markdown("")
     
-    estatus_options = {
+    # Usar solo los keys para las opciones (sin format_func)
+    estatus_options = ['SuperReentel', 'ReentelPro', 'Reentel']
+    estatus_descriptions = {
         'SuperReentel': 'SuperReentel: quiero conseguir hasta un 50% más de rentabilidad en mis inversiones inmobiliarias y acceso prioritario a los proyectos.',
         'ReentelPro': 'ReentelPro: quiero conseguir hasta un 25% más de rentabilidad en mis inversiones inmobiliarias y acceder a los proyectos tras los SuperReentel.',
         'Reentel': 'Reentel: por ahora no quiero estatus.'
     }
     
-    estatus_idx = 0 if st.session_state.datos_cliente['estatus'] == 'SuperReentel' else (
-        1 if st.session_state.datos_cliente['estatus'] == 'ReentelPro' else 2
-    )
+    estatus_idx = estatus_options.index(st.session_state.datos_cliente['estatus'])
     
     estatus_seleccionado = st.radio(
         "**Elige tu estatus**",
-        list(estatus_options.keys()),
+        estatus_options,
         index=estatus_idx,
-        format_func=lambda x: estatus_options[x],
         key="radio_estatus"
     )
     
@@ -310,7 +324,7 @@ elif st.session_state.paso_actual == 2:
             st.rerun()
 
 # ============================================================================
-# PASO 3
+# PASO 3 - OBJETIVO Y MERCADOS
 # ============================================================================
 
 elif st.session_state.paso_actual == 3:
@@ -345,6 +359,7 @@ elif st.session_state.paso_actual == 3:
         "EUA (Emiratos Árabes Unidos)"
     ]
     
+    # Usar mercados_default vacío (sin España por defecto)
     mercados_default = st.session_state.datos_cliente['mercados']
     mercados_seleccionados = st.multiselect(
         "Mercados",
@@ -354,10 +369,18 @@ elif st.session_state.paso_actual == 3:
         label_visibility="collapsed"
     )
     
+    # LÓGICA: Si "Todos" está seleccionado, deseleccionar otros
     if "Todos" in mercados_seleccionados:
         st.session_state.datos_cliente['mercados'] = ["Todos"]
+        # Mostrar message si cambió
+        if len(mercados_seleccionados) > 1:
+            st.warning("Se han deseleccionado otros mercados porque seleccionaste 'Todos'")
+    # Si no hay nada seleccionado, dejar vacío
+    elif len(mercados_seleccionados) == 0:
+        st.session_state.datos_cliente['mercados'] = []
+    # Si hay mercados específicos (sin "Todos")
     else:
-        st.session_state.datos_cliente['mercados'] = mercados_seleccionados if mercados_seleccionados else ['España']
+        st.session_state.datos_cliente['mercados'] = mercados_seleccionados
     
     st.markdown('<div style="margin-bottom: 30px;"></div>', unsafe_allow_html=True)
     
