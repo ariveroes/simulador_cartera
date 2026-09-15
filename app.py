@@ -1,6 +1,6 @@
 """
 SIMULADOR DE CARTERA INMOBILIARIA REENTAL
-Layout final: Sidebar alineado perfectamente con el contenido
+Layout final: Sin espacios en la parte superior
 """
 
 import streamlit as st
@@ -23,46 +23,66 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilos personalizados
+# Estilos personalizados - REMOVER TODOS LOS ESPACIOS
 st.markdown("""
 <style>
+    * {
+        margin: 0;
+        padding: 0;
+    }
+    
     /* Background */
     .stApp {
         background-color: #162436;
         color: #ffffff;
     }
     
-    /* Remover padding superior completamente */
-    .stApp > div:first-child {
-        padding-top: 0 !important;
-        margin-top: 0 !important;
+    /* Remover TODOS los espacios */
+    html, body {
+        margin: 0 !important;
+        padding: 0 !important;
     }
     
-    /* Sidebar - COLOR EXACTO #0d1b2e - ALINEADO */
+    .stApp > div:first-child {
+        padding: 0 !important;
+        margin: 0 !important;
+        gap: 0 !important;
+    }
+    
+    /* Sidebar - COLOR EXACTO #0d1b2e */
     [data-testid="stSidebar"] {
         background-color: #0d1b2e;
         border-right: 3px solid #ff8c00;
-        padding-top: 0 !important;
-        margin-top: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
     
-    /* Sidebar content alineado */
+    [data-testid="stSidebar"] > div {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
     [data-testid="stSidebar"] > div:first-child {
-        padding-top: 0 !important;
-        margin-top: 0 !important;
+        padding-top: 20px !important;
+    }
+    
+    /* Main wrapper */
+    [data-testid="stMainBlockContainer"] {
+        padding: 0 !important;
+        margin: 0 !important;
+        gap: 0 !important;
     }
     
     /* Main content area */
     .main {
         background-color: #162436;
-        padding-top: 0 !important;
-        margin-top: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
     }
     
-    /* Remover margen top del contenedor principal */
     .stContainer {
-        padding-top: 0 !important;
-        margin-top: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
     }
     
     /* Títulos principales */
@@ -190,11 +210,6 @@ st.markdown("""
         font-size: 16px;
     }
     
-    /* Espaciado */
-    .spacer {
-        margin: 25px 0;
-    }
-    
     /* Footer */
     .footer {
         position: fixed;
@@ -232,7 +247,7 @@ if 'proyectos_seleccionados' not in st.session_state:
     st.session_state.proyectos_seleccionados = []
 
 # ============================================================================
-# SIDEBAR - BRANDING FIJO (Color EXACTO #0d1b2e - ALINEADO)
+# SIDEBAR - BRANDING FIJO
 # ============================================================================
 
 with st.sidebar:
