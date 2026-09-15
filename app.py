@@ -1,6 +1,6 @@
 """
 SIMULADOR DE CARTERA INMOBILIARIA REENTAL
-Layout: Centrado (sin sidebar) + Header superior
+Layout: Centrado mejorado con mejor UX/UI
 """
 
 import streamlit as st
@@ -23,7 +23,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Estilos personalizados (colores PDF: azul marino #1a2332 + naranja #ff8c00)
+# Estilos personalizados mejorados
 st.markdown("""
 <style>
     /* Background */
@@ -32,16 +32,36 @@ st.markdown("""
         color: #ffffff;
     }
     
-    /* Títulos */
-    h1, h2, h3 {
+    /* Títulos principales */
+    h1 {
         color: #ffffff;
-        font-weight: 700;
+        font-weight: 800;
+        font-size: 42px;
+        margin-bottom: 10px;
     }
     
-    /* Labels naranja */
+    h2 {
+        color: #ffffff;
+        font-weight: 700;
+        font-size: 28px;
+        margin-top: 30px;
+        margin-bottom: 30px;
+    }
+    
+    /* Subtítulo naranja */
+    .subtitle-orange {
+        color: #ff8c00;
+        font-weight: 800;
+        font-size: 36px;
+        margin-bottom: 50px;
+    }
+    
+    /* Labels - Preguntas EN NARANJA + NEGRITA */
     label {
-        color: #ffffff !important;
-        font-weight: 600;
+        color: #ff8c00 !important;
+        font-weight: 700 !important;
+        font-size: 16px !important;
+        margin-bottom: 12px !important;
     }
     
     /* Botones */
@@ -51,39 +71,78 @@ st.markdown("""
         font-weight: 700;
         border: none;
         border-radius: 8px;
-        padding: 12px 24px;
+        padding: 14px 28px;
+        font-size: 16px;
     }
     
     .stButton > button:hover {
         background-color: #e67e00;
     }
     
-    /* Input fields */
-    .stTextInput > div > div > input,
-    .stNumberInput > div > div > input,
-    .stSelectbox > div > div > select {
-        background-color: #2c3e50;
-        color: #ffffff;
-        border: 1px solid #ff8c00;
-        border-radius: 8px;
+    /* Input fields - GRIS CLARO */
+    .stTextInput > div > div > input {
+        background-color: #4a5a6a !important;
+        color: #ffffff !important;
+        border: 2px solid #ff8c00 !important;
+        border-radius: 8px !important;
+        padding: 12px !important;
+        font-size: 15px !important;
     }
     
-    /* Radio buttons */
+    .stTextInput > div > div > input::placeholder {
+        color: #999999 !important;
+    }
+    
+    /* Selectbox - GRIS CLARO */
+    .stSelectbox > div > div > select {
+        background-color: #4a5a6a !important;
+        color: #ffffff !important;
+        border: 2px solid #ff8c00 !important;
+        border-radius: 8px !important;
+        padding: 12px !important;
+        font-size: 15px !important;
+    }
+    
+    /* Radio buttons - MÁS VISIBLES */
+    .stRadio > div {
+        background-color: transparent;
+    }
+    
     .stRadio > div > label {
         color: #ffffff !important;
+        font-weight: 600 !important;
+        font-size: 15px !important;
+        margin-left: 10px !important;
+        padding: 10px !important;
     }
     
-    /* Multiselect */
-    .stMultiSelect > div > div {
-        background-color: #2c3e50;
-        border: 1px solid #ff8c00;
+    .stRadio > div > label > div:first-child {
+        background-color: transparent !important;
+    }
+    
+    /* Multiselect - GRIS CLARO */
+    .stMultiSelect > div > div > input {
+        background-color: #4a5a6a !important;
+        border: 2px solid #ff8c00 !important;
+    }
+    
+    .stMultiSelect [data-baseweb="tag"] {
+        background-color: #ff8c00 !important;
+        color: #1a2332 !important;
     }
     
     /* Info boxes */
     .stInfo {
         background-color: #2c3e50;
-        border: 1px solid #ff8c00;
+        border: 2px solid #ff8c00;
         color: #ffffff;
+        border-radius: 8px;
+        padding: 15px;
+    }
+    
+    /* Espaciado */
+    .spacer {
+        margin: 25px 0;
     }
     
     /* Footer */
@@ -93,6 +152,11 @@ st.markdown("""
         left: 20px;
         font-size: 12px;
         color: #999999;
+    }
+    
+    /* Spinner */
+    .stSpinner {
+        color: #ff8c00;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -127,9 +191,10 @@ if 'proyectos_seleccionados' not in st.session_state:
 # ============================================================================
 
 st.markdown("""
-<div style="text-align: center; margin-bottom: 40px;">
-    <h1 style="margin-bottom: 5px;">🏠 SIMULADOR DE CARTERA</h1>
-    <h2 style="color: #ff8c00; margin-top: 0;">INMOBILIARIA</h2>
+<div style="text-align: center; margin-bottom: 50px; margin-top: 30px;">
+    <div style="color: #ff8c00; font-weight: 800; font-size: 32px; margin-bottom: 5px;">Reental</div>
+    <h1>SIMULADOR DE CARTERA</h1>
+    <div class="subtitle-orange">INMOBILIARIA</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -143,35 +208,40 @@ if st.session_state.paso_actual == 1:
     st.markdown("## Paso 1: Cuéntanos sobre ti")
     st.markdown("")
     
+    st.markdown('<div style="margin-bottom: 8px;"></div>', unsafe_allow_html=True)
     st.session_state.datos_cliente['nombre'] = st.text_input(
-        "Nombre completo",
+        "**Nombre completo**",
         value=st.session_state.datos_cliente['nombre'],
         placeholder="Juan Pérez",
         key="input_nombre"
     )
     
+    st.markdown('<div style="margin-bottom: 8px;"></div>', unsafe_allow_html=True)
     st.session_state.datos_cliente['email'] = st.text_input(
-        "Email",
+        "**Email**",
         value=st.session_state.datos_cliente['email'],
         placeholder="juan@example.com",
         key="input_email"
     )
     
+    st.markdown('<div style="margin-bottom: 8px;"></div>', unsafe_allow_html=True)
     st.session_state.datos_cliente['divisa'] = st.selectbox(
-        "Divisa preferida",
+        "**Divisa preferida**",
         ["EUR", "USD"],
         index=0 if st.session_state.datos_cliente['divisa'] == 'EUR' else 1,
         key="select_divisa"
     )
     
+    st.markdown('<div style="margin-bottom: 20px;"></div>', unsafe_allow_html=True)
     st.session_state.datos_cliente['es_inversor'] = st.radio(
-        "¿Ya eres inversor en Reental?",
+        "**¿Ya eres inversor en Reental?**",
         ["Sí", "No"],
         index=0 if st.session_state.datos_cliente['es_inversor'] == 'Sí' else 1,
         key="radio_inversor",
         horizontal=True
     )
     
+    st.markdown('<div style="margin-bottom: 8px;"></div>', unsafe_allow_html=True)
     capital_options = [
         "Menos de 5.000",
         "Entre 5.000 y 10.000",
@@ -181,13 +251,13 @@ if st.session_state.paso_actual == 1:
     
     idx_capital = capital_options.index(st.session_state.datos_cliente['capital'])
     st.session_state.datos_cliente['capital'] = st.selectbox(
-        "Capital disponible (orientativo)",
+        "**Capital disponible (orientativo)**",
         capital_options,
         index=idx_capital,
         key="select_capital"
     )
     
-    st.markdown("")
+    st.markdown('<div style="margin-bottom: 30px;"></div>', unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 1, 1])
     with col3:
@@ -214,7 +284,7 @@ elif st.session_state.paso_actual == 2:
     )
     
     estatus_seleccionado = st.radio(
-        "Elige tu estatus",
+        "**Elige tu estatus**",
         list(estatus_options.keys()),
         index=estatus_idx,
         format_func=lambda x: estatus_options[x],
@@ -223,10 +293,10 @@ elif st.session_state.paso_actual == 2:
     
     st.session_state.datos_cliente['estatus'] = estatus_seleccionado
     
-    st.markdown("")
+    st.markdown('<div style="margin-bottom: 20px;"></div>', unsafe_allow_html=True)
     st.info("💡 ¿Quieres más información sobre qué es el estatus RNT y cómo puede ayudarte a maximizar tu rentabilidad inmobiliaria? Agenda con nuestro equipo de Onboarding.")
     
-    st.markdown("")
+    st.markdown('<div style="margin-bottom: 30px;"></div>', unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 1, 1])
     with col1:
@@ -262,7 +332,7 @@ elif st.session_state.paso_actual == 3:
         label_visibility="collapsed"
     )
     
-    st.markdown("")
+    st.markdown('<div style="margin-bottom: 20px;"></div>', unsafe_allow_html=True)
     st.markdown("**¿En qué mercados quieres operar?**")
     
     mercado_options = [
@@ -289,7 +359,7 @@ elif st.session_state.paso_actual == 3:
     else:
         st.session_state.datos_cliente['mercados'] = mercados_seleccionados if mercados_seleccionados else ['España']
     
-    st.markdown("")
+    st.markdown('<div style="margin-bottom: 30px;"></div>', unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 1, 1])
     with col1:
