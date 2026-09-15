@@ -28,7 +28,7 @@ st.markdown("""
 <style>
     /* Background */
     .stApp {
-        background-color: #1a2332;
+        background-color: #162436;
         color: #ffffff;
     }
     
@@ -50,7 +50,7 @@ st.markdown("""
     
     /* Main content area */
     .main {
-        background-color: #1a2332;
+        background-color: #162436;
     }
     
     /* Títulos principales */
@@ -90,7 +90,7 @@ st.markdown("""
     /* Botones */
     .stButton > button {
         background-color: #ff8c00;
-        color: #1a2332;
+        color: #162436;
         font-weight: 700;
         border: none;
         border-radius: 8px;
@@ -164,7 +164,7 @@ st.markdown("""
     
     .stMultiSelect [data-baseweb="tag"] {
         background-color: #ff8c00 !important;
-        color: #1a2332 !important;
+        color: #162436 !important;
         font-size: 16px !important;
     }
     
