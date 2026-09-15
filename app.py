@@ -344,58 +344,52 @@ with col_main:
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.markdown("""
-            <div style="background-color: #22c55e; color: white; padding: 10px 15px; border-radius: 8px; text-align: center; font-weight: 700; margin-bottom: 15px;">
-                SUPERREENTEL
+            border_super = "3px solid #ffffff" if st.session_state.datos_cliente['estatus'] == 'SuperReentel' else "3px solid transparent"
+            st.markdown(f"""
+            <div style="border: {border_super}; border-radius: 12px; padding: 20px; background-color: #162436;">
+                <div style="background-color: #22c55e; color: white; padding: 10px 15px; border-radius: 8px; text-align: center; font-weight: 700; margin-bottom: 15px;">
+                    SUPERREENTEL
+                </div>
+                <div style="color: #ffffff; font-size: 14px; line-height: 1.6;">
+                    quiero conseguir hasta un 50% más de rentabilidad en mis inversiones inmobiliarias y acceso prioritario a los proyectos.
+                </div>
             </div>
             """, unsafe_allow_html=True)
-            st.markdown(estatus_info['SuperReentel']['desc'])
-            is_selected = st.radio(
-                "Opción 1",
-                [True, False],
-                index=0 if st.session_state.datos_cliente['estatus'] == 'SuperReentel' else 1,
-                key="radio_super",
-                label_visibility="collapsed",
-                format_func=lambda x: "Seleccionado" if x else ""
-            )
-            if is_selected:
+            if st.button("Seleccionar SuperReentel", key="btn_super", use_container_width=True):
                 st.session_state.datos_cliente['estatus'] = 'SuperReentel'
+                st.rerun()
         
         with col2:
-            st.markdown("""
-            <div style="background-color: #a855f7; color: white; padding: 10px 15px; border-radius: 8px; text-align: center; font-weight: 700; margin-bottom: 15px;">
-                REENTELPRO
+            border_pro = "3px solid #ffffff" if st.session_state.datos_cliente['estatus'] == 'ReentelPro' else "3px solid transparent"
+            st.markdown(f"""
+            <div style="border: {border_pro}; border-radius: 12px; padding: 20px; background-color: #162436;">
+                <div style="background-color: #a855f7; color: white; padding: 10px 15px; border-radius: 8px; text-align: center; font-weight: 700; margin-bottom: 15px;">
+                    REENTELPRO
+                </div>
+                <div style="color: #ffffff; font-size: 14px; line-height: 1.6;">
+                    quiero conseguir hasta un 25% más de rentabilidad en mis inversiones inmobiliarias y acceder a los proyectos tras los SuperReentel.
+                </div>
             </div>
             """, unsafe_allow_html=True)
-            st.markdown(estatus_info['ReentelPro']['desc'])
-            is_selected = st.radio(
-                "Opción 2",
-                [True, False],
-                index=0 if st.session_state.datos_cliente['estatus'] == 'ReentelPro' else 1,
-                key="radio_pro",
-                label_visibility="collapsed",
-                format_func=lambda x: "Seleccionado" if x else ""
-            )
-            if is_selected:
+            if st.button("Seleccionar ReentelPro", key="btn_pro", use_container_width=True):
                 st.session_state.datos_cliente['estatus'] = 'ReentelPro'
+                st.rerun()
         
         with col3:
-            st.markdown("""
-            <div style="background-color: #9ca3af; color: white; padding: 10px 15px; border-radius: 8px; text-align: center; font-weight: 700; margin-bottom: 15px;">
-                REENTEL
+            border_reen = "3px solid #ffffff" if st.session_state.datos_cliente['estatus'] == 'Reentel' else "3px solid transparent"
+            st.markdown(f"""
+            <div style="border: {border_reen}; border-radius: 12px; padding: 20px; background-color: #162436;">
+                <div style="background-color: #9ca3af; color: white; padding: 10px 15px; border-radius: 8px; text-align: center; font-weight: 700; margin-bottom: 15px;">
+                    REENTEL
+                </div>
+                <div style="color: #ffffff; font-size: 14px; line-height: 1.6;">
+                    por ahora no quiero estatus.
+                </div>
             </div>
             """, unsafe_allow_html=True)
-            st.markdown(estatus_info['Reentel']['desc'])
-            is_selected = st.radio(
-                "Opción 3",
-                [True, False],
-                index=0 if st.session_state.datos_cliente['estatus'] == 'Reentel' else 1,
-                key="radio_reentel",
-                label_visibility="collapsed",
-                format_func=lambda x: "Seleccionado" if x else ""
-            )
-            if is_selected:
+            if st.button("Seleccionar Reentel", key="btn_reen", use_container_width=True):
                 st.session_state.datos_cliente['estatus'] = 'Reentel'
+                st.rerun()
         
         st.markdown('<div style="margin-bottom: 20px;"></div>', unsafe_allow_html=True)
         st.info("💡 ¿Quieres más información sobre qué es el estatus RNT y cómo puede ayudarte a maximizar tu rentabilidad inmobiliaria? Agenda con nuestro equipo de Onboarding.")
