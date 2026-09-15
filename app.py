@@ -1,6 +1,6 @@
 """
 SIMULADOR DE CARTERA INMOBILIARIA REENTAL
-Layout final ajustado: Sidebar oscuro + Título formato PDF + Estatus en columnas
+Layout final: Sidebar más claro
 """
 
 import streamlit as st
@@ -37,9 +37,9 @@ st.markdown("""
         padding-top: 0 !important;
     }
     
-    /* Sidebar - Color oscuro (imagen 1) */
+    /* Sidebar - Color MÁS CLARO */
     [data-testid="stSidebar"] {
-        background-color: #0a0f15;
+        background-color: #2a3a4a;
         border-right: 3px solid #ff8c00;
     }
     
@@ -220,7 +220,7 @@ if 'proyectos_seleccionados' not in st.session_state:
     st.session_state.proyectos_seleccionados = []
 
 # ============================================================================
-# SIDEBAR - BRANDING FIJO (Color oscuro imagen 1)
+# SIDEBAR - BRANDING FIJO (Color MÁS CLARO)
 # ============================================================================
 
 with st.sidebar:
