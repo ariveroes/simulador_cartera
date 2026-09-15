@@ -1,6 +1,6 @@
 """
 SIMULADOR DE CARTERA INMOBILIARIA REENTAL
-Layout: Sidebar fijo con logo + Centro con preguntas
+Layout final ajustado: Sidebar oscuro + Título formato PDF + Estatus en columnas
 """
 
 import streamlit as st
@@ -23,7 +23,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilos personalizados mejorados
+# Estilos personalizados
 st.markdown("""
 <style>
     /* Background */
@@ -32,10 +32,20 @@ st.markdown("""
         color: #ffffff;
     }
     
-    /* Sidebar - FIJO */
+    /* Remover padding superior */
+    .stApp > div:first-child {
+        padding-top: 0 !important;
+    }
+    
+    /* Sidebar - Color oscuro (imagen 1) */
     [data-testid="stSidebar"] {
-        background-color: #0f1419;
-        border-right: 2px solid #ff8c00;
+        background-color: #0a0f15;
+        border-right: 3px solid #ff8c00;
+    }
+    
+    /* Sidebar header */
+    [data-testid="stSidebar"] > div:first-child {
+        padding-top: 20px !important;
     }
     
     /* Main content area */
@@ -49,6 +59,8 @@ st.markdown("""
         font-weight: 800;
         font-size: 42px;
         margin-bottom: 10px;
+        margin-top: 0 !important;
+        padding-top: 0 !important;
     }
     
     h2 {
@@ -59,7 +71,15 @@ st.markdown("""
         margin-bottom: 30px;
     }
     
-    /* Labels - Preguntas EN NARANJA + NEGRITA + 20px */
+    /* Subtítulo naranja */
+    .subtitle-orange {
+        color: #ff8c00;
+        font-weight: 800;
+        font-size: 36px;
+        margin-bottom: 50px;
+    }
+    
+    /* Labels - Preguntas EN NARANJA + NEGRITA + 20px UNIFORME */
     label {
         color: #ff8c00 !important;
         font-weight: 700 !important;
@@ -82,7 +102,7 @@ st.markdown("""
         background-color: #e67e00;
     }
     
-    /* Input fields - GRIS CLARO + 18px */
+    /* Input fields - GRIS CLARO + 18px UNIFORME */
     .stTextInput > div > div > input {
         background-color: #4a5a6a !important;
         color: #ffffff !important;
@@ -96,7 +116,7 @@ st.markdown("""
         color: #999999 !important;
     }
     
-    /* Selectbox - GRIS CLARO + 18px */
+    /* Selectbox - GRIS CLARO + 18px UNIFORME */
     .stSelectbox > div > div > select {
         background-color: #4a5a6a !important;
         color: #ffffff !important;
@@ -171,11 +191,6 @@ st.markdown("""
         font-size: 12px;
         color: #999999;
     }
-    
-    /* Spinner */
-    .stSpinner {
-        color: #ff8c00;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -205,14 +220,14 @@ if 'proyectos_seleccionados' not in st.session_state:
     st.session_state.proyectos_seleccionados = []
 
 # ============================================================================
-# SIDEBAR - BRANDING FIJO
+# SIDEBAR - BRANDING FIJO (Color oscuro imagen 1)
 # ============================================================================
 
 with st.sidebar:
     st.markdown("""
-    <div style="text-align: center; padding: 30px 0;">
+    <div style="text-align: center; padding: 20px 0;">
         <div style="color: #ff8c00; font-weight: 800; font-size: 28px; margin-bottom: 15px;">Reental</div>
-        <div style="color: #ffffff; font-weight: 700; font-size: 18px; line-height: 1.4;">
+        <div style="color: #ffffff; font-weight: 700; font-size: 16px; line-height: 1.4;">
             Simulador de<br>Cartera<br>Inmobiliaria
         </div>
     </div>
@@ -224,7 +239,6 @@ with st.sidebar:
 # MAIN CONTENT - CENTRO
 # ============================================================================
 
-# Crear columna ancha para el contenido
 col_main = st.container()
 
 with col_main:
@@ -290,23 +304,66 @@ with col_main:
                 st.session_state.paso_actual = 2
                 st.rerun()
 
-    # ========== PASO 2 - ESTATUS ==========
+    # ========== PASO 2 - ESTATUS EN 3 COLUMNAS ==========
     elif st.session_state.paso_actual == 2:
         st.markdown("## Paso 2: ¿Qué estatus RNT quieres considerar?")
         st.markdown("")
         
-        estatus_options = ['SuperReentel', 'ReentelPro', 'Reentel']
+        estatus_info = {
+            'SuperReentel': {
+                'desc': 'quiero conseguir hasta un 50% más de rentabilidad en mis inversiones inmobiliarias y acceso prioritario a los proyectos.'
+            },
+            'ReentelPro': {
+                'desc': 'quiero conseguir hasta un 25% más de rentabilidad en mis inversiones inmobiliarias y acceder a los proyectos tras los SuperReentel.'
+            },
+            'Reentel': {
+                'desc': 'por ahora no quiero estatus.'
+            }
+        }
         
-        estatus_idx = estatus_options.index(st.session_state.datos_cliente['estatus'])
+        col1, col2, col3 = st.columns(3)
         
-        estatus_seleccionado = st.radio(
-            "**Elige tu estatus**",
-            estatus_options,
-            index=estatus_idx,
-            key="radio_estatus"
-        )
+        with col1:
+            st.markdown(f"**SuperReentel**")
+            st.markdown(estatus_info['SuperReentel']['desc'])
+            is_selected = st.radio(
+                "Opción 1",
+                [True, False],
+                index=0 if st.session_state.datos_cliente['estatus'] == 'SuperReentel' else 1,
+                key="radio_super",
+                label_visibility="collapsed",
+                format_func=lambda x: "Seleccionado" if x else ""
+            )
+            if is_selected:
+                st.session_state.datos_cliente['estatus'] = 'SuperReentel'
         
-        st.session_state.datos_cliente['estatus'] = estatus_seleccionado
+        with col2:
+            st.markdown(f"**ReentelPro**")
+            st.markdown(estatus_info['ReentelPro']['desc'])
+            is_selected = st.radio(
+                "Opción 2",
+                [True, False],
+                index=0 if st.session_state.datos_cliente['estatus'] == 'ReentelPro' else 1,
+                key="radio_pro",
+                label_visibility="collapsed",
+                format_func=lambda x: "Seleccionado" if x else ""
+            )
+            if is_selected:
+                st.session_state.datos_cliente['estatus'] = 'ReentelPro'
+        
+        with col3:
+            st.markdown(f"**Reentel**")
+            st.markdown(estatus_info['Reentel']['desc'])
+            is_selected = st.radio(
+                "Opción 3",
+                [True, False],
+                index=0 if st.session_state.datos_cliente['estatus'] == 'Reentel' else 1,
+                key="radio_reentel",
+                label_visibility="collapsed",
+                format_func=lambda x: "Seleccionado" if x else ""
+            )
+            if is_selected:
+                st.session_state.datos_cliente['estatus'] = 'Reentel'
         
         st.markdown('<div style="margin-bottom: 20px;"></div>', unsafe_allow_html=True)
         st.info("💡 ¿Quieres más información sobre qué es el estatus RNT y cómo puede ayudarte a maximizar tu rentabilidad inmobiliaria? Agenda con nuestro equipo de Onboarding.")
@@ -366,7 +423,6 @@ with col_main:
             label_visibility="collapsed"
         )
         
-        # LÓGICA: Si "Todos" está seleccionado, deseleccionar otros
         if "Todos" in mercados_seleccionados:
             st.session_state.datos_cliente['mercados'] = ["Todos"]
             if len(mercados_seleccionados) > 1:
