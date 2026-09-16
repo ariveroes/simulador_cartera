@@ -350,7 +350,7 @@ with col_main:
         
         col1, col2, col3 = st.columns([1, 1, 1])
         with col3:
-            if st.button("Continuar →", use_container_width=True, key="btn_paso1_next"):
+            if st.button("Continuar >", use_container_width=True, key="btn_paso1_next"):
                 # Validar solo al hacer clic
                 campos_vacios = []
                 if not st.session_state.datos_cliente['nombre'].strip():
@@ -461,12 +461,12 @@ with col_main:
         
         col1, col2, col3 = st.columns([1, 1, 1])
         with col1:
-            if st.button("← Atrás", use_container_width=True, key="btn_paso2_back"):
+            if st.button("< Atrás", use_container_width=True, key="btn_paso2_back"):
                 st.session_state.paso_actual = 1
                 st.rerun()
         
         with col3:
-            if st.button("Continuar →", use_container_width=True, key="btn_paso2_next"):
+            if st.button("Continuar >", use_container_width=True, key="btn_paso2_next"):
                 st.session_state.paso_actual = 3
                 st.rerun()
 
@@ -535,12 +535,12 @@ with col_main:
         
         col1, col2, col3 = st.columns([1, 1, 1])
         with col1:
-            if st.button("← Atrás", use_container_width=True, key="btn_paso3_back"):
+            if st.button("< Atrás", use_container_width=True, key="btn_paso3_back"):
                 st.session_state.paso_actual = 2
                 st.rerun()
         
         with col3:
-            if st.button("Continuar →", use_container_width=True, key="btn_paso3_next"):
+            if st.button("Continuar >", use_container_width=True, key="btn_paso3_next"):
                 with st.spinner("Buscando proyectos..."):
                     try:
                         st.session_state.df_proyectos = cargar_proyectos()
@@ -696,13 +696,13 @@ with col_main:
             
             col1, col2, col3 = st.columns([1, 1, 1])
             with col1:
-                if st.button("← Atrás", use_container_width=True, key="btn_paso4_back"):
+                if st.button("< Atrás", use_container_width=True, key="btn_paso4_back"):
                     st.session_state.paso_actual = 3
                     st.rerun()
             
             with col3:
                 if len(proyectos_seleccionados) > 0 and suma_porcentajes == 100:
-                    if st.button("Generar cartera →", use_container_width=True, key="btn_paso4_next"):
+                    if st.button("Generar cartera >", use_container_width=True, key="btn_paso4_next"):
                         # Guardar cartera
                         st.session_state.datos_cliente['cartera'] = {
                             'proyectos': proyectos_seleccionados,
@@ -733,7 +733,7 @@ with col_main:
                             use_container_width=True
                         )
                 else:
-                    st.button("Generar cartera →", use_container_width=True, disabled=True)
+                    st.button("Generar cartera >", use_container_width=True, disabled=True)
         else:
             st.error("No se cargaron proyectos")
 
