@@ -57,11 +57,11 @@ st.markdown("""
     
     /* Títulos secciones (Pasos) - NARANJA #ff8c00 + 22px */
     h2 {
-        color: #ff8c00;
-        font-weight: 700;
-        font-size: 22px;
-        margin-top: 30px;
-        margin-bottom: 30px;
+        color: #ff8c00 !important;
+        font-weight: 700 !important;
+        font-size: 22px !important;
+        margin-top: 30px !important;
+        margin-bottom: 30px !important;
     }
     
     /* Títulos generales - NEGRO + 22px */
@@ -250,19 +250,9 @@ with col_main:
         st.markdown("## Paso 1: Cuéntanos sobre ti")
         st.markdown("")
         
-        # Validar campos vacíos
-        campos_vacios = []
-        if not st.session_state.datos_cliente['nombre'].strip():
-            campos_vacios.append('nombre')
-        if not st.session_state.datos_cliente['email'].strip():
-            campos_vacios.append('email')
-        
         # Nombre completo
         st.markdown('<div style="margin-bottom: 8px;"></div>', unsafe_allow_html=True)
-        if 'nombre' in campos_vacios:
-            st.markdown('<label style="color: #ff0000 !important;">❌ **Nombre completo** (requerido)</label>', unsafe_allow_html=True)
-        else:
-            st.markdown('<label style="color: #000000 !important;">**Nombre completo**</label>', unsafe_allow_html=True)
+        st.markdown('<label style="color: #000000 !important;">**Nombre completo**</label>', unsafe_allow_html=True)
         
         nombre_input = st.text_input(
             "Nombre",
@@ -276,10 +266,7 @@ with col_main:
         
         # Email
         st.markdown('<div style="margin-bottom: 8px;"></div>', unsafe_allow_html=True)
-        if 'email' in campos_vacios:
-            st.markdown('<label style="color: #ff0000 !important;">❌ **Email** (requerido)</label>', unsafe_allow_html=True)
-        else:
-            st.markdown('<label style="color: #000000 !important;">**Email**</label>', unsafe_allow_html=True)
+        st.markdown('<label style="color: #000000 !important;">**Email**</label>', unsafe_allow_html=True)
         
         email_input = st.text_input(
             "Email",
@@ -332,15 +319,24 @@ with col_main:
         
         st.markdown('<div style="margin-bottom: 30px;"></div>', unsafe_allow_html=True)
         
-        # Mostrar error si hay campos vacíos
-        if campos_vacios:
-            st.error("❌ Por favor, rellena todos los campos marcados en rojo antes de continuar.")
+        # Placeholder para mensajes de error
+        error_placeholder = st.empty()
         
         col1, col2, col3 = st.columns([1, 1, 1])
         with col3:
-            if st.button("Continuar →", use_container_width=True, key="btn_paso1_next", disabled=len(campos_vacios) > 0):
-                st.session_state.paso_actual = 2
-                st.rerun()
+            if st.button("Continuar →", use_container_width=True, key="btn_paso1_next"):
+                # Validar solo al hacer clic
+                campos_vacios = []
+                if not st.session_state.datos_cliente['nombre'].strip():
+                    campos_vacios.append('nombre')
+                if not st.session_state.datos_cliente['email'].strip():
+                    campos_vacios.append('email')
+                
+                if campos_vacios:
+                    error_placeholder.error("❌ Por favor, rellena todos los campos antes de continuar.")
+                else:
+                    st.session_state.paso_actual = 2
+                    st.rerun()
 
     # ========== PASO 2 - ESTATUS EN 3 COLUMNAS ==========
     elif st.session_state.paso_actual == 2:
@@ -365,7 +361,7 @@ with col_main:
                 <div style="color: #16a34a; font-weight: 700; font-size: 16px; margin-bottom: 15px;">
                     SUPERREENTEL
                 </div>
-                <div style="color: #000000; font-size: 18px; line-height: 1.6; flex-grow: 1;">
+                <div style="color: #000000; font-size: 16px; line-height: 1.6; flex-grow: 1;">
                     quiero conseguir hasta un <b>50% más de rentabilidad</b> en mis inversiones inmobiliarias y <b>acceso prioritario</b> a los proyectos.
                 </div>
             </div>
@@ -390,7 +386,7 @@ with col_main:
                 <div style="color: #a855f7; font-weight: 700; font-size: 16px; margin-bottom: 15px;">
                     REENTELPRO
                 </div>
-                <div style="color: #000000; font-size: 18px; line-height: 1.6; flex-grow: 1;">
+                <div style="color: #000000; font-size: 16px; line-height: 1.6; flex-grow: 1;">
                     quiero conseguir hasta un <b>25% más de rentabilidad</b> en mis inversiones inmobiliarias y acceder a los proyectos tras los SuperReentel.
                 </div>
             </div>
@@ -415,7 +411,7 @@ with col_main:
                 <div style="color: #ca820e; font-weight: 700; font-size: 16px; margin-bottom: 15px;">
                     REENTEL
                 </div>
-                <div style="color: #000000; font-size: 18px; line-height: 1.6; flex-grow: 1;">
+                <div style="color: #000000; font-size: 16px; line-height: 1.6; flex-grow: 1;">
                     por ahora no quiero estatus.
                 </div>
             </div>
@@ -426,7 +422,11 @@ with col_main:
         
         st.markdown('<div style="margin-bottom: 20px;"></div>', unsafe_allow_html=True)
         st.markdown("""
-        💡 ¿Quieres más información sobre qué es el estatus RNT y cómo puede ayudarte a maximizar tu rentabilidad inmobiliaria? Agenda con nuestro equipo de Onboarding <a href="https://api.leadconnectorhq.com/widget/booking/kAzM5NH9hFxtc88sTQKy" target="_blank" style="color: #ff8c00; font-weight: bold; text-decoration: none;">aquí</a>.
+        <a href="https://api.leadconnectorhq.com/widget/booking/kAzM5NH9hFxtc88sTQKy" target="_blank" style="text-decoration: none; color: inherit;">
+            <div style="background-color: #fff3e0; border: 2px solid #ff8c00; color: #000000; border-radius: 8px; padding: 15px; font-size: 16px; cursor: pointer;">
+                💡 ¿Quieres más información sobre qué es el estatus RNT y cómo puede ayudarte a maximizar tu rentabilidad inmobiliaria? Agenda con nuestro equipo de Onboarding <b style="color: #ff8c00;">aquí</b>.
+            </div>
+        </a>
         """, unsafe_allow_html=True)
         
         st.markdown('<div style="margin-bottom: 30px;"></div>', unsafe_allow_html=True)
@@ -466,7 +466,6 @@ with col_main:
         st.markdown("**¿En qué mercados quieres operar?**")
         
         mercado_options = [
-            "Todos",
             "España",
             "EE.UU.",
             "México",
@@ -484,14 +483,7 @@ with col_main:
             label_visibility="collapsed"
         )
         
-        if "Todos" in mercados_seleccionados:
-            st.session_state.datos_cliente['mercados'] = ["Todos"]
-            if len(mercados_seleccionados) > 1:
-                st.warning("Se han deseleccionado otros mercados porque seleccionaste 'Todos'")
-        elif len(mercados_seleccionados) == 0:
-            st.session_state.datos_cliente['mercados'] = []
-        else:
-            st.session_state.datos_cliente['mercados'] = mercados_seleccionados
+        st.session_state.datos_cliente['mercados'] = mercados_seleccionados
         
         st.markdown('<div style="margin-bottom: 30px;"></div>', unsafe_allow_html=True)
         
