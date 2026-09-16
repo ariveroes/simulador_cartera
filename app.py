@@ -676,7 +676,7 @@ with col_main:
                                 f"{proyecto['nombre']} (%)",
                                 min_value=0.0,
                                 max_value=100.0,
-                                value=st.session_state.cartera_selecciones[proyecto['id']].get('porcentaje', 0),
+                                value=float(st.session_state.cartera_selecciones[proyecto['id']].get('porcentaje', 0.0)),
                                 step=1.0,
                                 key=f"input_{proyecto['id']}"
                             )
