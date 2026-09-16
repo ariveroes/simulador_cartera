@@ -11,7 +11,7 @@ from datetime import datetime
 from modules.data_loader import cargar_proyectos
 from modules.calculo_cartera import CalculadoraCartera, rankear_proyectos
 from modules.distribucion_capital import distribuir_capital, normalizar_cartera
-from formateo_datos import preparar_proyectos_para_paso4
+from modules.formateo_datos import preparar_proyectos_para_paso4
 
 # ============================================================================
 # CONFIG PÁGINA
