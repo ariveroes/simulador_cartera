@@ -51,7 +51,7 @@ def generar_pdf_cartera(datos_cliente, proyectos_cartera, distribuciones, df_tod
     datos_tabla = [
         ['Nombre', datos_cliente.get('nombre', 'N/A')],
         ['Email', datos_cliente.get('email', 'N/A')],
-        ['Capital a invertir', f"{datos_cliente.get('rango_capital', 'N/A')}"],
+        ['Capital a invertir', f"{datos_cliente.get('capital', 'N/A')}"],
         ['Estatus', datos_cliente.get('estatus', 'N/A')],
         ['Objetivo', datos_cliente.get('objetivo', 'N/A')],
         ['Distribución', datos_cliente.get('distribucion', 'N/A')],
@@ -110,8 +110,8 @@ def generar_pdf_cartera(datos_cliente, proyectos_cartera, distribuciones, df_tod
     
     capital_estimado = 75000
     try:
-        if '-' in str(datos_cliente.get('rango_capital', '')):
-            valores = str(datos_cliente.get('rango_capital', '')).split('-')
+        if '-' in str(datos_cliente.get('capital', '')):
+            valores = str(datos_cliente.get('capital', '')).split('-')
             min_val = int(valores[0].replace('.', '').replace('€', '').strip())
             max_val = int(valores[1].replace('.', '').replace('€', '').strip())
             capital_estimado = (min_val + max_val) / 2
