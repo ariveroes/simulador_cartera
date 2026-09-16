@@ -51,7 +51,7 @@ class CalculadoraCartera:
             capital_total: float (capital a invertir)
         
         Returns:
-            dict con valor_final, ganancia, rentabilidades
+            dict con valor_final, ganraancia, rentabilidades
         """
         
         try:
@@ -156,45 +156,25 @@ def rankear_proyectos(df_proyectos, criterios_cliente, estatus_cliente):
     - 30% Similitud (ubicación + tipología)
     - 45% Rentabilidad (rendimiento + plusvalía por estatus)
     - 25% Duración (encaja con corto/largo plazo)
-    
-    Args:
-        df_proyectos: DataFrame con todos los proyectos
-        criterios_cliente: dict con preferencias del cliente
-        estatus_cliente: str ('Reentel', 'ReentelPro', 'SuperReentel')
-    
-    Returns:
-        DataFrame con columna 'score_ranking'
     """
     
     df = df_proyectos.copy()
     
     # === SCORE 1: SIMILITUD (30%) ===
-    
-    # Similitud por ubicación
     ubicaciones_preferidas = criterios_cliente.get('ubicaciones', [])
     df['score_ubicacion'] = df['Ubicación'].isin(ubicaciones_preferidas).astype(float)
-    
-    # Similitud por tipología (si está disponible)
-    df['score_similitud'] = df['score_ubicacion']
-    
-    # Normalizar a 0-1
-    df['score_similitud'] = df['score_similitud'].fillna(0.5)
+    df['score_similitud'] = df['score_ubicacion'].fillna(0.5)
     
     # === SCORE 2: RENTABILIDAD (45%) ===
-    
-    # Mapear estatus a columnas de rentabilidad
     col_rent_map = {
-        'Reentel': 'Estimación Rentab. Rendim. Recurr. anualizados Reentel',
-        'ReentelPro': 'Estimación Rentab. Rendim. Recurr. anualizados RP',
-        'SuperReentel': 'Estimación Rentab. Rendim. Recurr. anualizados SR'
+        'Reentel': 'Rentabilidad_Anualizada_Reentel',
+        'ReentelPro': 'Rentabilidad_Anualizada_ReentelPro',
+        'SuperReentel': 'Rentabilidad_Anualizada_SuperReentel'
     }
     
     col_rent = col_rent_map.get(estatus_cliente, col_rent_map['Reentel'])
-    
-    # Obtener rentabilidad (recurrente + plusvalía estimada)
     df['rentabilidad'] = pd.to_numeric(df.get(col_rent, 0), errors='coerce').fillna(0)
     
-    # Normalizar rentabilidad a 0-1
     max_rent = df['rentabilidad'].max()
     if max_rent > 0:
         df['score_rentabilidad'] = df['rentabilidad'] / max_rent
@@ -202,20 +182,14 @@ def rankear_proyectos(df_proyectos, criterios_cliente, estatus_cliente):
         df['score_rentabilidad'] = 0.5
     
     # === SCORE 3: DURACIÓN (25%) ===
-    
     duracion_preferida = criterios_cliente.get('duracion', 'Corto plazo')
-    meses_proyecto = pd.to_numeric(
-        df.get('Estimación Nº Meses desde inicio de renta en base a Financiación', 24),
-        errors='coerce'
-    ).fillna(24)
+    meses_proyecto = 24
     
     if duracion_preferida == 'Corto plazo':
-        # Preferir proyectos cortos (< 18 meses)
         df['score_duracion'] = (18 - meses_proyecto) / 18
         df['score_duracion'] = df['score_duracion'].clip(0, 1)
-    else:  # Largo plazo
-        # Preferir proyectos largos (> 18 meses)
-        df['score_duracion'] = (meses_proyecto - 18) / 42  # 42 = 60 - 18
+    else:
+        df['score_duracion'] = (meses_proyecto - 18) / 42
         df['score_duracion'] = df['score_duracion'].clip(0, 1)
     
     # === SCORE FINAL ===
@@ -225,7 +199,5 @@ def rankear_proyectos(df_proyectos, criterios_cliente, estatus_cliente):
         0.25 * df['score_duracion']
     )
     
-    # Ordenar por score descendente
-    df = df.sort_values('score_ranking', ascending=False)
-    
+    df = df.sort_values('score_ranking', ascending=False).reset_index(drop=True)
     return df
