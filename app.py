@@ -26,9 +26,18 @@ st.set_page_config(
 # Estilos personalizados - VERSIÓN FINAL
 st.markdown("""
 <style>
-    /* Fuente Segoe UI - SOLO en contenedores de texto, NO en íconos */
-    body, .stApp, .stMarkdown, .stButton, .stTextInput, .stSelectbox, .stRadio, .stMultiSelect {
+    /* Fuente Segoe UI - TODA LA HERRAMIENTA */
+    html, body {
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+    }
+    
+    .stApp, .stApp div, .stApp span, .stApp p, .stApp label, .stApp button, .stApp input, .stApp select, .stApp textarea {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+    }
+    
+    /* Excluir SVG e íconos de Streamlit */
+    svg, svg * {
+        font-family: inherit !important;
     }
     
     /* Background BLANCO */
@@ -212,7 +221,7 @@ if 'datos_cliente' not in st.session_state:
         'es_inversor': 'No',
         'capital': 'Entre 10.000 y 50.000',
         'estatus': 'SuperReentel',
-        'objetivo': 'Busco rentas periódicas, ver cómo periódicamente voy recibiendo rendimientos',
+        'objetivo': 'Busco generar ingresos pasivos periódicos',
         'mercados': [],
     }
 
@@ -467,11 +476,11 @@ with col_main:
         
         st.markdown("**¿Qué objetivo buscas?**")
         objetivo_options = [
-            "Busco rentas periódicas, ver cómo periódicamente voy recibiendo rendimientos",
-            "Busco maximizar la rentabilidad. No me importa esperar más, si eso me permite tener más rendimiento."
+            "Busco generar ingresos pasivos periódicos",
+            "Busco maximizar la rentabilidad. No me importa esperar más tiempo, si eso me permite tener más rendimiento"
         ]
         
-        idx_objetivo = 0 if "periódicas" in st.session_state.datos_cliente['objetivo'] else 1
+        idx_objetivo = 0 if "ingresos pasivos" in st.session_state.datos_cliente['objetivo'] else 1
         st.session_state.datos_cliente['objetivo'] = st.radio(
             "Objetivo",
             objetivo_options,
