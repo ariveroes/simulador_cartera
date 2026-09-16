@@ -62,6 +62,7 @@ st.markdown("""
         font-size: 22px !important;
         margin-top: 30px !important;
         margin-bottom: 30px !important;
+        line-height: 1.2 !important;
     }
     
     /* Títulos generales - NEGRO + 22px */
@@ -180,6 +181,15 @@ st.markdown("""
         left: 20px;
         font-size: 12px;
         color: #666666;
+    }
+    
+    /* Ocultar iconos de enlace externos */
+    a[target="_blank"]::after {
+        display: none !important;
+    }
+    
+    a svg {
+        display: none !important;
     }
 </style>
 """, unsafe_allow_html=True)
