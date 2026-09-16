@@ -548,7 +548,14 @@ with col_main:
             
             if df_display is not None and len(df_display) > 0:
                 st.markdown("### Proyectos disponibles (ordenados por relevancia)")
-                st.dataframe(df_display, use_container_width=True, hide_index=True)
+                
+                # Formatear columnas de rentabilidad como porcentaje
+                column_config = {
+                    'Rentabilidad Total': st.column_config.NumberColumn(format='%.2f%%'),
+                    'Rentabilidad Anualizada': st.column_config.NumberColumn(format='%.2f%%')
+                }
+                
+                st.dataframe(df_display, use_container_width=True, hide_index=True, column_config=column_config)
             else:
                 st.error("No se pudieron procesar los proyectos")
         else:
