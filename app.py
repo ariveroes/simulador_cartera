@@ -540,24 +540,46 @@ with col_main:
         st.markdown("")
         
         if st.session_state.df_proyectos is not None and len(st.session_state.df_proyectos) > 0:
-            # Preparar proyectos para visualización
-            df_display = preparar_proyectos_para_paso4(
-                st.session_state.df_proyectos,
-                st.session_state.datos_cliente['estatus']
-            )
+            df_proyectos = st.session_state.df_proyectos.copy()
             
-            if df_display is not None and len(df_display) > 0:
-                st.markdown("### Proyectos disponibles (ordenados por relevancia)")
+            # Obtener mercados seleccionados y objetivo
+            mercados_seleccionados = st.session_state.datos_cliente.get('mercados', [])
+            objetivo = st.session_state.datos_cliente.get('objetivo', '')
+            estatus = st.session_state.datos_cliente.get('estatus', '')
+            
+            # Separar proyectos: que matchean con mercados vs que no
+            df_matchean = df_proyectos[df_proyectos['Ubicación'].isin(mercados_seleccionados)].copy()
+            df_no_matchean = df_proyectos[~df_proyectos['Ubicación'].isin(mercados_seleccionados)].copy()
+            
+            # Rankear proyectos que matchean
+            if len(df_matchean) > 0:
+                try:
+                    df_matchean = rankear_proyectos(df_matchean, objetivo, mercados_seleccionados)
+                except Exception as e:
+                    st.warning(f"No se pudieron rankear proyectos: {e}")
+            
+            # Preparar para visualización
+            if len(df_matchean) > 0:
+                df_display_matchean = preparar_proyectos_para_paso4(df_matchean, estatus)
                 
-                # Formatear columnas de rentabilidad como porcentaje
+                st.markdown("### Proyectos recomendados para ti")
                 column_config = {
                     'Rentabilidad Total': st.column_config.NumberColumn(format='%.2f%%'),
                     'Rentabilidad Anualizada': st.column_config.NumberColumn(format='%.2f%%')
                 }
-                
-                st.dataframe(df_display, use_container_width=True, hide_index=True, column_config=column_config)
+                st.dataframe(df_display_matchean, use_container_width=True, hide_index=True, column_config=column_config)
             else:
-                st.error("No se pudieron procesar los proyectos")
+                st.info("No hay proyectos en los mercados seleccionados")
+            
+            # Segunda tabla: proyectos que no matchean
+            if len(df_no_matchean) > 0:
+                st.markdown("### Proyectos adicionales que podrían interesarte")
+                df_display_no_matchean = preparar_proyectos_para_paso4(df_no_matchean, estatus)
+                column_config = {
+                    'Rentabilidad Total': st.column_config.NumberColumn(format='%.2f%%'),
+                    'Rentabilidad Anualizada': st.column_config.NumberColumn(format='%.2f%%')
+                }
+                st.dataframe(df_display_no_matchean, use_container_width=True, hide_index=True, column_config=column_config)
         else:
             st.error("No se cargaron proyectos")
 
