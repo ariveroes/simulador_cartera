@@ -9,19 +9,17 @@ from datetime import datetime, timedelta
 def preparar_proyectos_para_paso4(df_proyectos, estatus_cliente):
     """
     Prepara el DataFrame de proyectos para visualización en Paso 4.
-    
-    Args:
-        df_proyectos: DataFrame con todos los proyectos
-        estatus_cliente: Estatus seleccionado (SuperReentel, ReentelPro, Reentel)
-    
-    Returns:
-        DataFrame formateado con solo columnas necesarias
     """
     
     if df_proyectos is None or len(df_proyectos) == 0:
         return pd.DataFrame()
     
     df_display = df_proyectos.copy()
+    
+    # DEBUG: Mostrar todas las columnas disponibles
+    print("\n=== COLUMNAS DISPONIBLES EN EL DATAFRAME ===")
+    print(list(df_display.columns))
+    print("==========================================\n")
     
     # Limpiar filas completamente vacías o con valores "None"
     df_display = df_display[df_display['ID'] != 'None']
@@ -43,16 +41,27 @@ def preparar_proyectos_para_paso4(df_proyectos, estatus_cliente):
         col_rendim = 'Estimación Rentab. Rendim. Recurr. anualizados Reentel'
         col_plusvalia = 'Estimación Rentab. Plusvalía Reentel'
     
+    print(f"Buscando columnas: {col_rendim} y {col_plusvalia}")
+    print(f"¿Existe col_rendim?: {col_rendim in df_display.columns}")
+    print(f"¿Existe col_plusvalia?: {col_plusvalia in df_display.columns}")
+    
     # Calcular rentabilidad total y anualizada
     try:
-        rentab_total = (
-            pd.to_numeric(df_display[col_rendim], errors='coerce').fillna(0) +
-            pd.to_numeric(df_display[col_plusvalia], errors='coerce').fillna(0)
-        )
-        rentab_anualizada = pd.to_numeric(df_display[col_rendim], errors='coerce').fillna(0)
-        
-        df_display[f'Rentabilidad Total ({estatus_cliente})'] = rentab_total
-        df_display[f'Rentabilidad Anualizada ({estatus_cliente})'] = rentab_anualizada
+        if col_rendim in df_display.columns and col_plusvalia in df_display.columns:
+            rentab_total = (
+                pd.to_numeric(df_display[col_rendim], errors='coerce').fillna(0) +
+                pd.to_numeric(df_display[col_plusvalia], errors='coerce').fillna(0)
+            )
+            rentab_anualizada = pd.to_numeric(df_display[col_rendim], errors='coerce').fillna(0)
+            
+            df_display[f'Rentabilidad Total ({estatus_cliente})'] = rentab_total
+            df_display[f'Rentabilidad Anualizada ({estatus_cliente})'] = rentab_anualizada
+            
+            print(f"Rentabilidades calculadas. Muestra: {rentab_anualizada.head()}")
+        else:
+            print(f"ERROR: Columnas no encontradas")
+            df_display[f'Rentabilidad Total ({estatus_cliente})'] = 0
+            df_display[f'Rentabilidad Anualizada ({estatus_cliente})'] = 0
     except Exception as e:
         print(f"Error calculando rentabilidad: {e}")
         df_display[f'Rentabilidad Total ({estatus_cliente})'] = 0
