@@ -36,10 +36,6 @@ st.markdown("""
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
     }
     
-    /* Excluir SVG e íconos de Streamlit */
-    svg, svg * {
-        font-family: inherit !important;
-    }
     
     /* Background BLANCO */
     .stApp {
