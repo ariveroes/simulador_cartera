@@ -1,6 +1,6 @@
 """
 SIMULADOR DE CARTERA INMOBILIARIA REENTAL
-Layout final con todos los ajustes de diseño - VERSIÓN CORREGIDA
+Layout final con todos los ajustes de diseño
 """
 
 import streamlit as st
@@ -24,7 +24,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilos personalizados - VERSIÓN FINAL CORREGIDA
+# Estilos personalizados - VERSIÓN FINAL
 st.markdown("""
 <style>
     /* Fuente Segoe UI - TODA LA HERRAMIENTA */
@@ -36,9 +36,9 @@ st.markdown("""
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
     }
     
-    /* CORREGIDO: SVG e íconos de Streamlit - NO forzar font */
-    .stApp svg, .stApp svg * {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif !important;
+    /* Excluir SVG e íconos de Streamlit */
+    svg, svg * {
+        font-family: inherit !important;
     }
     
     /* Background BLANCO */
@@ -710,7 +710,7 @@ with col_main:
                         }
                         
                         # Generar PDF
-                        from modules.pdf_generator import generar_pdf_cartera
+                        from pdf_generator import generar_pdf_cartera
                         
                         pdf_buffer = generar_pdf_cartera(
                             st.session_state.datos_cliente,
