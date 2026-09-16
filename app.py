@@ -495,11 +495,12 @@ with col_main:
         
         mercado_options = [
             "España",
-            "EE.UU.",
+            "USA",
             "México",
             "República Dominicana",
             "Argentina",
-            "EUA (Emiratos Árabes Unidos)"
+            "Emiratos Árabes",
+            "Global"
         ]
         
         mercados_default = st.session_state.datos_cliente['mercados']
