@@ -540,7 +540,7 @@ with col_main:
         
         if st.session_state.df_proyectos is not None and len(st.session_state.df_proyectos) > 0:
             st.markdown("### Proyectos disponibles (ordenados por relevancia)")
-            st.dataframe(st.session_state.df_proyectos, use_container_width=True, hide_index=True)
+            st.dataframe(st.session_state.df_proyectos, use_container_width=True)
         else:
             st.error("No se cargaron proyectos")
 
