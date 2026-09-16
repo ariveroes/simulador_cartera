@@ -554,16 +554,17 @@ with col_main:
 
     # ========== PASO 4: PROYECTOS ==========
     elif st.session_state.paso_actual == 4:
-        st.markdown("## Paso 4: Selecciona tus proyectos")
+        st.markdown("## Paso 4: Crea tu cartera de inversión")
         st.markdown("")
         
         if st.session_state.df_proyectos is not None and len(st.session_state.df_proyectos) > 0:
             df_proyectos = st.session_state.df_proyectos.copy()
             
-            # Obtener mercados seleccionados y objetivo
+            # Obtener parámetros
             mercados_seleccionados = st.session_state.datos_cliente.get('mercados', [])
             objetivo = st.session_state.datos_cliente.get('objetivo', '')
             estatus = st.session_state.datos_cliente.get('estatus', '')
+            distribucion_type = st.session_state.datos_cliente.get('distribucion', 'Distribuir en partes iguales')
             
             # Separar proyectos: que matchean con mercados vs que no
             df_matchean = df_proyectos[df_proyectos['Ubicación'].isin(mercados_seleccionados)].copy()
@@ -572,7 +573,6 @@ with col_main:
             # Rankear proyectos que matchean
             if len(df_matchean) > 0:
                 try:
-                    # Construir criterios del cliente
                     criterios = {
                         'ubicaciones': mercados_seleccionados,
                         'duracion': 'Largo plazo' if 'maximizar' in objetivo.lower() else 'Corto plazo'
@@ -580,31 +580,139 @@ with col_main:
                     df_matchean = rankear_proyectos(df_matchean, criterios, estatus)
                 except Exception as e:
                     st.warning(f"No se pudieron rankear proyectos: {e}")
-                    import traceback
-                    traceback.print_exc()
             
-            # Preparar para visualización
+            # ========== SECCIÓN 1: TABLA DE PROYECTOS ==========
+            st.markdown("### Proyectos disponibles")
+            
+            # Mostrar proyectos recomendados
             if len(df_matchean) > 0:
                 df_display_matchean = preparar_proyectos_para_paso4(df_matchean, estatus)
-                
-                st.markdown("### Proyectos recomendados para ti")
                 column_config = {
                     'Rentabilidad Total': st.column_config.NumberColumn(format='%.2f%%'),
                     'Rentabilidad Anualizada': st.column_config.NumberColumn(format='%.2f%%')
                 }
                 st.dataframe(df_display_matchean, use_container_width=True, hide_index=True, column_config=column_config)
-            else:
-                st.info("No hay proyectos en los mercados seleccionados")
             
-            # Segunda tabla: proyectos que no matchean
+            # Mostrar proyectos adicionales
             if len(df_no_matchean) > 0:
-                st.markdown("### Proyectos adicionales que podrían interesarte")
+                st.markdown("#### Proyectos adicionales que podrían interesarte")
                 df_display_no_matchean = preparar_proyectos_para_paso4(df_no_matchean, estatus)
                 column_config = {
                     'Rentabilidad Total': st.column_config.NumberColumn(format='%.2f%%'),
                     'Rentabilidad Anualizada': st.column_config.NumberColumn(format='%.2f%%')
                 }
                 st.dataframe(df_display_no_matchean, use_container_width=True, hide_index=True, column_config=column_config)
+            
+            # ========== SECCIÓN 2: SELECCIONAR Y DISTRIBUIR ==========
+            st.markdown("### Construye tu cartera")
+            st.markdown("")
+            
+            # Inicializar session state para cartera si no existe
+            if 'cartera_selecciones' not in st.session_state:
+                st.session_state.cartera_selecciones = {}
+            
+            # Combinar proyectos para selección
+            df_todos = pd.concat([df_matchean, df_no_matchean], ignore_index=True)
+            
+            # Crear dos columnas para mejor layout
+            col_selector, col_distribuir = st.columns([1, 2])
+            
+            with col_selector:
+                st.markdown("**Selecciona proyectos:**")
+                proyectos_seleccionados = []
+                
+                for idx, row in df_todos.iterrows():
+                    proyecto_id = row['ID']
+                    proyecto_nombre = row['Nombre del proyecto']
+                    
+                    # Checkbox para seleccionar
+                    seleccionado = st.checkbox(
+                        f"{proyecto_nombre}",
+                        value=st.session_state.cartera_selecciones.get(proyecto_id, {}).get('seleccionado', False),
+                        key=f"check_{proyecto_id}"
+                    )
+                    
+                    if seleccionado:
+                        proyectos_seleccionados.append({
+                            'id': proyecto_id,
+                            'nombre': proyecto_nombre,
+                            'ubicacion': row['Ubicación'],
+                            'rentabilidad': row.get('Rentabilidad_Anualizada_SuperReentel', 0)
+                        })
+                        
+                        # Guardar en session state
+                        if proyecto_id not in st.session_state.cartera_selecciones:
+                            st.session_state.cartera_selecciones[proyecto_id] = {'seleccionado': True, 'porcentaje': 0}
+                        else:
+                            st.session_state.cartera_selecciones[proyecto_id]['seleccionado'] = True
+                    else:
+                        # Marcar como no seleccionado
+                        if proyecto_id in st.session_state.cartera_selecciones:
+                            st.session_state.cartera_selecciones[proyecto_id]['seleccionado'] = False
+            
+            with col_distribuir:
+                st.markdown("**Distribución de capital:**")
+                
+                if len(proyectos_seleccionados) == 0:
+                    st.info("Selecciona al menos un proyecto")
+                else:
+                    if distribucion_type == 'Distribuir en partes iguales':
+                        # Distribución automática
+                        porcentaje_por_proyecto = 100 / len(proyectos_seleccionados)
+                        
+                        st.markdown(f"Se distribuirá **{porcentaje_por_proyecto:.1f}%** en cada proyecto:")
+                        
+                        for proyecto in proyectos_seleccionados:
+                            st.session_state.cartera_selecciones[proyecto['id']]['porcentaje'] = porcentaje_por_proyecto
+                            st.write(f"• {proyecto['nombre']}: {porcentaje_por_proyecto:.1f}%")
+                        
+                        suma_porcentajes = 100
+                    
+                    else:  # Elegir cuánto invertir
+                        suma_porcentajes = 0
+                        
+                        for proyecto in proyectos_seleccionados:
+                            porcentaje = st.number_input(
+                                f"{proyecto['nombre']} (%)",
+                                min_value=0.0,
+                                max_value=100.0,
+                                value=st.session_state.cartera_selecciones[proyecto['id']].get('porcentaje', 0),
+                                step=1.0,
+                                key=f"input_{proyecto['id']}"
+                            )
+                            st.session_state.cartera_selecciones[proyecto['id']]['porcentaje'] = porcentaje
+                            suma_porcentajes += porcentaje
+                        
+                        # Validación
+                        if suma_porcentajes == 100:
+                            st.success(f"✓ Total: {suma_porcentajes}%")
+                        elif suma_porcentajes > 0:
+                            st.warning(f"⚠ Total: {suma_porcentajes}% (Falta {100 - suma_porcentajes}%)")
+                        else:
+                            st.info("Asigna porcentajes a los proyectos")
+            
+            # ========== BOTÓN CREAR CARTERA ==========
+            st.markdown('<div style="margin-bottom: 30px;"></div>', unsafe_allow_html=True)
+            
+            col1, col2, col3 = st.columns([1, 1, 1])
+            with col1:
+                if st.button("← Atrás", use_container_width=True, key="btn_paso4_back"):
+                    st.session_state.paso_actual = 3
+                    st.rerun()
+            
+            with col3:
+                if len(proyectos_seleccionados) > 0 and suma_porcentajes == 100:
+                    if st.button("Crear cartera →", use_container_width=True, key="btn_paso4_next"):
+                        # Guardar cartera
+                        st.session_state.datos_cliente['cartera'] = {
+                            'proyectos': proyectos_seleccionados,
+                            'distribuciones': st.session_state.cartera_selecciones
+                        }
+                        st.success("✓ Cartera creada exitosamente")
+                        st.session_state.paso_actual = 5  # Ir a próximo paso (si existe)
+                        st.rerun()
+                else:
+                    st.button("Crear cartera →", use_container_width=True, disabled=True)
         else:
             st.error("No se cargaron proyectos")
 
