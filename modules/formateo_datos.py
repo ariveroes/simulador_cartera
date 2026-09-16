@@ -1,3 +1,10 @@
+"""
+FORMATEO DE DATOS - Prepara DataFrame para visualización en Paso 4
+"""
+
+import pandas as pd
+
+
 def preparar_distribucion_cartera(df_proyectos, distribucion_type):
     """
     Prepara estructura para distribución de cartera.
@@ -51,11 +58,6 @@ def preparar_proyectos_para_paso4(df_proyectos, estatus_cliente):
     if len(df_display) == 0:
         return pd.DataFrame()
     
-    # DEBUG
-    print(f"\n=== DEBUG preparar_proyectos_para_paso4 ===")
-    print(f"Columnas disponibles: {list(df_display.columns)}")
-    print(f"Estatus: {estatus_cliente}")
-    
     # Mapear columnas de rentabilidad según estatus
     if estatus_cliente == 'SuperReentel':
         col_total = 'Rentabilidad_Total_SuperReentel'
@@ -67,10 +69,7 @@ def preparar_proyectos_para_paso4(df_proyectos, estatus_cliente):
         col_total = 'Rentabilidad_Total_Reentel'
         col_anualizada = 'Rentabilidad_Anualizada_Reentel'
     
-    print(f"Buscando columnas: {col_total}, {col_anualizada}")
-    print(f"¿Existen?: {col_total in df_display.columns}, {col_anualizada in df_display.columns}")
-    
-    # Crear columnas de visualización con names amigables
+    # Crear columnas de visualización con nombres amigables
     try:
         if col_total in df_display.columns:
             rentabilidad_total = df_display[col_total].astype(str).str.replace('%', '').str.strip()
@@ -84,7 +83,6 @@ def preparar_proyectos_para_paso4(df_proyectos, estatus_cliente):
         else:
             df_display['Rentabilidad Anualizada'] = 0
     except Exception as e:
-        print(f"ERROR procesando rentabilidades: {e}")
         df_display['Rentabilidad Total'] = 0
         df_display['Rentabilidad Anualizada'] = 0
     
@@ -109,8 +107,5 @@ def preparar_proyectos_para_paso4(df_proyectos, estatus_cliente):
     # Filtrar filas con ID válido
     df_resultado = df_resultado[df_resultado['ID'] != '']
     df_resultado = df_resultado[df_resultado['ID'].notna()]
-    
-    print(f"Columnas finales: {list(df_resultado.columns)}")
-    print("==========================================\n")
     
     return df_resultado
