@@ -555,9 +555,16 @@ with col_main:
             # Rankear proyectos que matchean
             if len(df_matchean) > 0:
                 try:
-                    df_matchean = rankear_proyectos(df_matchean, objetivo, mercados_seleccionados)
+                    # Construir criterios del cliente
+                    criterios = {
+                        'ubicaciones': mercados_seleccionados,
+                        'duracion': 'Largo plazo' if 'maximizar' in objetivo.lower() else 'Corto plazo'
+                    }
+                    df_matchean = rankear_proyectos(df_matchean, criterios, estatus)
                 except Exception as e:
                     st.warning(f"No se pudieron rankear proyectos: {e}")
+                    import traceback
+                    traceback.print_exc()
             
             # Preparar para visualización
             if len(df_matchean) > 0:
