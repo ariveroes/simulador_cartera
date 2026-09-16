@@ -58,6 +58,7 @@ def preparar_proyectos_para_paso4(df_proyectos, estatus_cliente):
         'Fecha Inicio Estimada',
         'Fecha Fin Estimada',
         'Ubicación',
+        'Tipología de dividendo',
         'Rentabilidad Total',
         'Rentabilidad Anualizada'
     ]
