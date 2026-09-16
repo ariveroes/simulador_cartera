@@ -11,6 +11,7 @@ from datetime import datetime
 from modules.data_loader import cargar_proyectos
 from modules.calculo_cartera import CalculadoraCartera, rankear_proyectos
 from modules.distribucion_capital import distribuir_capital, normalizar_cartera
+from formateo_datos import preparar_proyectos_para_paso4
 
 # ============================================================================
 # CONFIG PÁGINA
@@ -539,8 +540,17 @@ with col_main:
         st.markdown("")
         
         if st.session_state.df_proyectos is not None and len(st.session_state.df_proyectos) > 0:
-            st.markdown("### Proyectos disponibles (ordenados por relevancia)")
-            st.dataframe(st.session_state.df_proyectos, use_container_width=True)
+            # Preparar proyectos para visualización
+            df_display = preparar_proyectos_para_paso4(
+                st.session_state.df_proyectos,
+                st.session_state.datos_cliente['estatus']
+            )
+            
+            if df_display is not None and len(df_display) > 0:
+                st.markdown("### Proyectos disponibles (ordenados por relevancia)")
+                st.dataframe(df_display, use_container_width=True)
+            else:
+                st.error("No se pudieron procesar los proyectos")
         else:
             st.error("No se cargaron proyectos")
 
