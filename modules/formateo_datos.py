@@ -51,9 +51,8 @@ def preparar_proyectos_para_paso4(df_proyectos, estatus_cliente):
         df_display[col_anualizada], errors='coerce'
     ).fillna(0)
     
-    # Seleccionar solo columnas necesarias
+    # Seleccionar solo columnas necesarias (SIN ID)
     columnas_mostrar = [
-        'ID',
         'Nombre del proyecto',
         'ESTADO',
         'Fecha Inicio Estimada',
