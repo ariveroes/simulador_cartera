@@ -43,9 +43,9 @@ st.markdown("""
         border-right: 3px solid #ff8c00;
     }
     
-    /* Sidebar header - SUBIDO A 60px */
+    /* Sidebar header - SUBIDO A 40px */
     [data-testid="stSidebar"] > div:first-child {
-        padding-top: 60px !important;
+        padding-top: 40px !important;
         margin-top: 0 !important;
     }
     
@@ -232,7 +232,7 @@ with st.sidebar:
                 </clipPath>
             </defs>
         </svg>
-        <div style="color: #000000; font-weight: 700; font-size: 30px; line-height: 1.4; margin-top: 20px; text-transform: uppercase;">
+        <div style="color: #000000; font-weight: 700; font-size: 28px; line-height: 1.4; margin-top: 20px; text-transform: uppercase;">
             SIMULADOR DE<br>CARTERA<br>INMOBILIARIA
         </div>
     </div>
@@ -250,37 +250,66 @@ with col_main:
         st.markdown("## Paso 1: Cuéntanos sobre ti")
         st.markdown("")
         
+        # Validar campos vacíos
+        campos_vacios = []
+        if not st.session_state.datos_cliente['nombre'].strip():
+            campos_vacios.append('nombre')
+        if not st.session_state.datos_cliente['email'].strip():
+            campos_vacios.append('email')
+        
+        # Nombre completo
         st.markdown('<div style="margin-bottom: 8px;"></div>', unsafe_allow_html=True)
-        st.session_state.datos_cliente['nombre'] = st.text_input(
-            "**Nombre completo**",
+        if 'nombre' in campos_vacios:
+            st.markdown('<label style="color: #ff0000 !important;">❌ **Nombre completo** (requerido)</label>', unsafe_allow_html=True)
+        else:
+            st.markdown('<label style="color: #000000 !important;">**Nombre completo**</label>', unsafe_allow_html=True)
+        
+        nombre_input = st.text_input(
+            "Nombre",
             value=st.session_state.datos_cliente['nombre'],
             placeholder="Juan Pérez",
-            key="input_nombre"
+            key="input_nombre",
+            label_visibility="collapsed"
         )
+        if nombre_input != st.session_state.datos_cliente['nombre']:
+            st.session_state.datos_cliente['nombre'] = nombre_input
         
+        # Email
         st.markdown('<div style="margin-bottom: 8px;"></div>', unsafe_allow_html=True)
-        st.session_state.datos_cliente['email'] = st.text_input(
-            "**Email**",
+        if 'email' in campos_vacios:
+            st.markdown('<label style="color: #ff0000 !important;">❌ **Email** (requerido)</label>', unsafe_allow_html=True)
+        else:
+            st.markdown('<label style="color: #000000 !important;">**Email**</label>', unsafe_allow_html=True)
+        
+        email_input = st.text_input(
+            "Email",
             value=st.session_state.datos_cliente['email'],
             placeholder="juan@example.com",
-            key="input_email"
+            key="input_email",
+            label_visibility="collapsed"
         )
+        if email_input != st.session_state.datos_cliente['email']:
+            st.session_state.datos_cliente['email'] = email_input
         
         st.markdown('<div style="margin-bottom: 8px;"></div>', unsafe_allow_html=True)
+        st.markdown('<label style="color: #000000 !important;">**Divisa preferida**</label>', unsafe_allow_html=True)
         st.session_state.datos_cliente['divisa'] = st.selectbox(
-            "**Divisa preferida**",
+            "Divisa",
             ["EUR", "USD"],
             index=0 if st.session_state.datos_cliente['divisa'] == 'EUR' else 1,
-            key="select_divisa"
+            key="select_divisa",
+            label_visibility="collapsed"
         )
         
         st.markdown('<div style="margin-bottom: 20px;"></div>', unsafe_allow_html=True)
+        st.markdown('<label style="color: #000000 !important;">**¿Ya eres inversor en Reental?**</label>', unsafe_allow_html=True)
         st.session_state.datos_cliente['es_inversor'] = st.radio(
-            "**¿Ya eres inversor en Reental?**",
+            "Inversor",
             ["Sí", "No"],
             index=0 if st.session_state.datos_cliente['es_inversor'] == 'Sí' else 1,
             key="radio_inversor",
-            horizontal=True
+            horizontal=True,
+            label_visibility="collapsed"
         )
         
         st.markdown('<div style="margin-bottom: 8px;"></div>', unsafe_allow_html=True)
@@ -291,19 +320,25 @@ with col_main:
             "Más de 50.000"
         ]
         
+        st.markdown('<label style="color: #000000 !important;">**Capital disponible (orientativo)**</label>', unsafe_allow_html=True)
         idx_capital = capital_options.index(st.session_state.datos_cliente['capital'])
         st.session_state.datos_cliente['capital'] = st.selectbox(
-            "**Capital disponible (orientativo)**",
+            "Capital",
             capital_options,
             index=idx_capital,
-            key="select_capital"
+            key="select_capital",
+            label_visibility="collapsed"
         )
         
         st.markdown('<div style="margin-bottom: 30px;"></div>', unsafe_allow_html=True)
         
+        # Mostrar error si hay campos vacíos
+        if campos_vacios:
+            st.error("❌ Por favor, rellena todos los campos marcados en rojo antes de continuar.")
+        
         col1, col2, col3 = st.columns([1, 1, 1])
         with col3:
-            if st.button("Continuar →", use_container_width=True, key="btn_paso1_next"):
+            if st.button("Continuar →", use_container_width=True, key="btn_paso1_next", disabled=len(campos_vacios) > 0):
                 st.session_state.paso_actual = 2
                 st.rerun()
 
@@ -330,8 +365,8 @@ with col_main:
                 <div style="color: #16a34a; font-weight: 700; font-size: 16px; margin-bottom: 15px;">
                     SUPERREENTEL
                 </div>
-                <div style="color: #000000; font-size: 14px; line-height: 1.6; flex-grow: 1;">
-                    quiero conseguir hasta un 50% más de rentabilidad en mis inversiones inmobiliarias y acceso prioritario a los proyectos.
+                <div style="color: #000000; font-size: 18px; line-height: 1.6; flex-grow: 1;">
+                    quiero conseguir hasta un <b>50% más de rentabilidad</b> en mis inversiones inmobiliarias y <b>acceso prioritario</b> a los proyectos.
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -355,8 +390,8 @@ with col_main:
                 <div style="color: #a855f7; font-weight: 700; font-size: 16px; margin-bottom: 15px;">
                     REENTELPRO
                 </div>
-                <div style="color: #000000; font-size: 14px; line-height: 1.6; flex-grow: 1;">
-                    quiero conseguir hasta un 25% más de rentabilidad en mis inversiones inmobiliarias y acceder a los proyectos tras los SuperReentel.
+                <div style="color: #000000; font-size: 18px; line-height: 1.6; flex-grow: 1;">
+                    quiero conseguir hasta un <b>25% más de rentabilidad</b> en mis inversiones inmobiliarias y acceder a los proyectos tras los SuperReentel.
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -380,7 +415,7 @@ with col_main:
                 <div style="color: #ca820e; font-weight: 700; font-size: 16px; margin-bottom: 15px;">
                     REENTEL
                 </div>
-                <div style="color: #000000; font-size: 14px; line-height: 1.6; flex-grow: 1;">
+                <div style="color: #000000; font-size: 18px; line-height: 1.6; flex-grow: 1;">
                     por ahora no quiero estatus.
                 </div>
             </div>
@@ -390,7 +425,9 @@ with col_main:
                 st.rerun()
         
         st.markdown('<div style="margin-bottom: 20px;"></div>', unsafe_allow_html=True)
-        st.info("💡 ¿Quieres más información sobre qué es el estatus RNT y cómo puede ayudarte a maximizar tu rentabilidad inmobiliaria? Agenda con nuestro equipo de Onboarding.")
+        st.markdown("""
+        💡 ¿Quieres más información sobre qué es el estatus RNT y cómo puede ayudarte a maximizar tu rentabilidad inmobiliaria? Agenda con nuestro equipo de Onboarding <a href="https://api.leadconnectorhq.com/widget/booking/kAzM5NH9hFxtc88sTQKy" target="_blank" style="color: #ff8c00; font-weight: bold; text-decoration: none;">aquí</a>.
+        """, unsafe_allow_html=True)
         
         st.markdown('<div style="margin-bottom: 30px;"></div>', unsafe_allow_html=True)
         
