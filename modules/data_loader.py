@@ -109,6 +109,7 @@ def cargar_proyectos():
         idx_H = excel_col_to_index('H')   # Fecha inicio principal
         idx_I = excel_col_to_index('I')   # Fecha fin principal
         idx_O = excel_col_to_index('O')   # Ubicación
+        idx_Q = excel_col_to_index('Q')   # Tipología de dividendo
         idx_W = excel_col_to_index('W')   # Rentab Reentel alt
         idx_Z = excel_col_to_index('Z')   # Rentab Anualizada Reentel alt
         idx_AA = excel_col_to_index('AA') # Rentab ReentelPro alt
@@ -139,6 +140,7 @@ def cargar_proyectos():
             fila_dict['Nombre del proyecto'] = nombre_val
             fila_dict['ESTADO'] = obtener_valor_por_indice(fila, idx_C)
             fila_dict['Ubicación'] = obtener_valor_por_indice(fila, idx_O)
+            fila_dict['Tipología de dividendo'] = obtener_valor_por_indice(fila, idx_Q)
             
             # Fechas de inicio (H, o si está vacío usar E)
             fecha_inicio_h = obtener_valor_por_indice(fila, idx_H)
