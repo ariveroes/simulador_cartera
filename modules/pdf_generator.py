@@ -1,282 +1,167 @@
 """
-PDF GENERATOR PROFESIONAL - Diseño como el ejemplo de Federico
-Con gráficos, colores, análisis detallado
+PDF GENERATOR - Genera PDF con resumen de cartera
 """
 
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch, cm
-from reportlab.lib.colors import HexColor, black, white, grey
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak, Image as RLImage
-from reportlab.pdfgen import canvas
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER
 from io import BytesIO
 from datetime import datetime
-import matplotlib.pyplot as plt
-import matplotlib
-matplotlib.use('Agg')
-import numpy as np
-
-# Colores
-COLOR_DARK = HexColor('#1a1f3a')
-COLOR_ORANGE = HexColor('#f7931e')
-COLOR_BLUE = HexColor('#2c5aa0')
-COLOR_LIGHT_BLUE = HexColor('#4a90e2')
-COLOR_TEXT_LIGHT = HexColor('#e0e0e0')
 
 
-class PDFCarteraProf:
-    """PDF profesional con diseño oscuro y gráficos"""
+def generar_pdf_cartera(datos_cliente, proyectos_cartera, distribuciones, df_todos):
+    """
+    Genera PDF con resumen de cartera.
+    """
     
-    def __init__(self):
-        self.buffer = BytesIO()
-        self.doc = SimpleDocTemplate(
-            self.buffer,
-            pagesize=A4,
-            rightMargin=0.5*inch,
-            leftMargin=0.5*inch,
-            topMargin=0.5*inch,
-            bottomMargin=0.5*inch
-        )
-        self.styles = getSampleStyleSheet()
-        self._estilos_personalizados()
-        self.story = []
-        self.width, self.height = A4
+    # Crear buffer para PDF
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    elements = []
     
-    def _estilos_personalizados(self):
-        """Estilos profesionales"""
-        self.styles.add(ParagraphStyle(
-            name='TituloPortada',
-            fontSize=48,
-            textColor=white,
-            fontName='Helvetica-Bold',
-            spaceAfter=20
-        ))
-        
-        self.styles.add(ParagraphStyle(
-            name='Subtitulo',
-            fontSize=16,
-            textColor=COLOR_ORANGE,
-            fontName='Helvetica-Bold',
-            spaceAfter=12
-        ))
-        
-        self.styles.add(ParagraphStyle(
-            name='Heading3Custom',
-            fontSize=12,
-            textColor=COLOR_ORANGE,
-            fontName='Helvetica-Bold',
-            spaceAfter=8
-        ))
-        
-        self.styles.add(ParagraphStyle(
-            name='NormalCustom',
-            fontSize=9,
-            textColor=COLOR_TEXT_LIGHT
-        ))
+    # Estilos
+    styles = getSampleStyleSheet()
+    style_titulo = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        textColor=colors.HexColor('#ff8c00'),
+        spaceAfter=30,
+        alignment=TA_CENTER
+    )
+    style_heading = ParagraphStyle(
+        'CustomHeading',
+        parent=styles['Heading2'],
+        fontSize=14,
+        textColor=colors.HexColor('#ff8c00'),
+        spaceAfter=12,
+        spaceBefore=12
+    )
     
-    def agregar_portada(self, nombre_inversor, estatus):
-        """Portada profesional"""
-        portada_data = [
-            [''],
-            [''],
-            ['SIMULACIÓN DE\nCARTERA\nINMOBILIARIA'],
-            [''],
-            [''],
-            [f'Estatus: {estatus}'],
-            [''],
-            ['Reental Wealth'],
-            [datetime.now().strftime('%d de %B de %Y')]
-        ]
-        
-        portada = Table(portada_data, colWidths=[self.width - 1*inch])
-        portada.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), COLOR_DARK),
-            ('TEXTCOLOR', (0, 2), (-1, 2), COLOR_ORANGE),
-            ('TEXTCOLOR', (0, 5), (-1, 5), COLOR_ORANGE),
-            ('TEXTCOLOR', (0, 7), (-1, -1), COLOR_ORANGE),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTNAME', (0, 2), (-1, 2), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 2), (-1, 2), 44),
-            ('FONTNAME', (0, 5), (-1, 5), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 5), (-1, 5), 12),
-            ('FONTSIZE', (0, 7), (-1, -1), 11),
-            ('ROWHEIGHT', (0, 0), (-1, -1), 50),
-        ]))
-        
-        self.story.append(portada)
-        self.story.append(PageBreak())
+    # TITULO
+    elements.append(Paragraph("SIMULADOR DE CARTERA INMOBILIARIA", style_titulo))
+    elements.append(Paragraph(f"Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}", styles['Normal']))
+    elements.append(Spacer(1, 0.3*inch))
     
-    def crear_grafico_ganancia(self, resultados, filename):
-        """Gráfico de ganancia acumulada"""
-        horizontes = [6, 12, 24, 36, 60]
-        ganancias_reentel = []
-        ganancias_sr = []
-        
-        for h in horizontes:
-            if h in resultados:
-                ganancias_reentel.append(resultados[h]['ganancia'])
-                ganancias_sr.append(resultados[h]['ganancia'] * 1.1)
-        
-        fig, ax = plt.subplots(figsize=(10, 6), facecolor=COLOR_DARK)
-        ax.set_facecolor(COLOR_DARK)
-        
-        x = np.arange(len(horizontes))
-        width = 0.35
-        
-        bars1 = ax.bar(x - width/2, ganancias_reentel, width, label='Reentel', color=COLOR_BLUE)
-        bars2 = ax.bar(x + width/2, ganancias_sr, width, label='SuperReentel', color=COLOR_ORANGE)
-        
-        ax.set_xlabel('Horizontes (meses)', color=COLOR_TEXT_LIGHT)
-        ax.set_ylabel('Ganancia (€)', color=COLOR_TEXT_LIGHT)
-        ax.set_xticks(x)
-        ax.set_xticklabels(horizontes)
-        ax.legend(facecolor=COLOR_DARK, edgecolor=COLOR_TEXT_LIGHT, labelcolor=COLOR_TEXT_LIGHT)
-        
-        ax.tick_params(colors=COLOR_TEXT_LIGHT)
-        ax.spines['bottom'].set_color(COLOR_TEXT_LIGHT)
-        ax.spines['left'].set_color(COLOR_TEXT_LIGHT)
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        
-        plt.tight_layout()
-        plt.savefig(filename, facecolor=COLOR_DARK, bbox_inches='tight', dpi=100)
-        plt.close()
+    # RESUMEN CLIENTE
+    elements.append(Paragraph("DATOS DEL CLIENTE", style_heading))
+    datos_tabla = [
+        ['Nombre', datos_cliente.get('nombre', 'N/A')],
+        ['Email', datos_cliente.get('email', 'N/A')],
+        ['Capital a invertir', f"{datos_cliente.get('rango_capital', 'N/A')}"],
+        ['Estatus', datos_cliente.get('estatus', 'N/A')],
+        ['Objetivo', datos_cliente.get('objetivo', 'N/A')],
+        ['Distribución', datos_cliente.get('distribucion', 'N/A')],
+    ]
     
-    def crear_grafico_rentabilidad(self, resultados, filename):
-        """Gráfico de rentabilidad anualizada"""
-        horizontes = [6, 12, 24, 36, 60]
-        rentabilidades = []
-        
-        for h in horizontes:
-            if h in resultados:
-                rentabilidades.append(resultados[h]['rentabilidad_anualizada'] * 100)
-        
-        fig, ax = plt.subplots(figsize=(10, 6), facecolor=COLOR_DARK)
-        ax.set_facecolor(COLOR_DARK)
-        
-        ax.plot(horizontes, rentabilidades, marker='o', linewidth=3, markersize=8, 
-               color=COLOR_ORANGE, label='Rentabilidad Anualizada')
-        ax.fill_between(horizontes, rentabilidades, alpha=0.3, color=COLOR_ORANGE)
-        
-        ax.set_xlabel('Horizontes (meses)', color=COLOR_TEXT_LIGHT)
-        ax.set_ylabel('Rentabilidad (%)', color=COLOR_TEXT_LIGHT)
-        ax.legend(facecolor=COLOR_DARK, edgecolor=COLOR_TEXT_LIGHT, labelcolor=COLOR_TEXT_LIGHT)
-        
-        ax.tick_params(colors=COLOR_TEXT_LIGHT)
-        ax.spines['bottom'].set_color(COLOR_TEXT_LIGHT)
-        ax.spines['left'].set_color(COLOR_TEXT_LIGHT)
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        
-        for i, (h, r) in enumerate(zip(horizontes, rentabilidades)):
-            ax.text(h, r + 1, f'{r:.1f}%', ha='center', color=COLOR_ORANGE, fontweight='bold')
-        
-        plt.tight_layout()
-        plt.savefig(filename, facecolor=COLOR_DARK, bbox_inches='tight', dpi=100)
-        plt.close()
+    tabla_datos = Table(datos_tabla, colWidths=[2*inch, 4*inch])
+    tabla_datos.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#fff3e0')),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+    ]))
+    elements.append(tabla_datos)
+    elements.append(Spacer(1, 0.3*inch))
     
-    def agregar_resumen(self, num_inmuebles, inversion_total, rentabilidad_anual):
-        """Sección resumen con métricas"""
-        self.story.append(Paragraph("RESUMEN DE LA CUENTA", self.styles['Subtitulo']))
-        self.story.append(Spacer(1, 0.2*inch))
-        
-        resumen_data = [
-            ['Número de inmuebles', str(num_inmuebles)],
-            ['Inversión total (€)', f'{inversion_total:,.2f}'],
-            ['Rentabilidad anualizada', f'{rentabilidad_anual*100:.2f}%'],
-        ]
-        
-        resumen_table = Table(resumen_data, colWidths=[4*cm, 4*cm])
-        resumen_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), COLOR_DARK),
-            ('TEXTCOLOR', (0, 0), (0, -1), COLOR_ORANGE),
-            ('TEXTCOLOR', (1, 0), (1, -1), white),
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('GRID', (0, 0), (-1, -1), 1, COLOR_LIGHT_BLUE),
-            ('ROWHEIGHT', (0, 0), (-1, -1), 30),
-        ]))
-        
-        self.story.append(resumen_table)
-        self.story.append(Spacer(1, 0.3*inch))
+    # TABLA CARTERA
+    elements.append(Paragraph("TU CARTERA DE INVERSIÓN", style_heading))
     
-    def agregar_graficos(self, resultados):
-        """Agregar gráficos de ganancia y rentabilidad"""
-        self.story.append(Paragraph("PROYECCIÓN CON REINVERSIÓN", self.styles['Subtitulo']))
-        self.story.append(Spacer(1, 0.1*inch))
+    cartera_data = [['Proyecto', 'Ubicación', 'Rentabilidad Total', 'Rentabilidad Anualizada', '% Invertido']]
+    
+    for proyecto in proyectos_cartera:
+        proyecto_id = proyecto['id']
+        proyecto_row = df_todos[df_todos['ID'] == proyecto_id]
         
-        try:
-            self.crear_grafico_ganancia(resultados, '/tmp/ganancia.png')
-            self.crear_grafico_rentabilidad(resultados, '/tmp/rentabilidad.png')
+        if len(proyecto_row) > 0:
+            row = proyecto_row.iloc[0]
+            porcentaje = distribuciones.get(proyecto_id, {}).get('porcentaje', 0)
             
-            img_ganancia = RLImage('/tmp/ganancia.png', width=6*inch, height=3.5*inch)
-            self.story.append(img_ganancia)
-            self.story.append(Spacer(1, 0.2*inch))
-            
-            img_rentabilidad = RLImage('/tmp/rentabilidad.png', width=6*inch, height=3.5*inch)
-            self.story.append(img_rentabilidad)
-            self.story.append(Spacer(1, 0.2*inch))
-        except Exception as e:
-            self.story.append(Paragraph(f"Error al generar gráficos: {str(e)}", self.styles['NormalCustom']))
-    
-    def agregar_tabla_proyectos(self, cartera_lista):
-        """Tabla con detalles de proyectos"""
-        self.story.append(PageBreak())
-        self.story.append(Paragraph("ANÁLISIS CARTERA PROPUESTA", self.styles['Subtitulo']))
-        self.story.append(Spacer(1, 0.2*inch))
-        
-        datos = [
-            ['ID', 'Nombre', 'Inversión (€)', '% Cartera', 'Rentabilidad']
-        ]
-        
-        for proyecto in cartera_lista:
-            datos.append([
-                proyecto.get('ID', ''),
-                proyecto.get('Nombre', '')[:20],
-                f"€ {proyecto.get('Inversion', 0):,.0f}",
-                f"{proyecto.get('Porcentaje', 0):.1f}%",
-                f"{proyecto.get('Rentab_Recurrente', 0)*100:.1f}%"
+            cartera_data.append([
+                proyecto['nombre'],
+                row.get('Ubicación', 'N/A'),
+                f"{row.get('Rentabilidad_Total_SuperReentel', 0):.2f}%",
+                f"{row.get('Rentabilidad_Anualizada_SuperReentel', 0):.2f}%",
+                f"{porcentaje:.1f}%"
             ])
-        
-        tabla = Table(datos, colWidths=[1.5*cm, 3*cm, 2*cm, 2*cm, 2*cm])
-        tabla.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), COLOR_ORANGE),
-            ('TEXTCOLOR', (0, 0), (-1, 0), COLOR_DARK),
-            ('BACKGROUND', (0, 1), (-1, -1), COLOR_DARK),
-            ('TEXTCOLOR', (0, 1), (-1, -1), white),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('GRID', (0, 0), (-1, -1), 1, COLOR_LIGHT_BLUE),
-            ('ROWHEIGHT', (0, 0), (-1, -1), 25),
-        ]))
-        
-        self.story.append(tabla)
-        self.story.append(Spacer(1, 0.3*inch))
     
-    def agregar_footer(self):
-        """Footer con disclaimer"""
-        self.story.append(Spacer(1, 0.2*inch))
-        footer_text = (
-            '<font size=8 color="#999999">'
-            'Este documento es una propuesta de inversión basada en datos estimados. '
-            'Las rentabilidades reales pueden variar. '
-            'Consulta con tu asesor Reental antes de invertir.'
-            '</font>'
-        )
-        self.story.append(Paragraph(footer_text, self.styles['NormalCustom']))
+    tabla_cartera = Table(cartera_data, colWidths=[2*inch, 1.2*inch, 1.3*inch, 1.3*inch, 1.2*inch])
+    tabla_cartera.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#ff8c00')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')])
+    ]))
+    elements.append(tabla_cartera)
+    elements.append(Spacer(1, 0.3*inch))
     
-    def generar(self, nombre_inversor, email, estatus, tipo_cambio,
-                num_inmuebles, inversion_total_eur, rentabilidad_anual,
-                resultados_por_horizonte, cartera_lista):
-        """Genera el PDF profesional completo"""
+    # PROYECCIONES
+    elements.append(Paragraph("PROYECCIONES DE RENTABILIDAD", style_heading))
+    
+    capital_estimado = 75000
+    try:
+        if '-' in str(datos_cliente.get('rango_capital', '')):
+            valores = str(datos_cliente.get('rango_capital', '')).split('-')
+            min_val = int(valores[0].replace('.', '').replace('€', '').strip())
+            max_val = int(valores[1].replace('.', '').replace('€', '').strip())
+            capital_estimado = (min_val + max_val) / 2
+    except:
+        pass
+    
+    from modules.calculo_cartera import CalculadoraCartera
+    
+    estatus = datos_cliente.get('estatus', 'Reentel')
+    calculadora = CalculadoraCartera(estatus)
+    
+    rentabilidad_promedio = 0
+    for proyecto in proyectos_cartera:
+        proyecto_id = proyecto['id']
+        proyecto_row = df_todos[df_todos['ID'] == proyecto_id]
+        if len(proyecto_row) > 0:
+            porcentaje = distribuciones.get(proyecto_id, {}).get('porcentaje', 0) / 100
+            try:
+                rentabilidad = float(str(proyecto_row.iloc[0].get('Rentabilidad_Anualizada_SuperReentel', 0)).replace('%', '')) / 100
+            except:
+                rentabilidad = 0
+            rentabilidad_promedio += rentabilidad * porcentaje
+    
+    proyecciones_data = [['Plazo', 'Capital Inicial', 'Capital Final', 'Ganancia']]
+    
+    for meses in [6, 12, 24, 36, 60]:
+        capital_final = calculadora.calcular_proyeccion(capital_estimado, rentabilidad_promedio, meses)
+        ganancia = capital_final - capital_estimado
         
-        self.agregar_portada(nombre_inversor, estatus)
-        self.agregar_resumen(num_inmuebles, inversion_total_eur, rentabilidad_anual)
-        self.agregar_graficos(resultados_por_horizonte)
-        self.agregar_tabla_proyectos(cartera_lista)
-        self.agregar_footer()
-        
-        self.doc.build(self.story)
-        self.buffer.seek(0)
-        return self.buffer.getvalue()
+        proyecciones_data.append([
+            f"{meses} meses",
+            f"€{capital_estimado:,.0f}",
+            f"€{capital_final:,.0f}",
+            f"€{ganancia:,.0f}"
+        ])
+    
+    tabla_proyecciones = Table(proyecciones_data, colWidths=[1.5*inch, 1.5*inch, 1.5*inch, 1.5*inch])
+    tabla_proyecciones.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#ff8c00')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')])
+    ]))
+    elements.append(tabla_proyecciones)
+    
+    doc.build(elements)
+    buffer.seek(0)
+    
+    return buffer
