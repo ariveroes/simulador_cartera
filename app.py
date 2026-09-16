@@ -731,7 +731,7 @@ with col_main:
             datos_resumen = {
                 'Nombre': st.session_state.datos_cliente.get('nombre', 'N/A'),
                 'Email': st.session_state.datos_cliente.get('email', 'N/A'),
-                'Capital': st.session_state.datos_cliente.get('rango_capital', 'N/A'),
+                'Capital': st.session_state.datos_cliente.get('capital', 'N/A'),
                 'Estatus': st.session_state.datos_cliente.get('estatus', 'N/A'),
                 'Objetivo': st.session_state.datos_cliente.get('objetivo', 'N/A'),
                 'Distribución': st.session_state.datos_cliente.get('distribucion', 'N/A'),
@@ -780,8 +780,8 @@ with col_main:
             
             capital_estimado = 75000
             try:
-                if '-' in str(st.session_state.datos_cliente.get('rango_capital', '')):
-                    valores = str(st.session_state.datos_cliente.get('rango_capital', '')).split('-')
+                if '-' in str(st.session_state.datos_cliente.get('capital', '')):
+                    valores = str(st.session_state.datos_cliente.get('capital', '')).split('-')
                     min_val = int(valores[0].replace('.', '').replace('€', '').strip())
                     max_val = int(valores[1].replace('.', '').replace('€', '').strip())
                     capital_estimado = (min_val + max_val) / 2
