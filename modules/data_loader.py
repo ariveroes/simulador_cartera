@@ -103,8 +103,16 @@ def cargar_proyectos():
         # Datos desde fila 3 (índice 2)
         datos_filas = todas_las_filas[2:]
         
+        # Normalizar todas las filas al número de columnas de headers
+        num_headers = len(headers_unicos)
+        datos_normalizados = []
+        for fila in datos_filas:
+            # Rellenar con vacíos si hay menos columnas, o truncar si hay más
+            fila_ajustada = (fila + [''] * num_headers)[:num_headers]
+            datos_normalizados.append(fila_ajustada)
+        
         # Crear DataFrame con headers únicos
-        df = pd.DataFrame(datos_filas, columns=headers_unicos)
+        df = pd.DataFrame(datos_normalizados, columns=headers_unicos)
         
         # Limpiar columnas completamente vacías
         df = df.dropna(axis=1, how='all')
@@ -119,7 +127,11 @@ def cargar_proyectos():
             st.warning("Columna ESTADO no encontrada en el sheet")
             df_financiando = df.copy()
         
-        st.success(f"✅ Cargados {len(df_financiando)} proyectos en FINANCIÁNDOSE")
+        if len(df_financiando) == 0:
+            st.warning("No hay proyectos en estado FINANCIÁNDOSE")
+        else:
+            st.success(f"✅ Cargados {len(df_financiando)} proyectos en FINANCIÁNDOSE")
+        
         return df_financiando
         
     except Exception as e:
