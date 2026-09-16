@@ -326,7 +326,7 @@ with col_main:
                 border_width = "2px"
             
             st.markdown(f"""
-            <div style="border: {border_width} solid {border_color}; border-radius: 12px; padding: 20px; background-color: {bg_color}; min-height: 160px; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer;" onclick="document.querySelector('[data-testid=stButton]:nth-of-type(1) button').click()">
+            <div style="border: {border_width} solid {border_color}; border-radius: 12px; padding: 20px; background-color: {bg_color}; min-height: 160px; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer;">
                 <div style="color: #16a34a; font-weight: 700; font-size: 16px; margin-bottom: 15px;">
                     SUPERREENTEL
                 </div>
@@ -335,7 +335,7 @@ with col_main:
                 </div>
             </div>
             """, unsafe_allow_html=True)
-            if st.button("", key="btn_super", use_container_width=False, label_visibility="collapsed"):
+            if st.button("Seleccionar SuperReentel", key="btn_super", use_container_width=True):
                 st.session_state.datos_cliente['estatus'] = 'SuperReentel'
                 st.rerun()
         
@@ -360,7 +360,7 @@ with col_main:
                 </div>
             </div>
             """, unsafe_allow_html=True)
-            if st.button("", key="btn_pro", use_container_width=False, label_visibility="collapsed"):
+            if st.button("Seleccionar ReentelPro", key="btn_pro", use_container_width=True):
                 st.session_state.datos_cliente['estatus'] = 'ReentelPro'
                 st.rerun()
         
@@ -385,7 +385,7 @@ with col_main:
                 </div>
             </div>
             """, unsafe_allow_html=True)
-            if st.button("", key="btn_reen", use_container_width=False, label_visibility="collapsed"):
+            if st.button("Seleccionar Reentel", key="btn_reen", use_container_width=True):
                 st.session_state.datos_cliente['estatus'] = 'Reentel'
                 st.rerun()
         
