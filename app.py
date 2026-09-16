@@ -26,8 +26,8 @@ st.set_page_config(
 # Estilos personalizados - VERSIÓN FINAL
 st.markdown("""
 <style>
-    /* Fuente Segoe UI en todo */
-    * {
+    /* Fuente Segoe UI - SOLO en contenedores de texto, NO en íconos */
+    body, .stApp, .stMarkdown, .stButton, .stTextInput, .stSelectbox, .stRadio, .stMultiSelect {
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
     }
     
