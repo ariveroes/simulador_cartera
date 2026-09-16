@@ -1,6 +1,6 @@
 """
 SIMULADOR DE CARTERA INMOBILIARIA REENTAL
-Layout final con todos los ajustes de diseño - VERSIÓN CORREGIDA
+Layout final con todos los ajustes de diseño
 """
 
 import streamlit as st
@@ -24,29 +24,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Script para eliminar keyboard_double
-st.markdown("""
-<script>
-    // Remover keyboard_double cuando carga la página
-    function removeKeyboardDouble() {
-        const buttons = document.querySelectorAll('button');
-        buttons.forEach(btn => {
-            if (btn.textContent.includes('keyboard_double')) {
-                btn.textContent = '';
-                btn.innerHTML = btn.innerHTML.replace('keyboard_double', '');
-            }
-        });
-    }
-    
-    // Ejecutar al cargar
-    removeKeyboardDouble();
-    
-    // Ejecutar cada 500ms para casos de re-renders
-    setInterval(removeKeyboardDouble, 500);
-</script>
-""", unsafe_allow_html=True)
-
-# Estilos personalizados - VERSIÓN FINAL CORREGIDA
+# Estilos personalizados - VERSIÓN FINAL
 st.markdown("""
 <style>
     /* Fuente Segoe UI - TODA LA HERRAMIENTA */
@@ -58,9 +36,9 @@ st.markdown("""
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
     }
     
-    /* CORREGIDO: SVG e íconos de Streamlit - NO forzar font */
-    .stApp svg, .stApp svg * {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif !important;
+    /* Excluir SVG e íconos de Streamlit */
+    svg, svg * {
+        font-family: inherit !important;
     }
     
     /* Background BLANCO */
@@ -222,23 +200,6 @@ st.markdown("""
     
     a svg {
         display: none !important;
-    }
-    
-    /* FIX KEYBOARD_DOUBLE - Ocultar texto completamente */
-    [data-testid="stSidebar"] button {
-        font-size: 0 !important;
-        color: transparent !important;
-    }
-    
-    [data-testid="stSidebar"] button * {
-        font-size: 0 !important;
-    }
-    
-    [data-testid="stSidebar"] button svg {
-        font-size: 20px !important;
-        display: inline-block !important;
-        width: 24px !important;
-        height: 24px !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -742,39 +703,154 @@ with col_main:
             with col3:
                 if len(proyectos_seleccionados) > 0 and suma_porcentajes == 100:
                     if st.button("Generar cartera >", use_container_width=True, key="btn_paso4_next"):
-                        # Guardar cartera
                         st.session_state.datos_cliente['cartera'] = {
                             'proyectos': proyectos_seleccionados,
                             'distribuciones': st.session_state.cartera_selecciones
                         }
-                        
-                        # Generar PDF
-                        from modules.pdf_generator import generar_pdf_cartera
-                        
-                        pdf_buffer = generar_pdf_cartera(
-                            st.session_state.datos_cliente,
-                            proyectos_seleccionados,
-                            st.session_state.cartera_selecciones,
-                            df_todos
-                        )
-                        
-                        # Mostrar PDF en pantalla
-                        st.success("✓ Cartera generada exitosamente")
-                        st.markdown("---")
-                        st.markdown("### Tu cartera está lista para descargar")
-                        
-                        # Botón descargar
-                        st.download_button(
-                            label="📥 Descargar cartera (PDF)",
-                            data=pdf_buffer,
-                            file_name=f"Cartera_{st.session_state.datos_cliente['nombre'].replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf",
-                            mime="application/pdf",
-                            use_container_width=True
-                        )
+                        st.session_state.paso_actual = 5
+                        st.rerun()
                 else:
                     st.button("Generar cartera >", use_container_width=True, disabled=True)
         else:
             st.error("No se cargaron proyectos")
+
+    # ========== PASO 5: RESUMEN CARTERA ==========
+    elif st.session_state.paso_actual == 5:
+        st.markdown("## Paso 5: Tu cartera está lista")
+        st.markdown("")
+        
+        # Obtener datos de la cartera
+        cartera = st.session_state.datos_cliente.get('cartera', {})
+        proyectos_cartera = cartera.get('proyectos', [])
+        distribuciones = cartera.get('distribuciones', {})
+        
+        if len(proyectos_cartera) > 0:
+            # ========== RESUMEN CLIENTE ==========
+            st.markdown("### Datos de tu inversión")
+            
+            datos_resumen = {
+                'Nombre': st.session_state.datos_cliente.get('nombre', 'N/A'),
+                'Email': st.session_state.datos_cliente.get('email', 'N/A'),
+                'Capital': st.session_state.datos_cliente.get('rango_capital', 'N/A'),
+                'Estatus': st.session_state.datos_cliente.get('estatus', 'N/A'),
+                'Objetivo': st.session_state.datos_cliente.get('objetivo', 'N/A'),
+                'Distribución': st.session_state.datos_cliente.get('distribucion', 'N/A'),
+            }
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.write(f"**Nombre:** {datos_resumen['Nombre']}")
+                st.write(f"**Email:** {datos_resumen['Email']}")
+                st.write(f"**Capital:** {datos_resumen['Capital']}")
+            with col2:
+                st.write(f"**Estatus:** {datos_resumen['Estatus']}")
+                st.write(f"**Objetivo:** {datos_resumen['Objetivo']}")
+                st.write(f"**Distribución:** {datos_resumen['Distribución']}")
+            
+            st.markdown("---")
+            
+            # ========== TABLA CARTERA ==========
+            st.markdown("### Tu cartera de inversión")
+            
+            cartera_data = []
+            for proyecto in proyectos_cartera:
+                proyecto_id = proyecto['id']
+                proyecto_row = st.session_state.df_proyectos[st.session_state.df_proyectos['ID'] == proyecto_id]
+                
+                if len(proyecto_row) > 0:
+                    row = proyecto_row.iloc[0]
+                    porcentaje = distribuciones.get(proyecto_id, {}).get('porcentaje', 0)
+                    
+                    cartera_data.append({
+                        'Proyecto': proyecto['nombre'],
+                        'Ubicación': row.get('Ubicación', 'N/A'),
+                        'Rentabilidad Total': f"{row.get('Rentabilidad_Total_SuperReentel', 0):.2f}%",
+                        'Rentabilidad Anualizada': f"{row.get('Rentabilidad_Anualizada_SuperReentel', 0):.2f}%",
+                        '% Invertido': f"{porcentaje:.1f}%"
+                    })
+            
+            if cartera_data:
+                df_cartera_display = pd.DataFrame(cartera_data)
+                st.dataframe(df_cartera_display, use_container_width=True, hide_index=True)
+            
+            st.markdown("---")
+            
+            # ========== PROYECCIONES ==========
+            st.markdown("### Proyecciones de rentabilidad")
+            
+            capital_estimado = 75000
+            try:
+                if '-' in str(st.session_state.datos_cliente.get('rango_capital', '')):
+                    valores = str(st.session_state.datos_cliente.get('rango_capital', '')).split('-')
+                    min_val = int(valores[0].replace('.', '').replace('€', '').strip())
+                    max_val = int(valores[1].replace('.', '').replace('€', '').strip())
+                    capital_estimado = (min_val + max_val) / 2
+            except:
+                pass
+            
+            from modules.calculo_cartera import CalculadoraCartera
+            
+            estatus = st.session_state.datos_cliente.get('estatus', 'Reentel')
+            calculadora = CalculadoraCartera(estatus)
+            
+            rentabilidad_promedio = 0
+            for proyecto in proyectos_cartera:
+                proyecto_id = proyecto['id']
+                proyecto_row = st.session_state.df_proyectos[st.session_state.df_proyectos['ID'] == proyecto_id]
+                if len(proyecto_row) > 0:
+                    porcentaje = distribuciones.get(proyecto_id, {}).get('porcentaje', 0) / 100
+                    try:
+                        rentabilidad = float(str(proyecto_row.iloc[0].get('Rentabilidad_Anualizada_SuperReentel', 0)).replace('%', '')) / 100
+                    except:
+                        rentabilidad = 0
+                    rentabilidad_promedio += rentabilidad * porcentaje
+            
+            proyecciones_data = []
+            for meses in [6, 12, 24, 36, 60]:
+                capital_final = calculadora.calcular_proyeccion(capital_estimado, rentabilidad_promedio, meses)
+                ganancia = capital_final - capital_estimado
+                
+                proyecciones_data.append({
+                    'Plazo': f"{meses} meses",
+                    'Capital Inicial': f"€{capital_estimado:,.0f}",
+                    'Capital Final': f"€{capital_final:,.0f}",
+                    'Ganancia': f"€{ganancia:,.0f}"
+                })
+            
+            df_proyecciones = pd.DataFrame(proyecciones_data)
+            st.dataframe(df_proyecciones, use_container_width=True, hide_index=True)
+            
+            st.markdown("---")
+            st.markdown("")
+            
+            # ========== DESCARGAR PDF ==========
+            st.markdown("### Descarga tu cartera")
+            
+            from pdf_generator import generar_pdf_cartera
+            
+            pdf_buffer = generar_pdf_cartera(
+                st.session_state.datos_cliente,
+                proyectos_cartera,
+                distribuciones,
+                st.session_state.df_proyectos
+            )
+            
+            st.download_button(
+                label="📥 Descargar cartera (PDF)",
+                data=pdf_buffer,
+                file_name=f"Cartera_{st.session_state.datos_cliente['nombre'].replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
+            
+            st.markdown("")
+            col1, col2, col3 = st.columns([1, 1, 1])
+            with col1:
+                if st.button("< Atrás", use_container_width=True, key="btn_paso5_back"):
+                    st.session_state.paso_actual = 4
+                    st.rerun()
+        else:
+            st.error("No hay cartera para mostrar")
 
 # ============================================================================
 # FOOTER
