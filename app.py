@@ -1,6 +1,6 @@
 """
 SIMULADOR DE CARTERA INMOBILIARIA REENTAL
-Layout final con todos los ajustes de diseño
+Layout final con todos los ajustes de diseño - VERSIÓN CORREGIDA
 """
 
 import streamlit as st
@@ -24,7 +24,29 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilos personalizados - VERSIÓN FINAL
+# Script para eliminar keyboard_double
+st.markdown("""
+<script>
+    // Remover keyboard_double cuando carga la página
+    function removeKeyboardDouble() {
+        const buttons = document.querySelectorAll('button');
+        buttons.forEach(btn => {
+            if (btn.textContent.includes('keyboard_double')) {
+                btn.textContent = '';
+                btn.innerHTML = btn.innerHTML.replace('keyboard_double', '');
+            }
+        });
+    }
+    
+    // Ejecutar al cargar
+    removeKeyboardDouble();
+    
+    // Ejecutar cada 500ms para casos de re-renders
+    setInterval(removeKeyboardDouble, 500);
+</script>
+""", unsafe_allow_html=True)
+
+# Estilos personalizados - VERSIÓN FINAL CORREGIDA
 st.markdown("""
 <style>
     /* Fuente Segoe UI - TODA LA HERRAMIENTA */
@@ -36,6 +58,10 @@ st.markdown("""
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
     }
     
+    /* CORREGIDO: SVG e íconos de Streamlit - NO forzar font */
+    .stApp svg, .stApp svg * {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif !important;
+    }
     
     /* Background BLANCO */
     .stApp {
@@ -196,6 +222,23 @@ st.markdown("""
     
     a svg {
         display: none !important;
+    }
+    
+    /* FIX KEYBOARD_DOUBLE - Ocultar texto completamente */
+    [data-testid="stSidebar"] button {
+        font-size: 0 !important;
+        color: transparent !important;
+    }
+    
+    [data-testid="stSidebar"] button * {
+        font-size: 0 !important;
+    }
+    
+    [data-testid="stSidebar"] button svg {
+        font-size: 20px !important;
+        display: inline-block !important;
+        width: 24px !important;
+        height: 24px !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -706,7 +749,7 @@ with col_main:
                         }
                         
                         # Generar PDF
-                        from pdf_generator import generar_pdf_cartera
+                        from modules.pdf_generator import generar_pdf_cartera
                         
                         pdf_buffer = generar_pdf_cartera(
                             st.session_state.datos_cliente,
