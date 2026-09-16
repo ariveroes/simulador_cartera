@@ -57,7 +57,10 @@ def limpiar_datos_proyectos(df):
     
     for col in columnas_numericas:
         if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+            try:
+                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+            except Exception:
+                pass
     
     return df
 
@@ -89,11 +92,19 @@ def cargar_proyectos():
         # Headers están en fila 2 (índice 1)
         headers = todas_las_filas[1]
         
+        # Eliminar columnas duplicadas de headers
+        headers_unicos = []
+        vistos = set()
+        for h in headers:
+            if h not in vistos:
+                headers_unicos.append(h)
+                vistos.add(h)
+        
         # Datos desde fila 3 (índice 2)
         datos_filas = todas_las_filas[2:]
         
-        # Crear DataFrame
-        df = pd.DataFrame(datos_filas, columns=headers)
+        # Crear DataFrame con headers únicos
+        df = pd.DataFrame(datos_filas, columns=headers_unicos)
         
         # Limpiar columnas completamente vacías
         df = df.dropna(axis=1, how='all')
@@ -102,11 +113,15 @@ def cargar_proyectos():
         df = limpiar_datos_proyectos(df)
         
         # Filtrar SOLO FINANCIÁNDOSE
-        df_financiando = df[df['ESTADO'] == 'FINANCIÁNDOSE'].copy()
+        if 'ESTADO' in df.columns:
+            df_financiando = df[df['ESTADO'] == 'FINANCIÁNDOSE'].copy()
+        else:
+            st.warning("Columna ESTADO no encontrada en el sheet")
+            df_financiando = df.copy()
         
         st.success(f"✅ Cargados {len(df_financiando)} proyectos en FINANCIÁNDOSE")
         return df_financiando
         
     except Exception as e:
-        st.error(f"Error cargando proyectos: {e}")
+        st.error(f"Error cargando proyectos: {str(e)}")
         return pd.DataFrame()
