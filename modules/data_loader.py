@@ -15,12 +15,12 @@ SHEET_INTERMEDIO_WORKSHEET_NAME = "Master Inmuebles Pro"
 
 
 def excel_col_to_index(col_ref):
-    """Convierte referencia de Excel (A, BR, DC, etc) a índice 1-based para gspread"""
+    """Convierte referencia de Excel (A, BR, DC, etc) a índice 0-based"""
     col_ref = col_ref.upper()
     result = 0
     for char in col_ref:
         result = result * 26 + (ord(char) - ord('A') + 1)
-    return result
+    return result - 1  # Convertir a 0-based
 
 
 def obtener_cliente_gspread():
@@ -67,16 +67,10 @@ def parsear_fecha(fecha_str):
         return ""
 
 
-def obtener_valor_columna(worksheet, col_ref, row_num):
-    """
-    Obtiene valor de una celda específica usando referencia de columna Excel
-    col_ref: 'A', 'BR', 'DC', etc
-    row_num: número de fila (1-based)
-    """
+def obtener_valor_por_indice(fila, idx):
+    """Obtiene valor de una fila por índice, con validación"""
     try:
-        col_index = excel_col_to_index(col_ref)
-        valor = worksheet.cell(row_num, col_index).value
-        return valor if valor else ""
+        return fila[idx] if idx < len(fila) else ""
     except:
         return ""
 
@@ -86,6 +80,7 @@ def cargar_proyectos():
     """
     Carga proyectos desde Google Sheet Intermedio usando referencias de Excel.
     Solo retorna proyectos en FINANCIÁNDOSE.
+    UNA SOLA llamada a get_all_values() para todo.
     """
     try:
         client = obtener_cliente_gspread()
@@ -98,82 +93,89 @@ def cargar_proyectos():
         sheet = client.open_by_key(SHEET_INTERMEDIO_GSHEET_ID)
         worksheet = sheet.worksheet(SHEET_INTERMEDIO_WORKSHEET_NAME)
         
-        # Obtener todas las filas
+        # ⚡ UNA SOLA LLAMADA A LA API
         todas_las_filas = worksheet.get_all_values()
         
         if len(todas_las_filas) < 3:
             st.error("Sheet vacío o con estructura incorrecta")
             return pd.DataFrame()
         
-        # Datos desde fila 3 en adelante (row_num empieza en 3 porque gspread usa 1-based)
+        # Índices de columnas (convertir referencias Excel a índices 0-based)
+        idx_A = excel_col_to_index('A')   # ID
+        idx_B = excel_col_to_index('B')   # Nombre del proyecto
+        idx_C = excel_col_to_index('C')   # ESTADO
+        idx_E = excel_col_to_index('E')   # Fecha inicio alternativa
+        idx_F = excel_col_to_index('F')   # Fecha fin alternativa
+        idx_H = excel_col_to_index('H')   # Fecha inicio principal
+        idx_I = excel_col_to_index('I')   # Fecha fin principal
+        idx_O = excel_col_to_index('O')   # Ubicación
+        idx_W = excel_col_to_index('W')   # Rentab Reentel alt
+        idx_Z = excel_col_to_index('Z')   # Rentab Anualizada Reentel alt
+        idx_AA = excel_col_to_index('AA') # Rentab ReentelPro alt
+        idx_AD = excel_col_to_index('AD') # Rentab Anualizada ReentelPro alt
+        idx_AE = excel_col_to_index('AE') # Rentab SuperReentel alt
+        idx_AH = excel_col_to_index('AH') # Rentab Anualizada SuperReentel alt
+        idx_BH = excel_col_to_index('BH') # Rentab Reentel
+        idx_BK = excel_col_to_index('BK') # Rentab Anualizada Reentel
+        idx_BM = excel_col_to_index('BM') # Rentab ReentelPro
+        idx_BP = excel_col_to_index('BP') # Rentab Anualizada ReentelPro
+        idx_BR = excel_col_to_index('BR') # Rentab SuperReentel
+        idx_BU = excel_col_to_index('BU') # Rentab Anualizada SuperReentel
+        
+        # Datos desde fila 3 en adelante (índice 2 en la lista)
         datos_mapeados = []
         
-        for row_num in range(3, len(todas_las_filas) + 3):
-            fila_dict = {}
-            
-            # Obtener valores usando referencias de Excel exactas
-            id_val = obtener_valor_columna(worksheet, 'A', row_num)
-            nombre_val = obtener_valor_columna(worksheet, 'B', row_num)
-            estado_val = obtener_valor_columna(worksheet, 'C', row_num)
-            ubicacion_val = obtener_valor_columna(worksheet, 'O', row_num)
+        for fila in todas_las_filas[2:]:  # Saltar headers (filas 0-1)
+            # Obtener valores directamente del índice
+            id_val = obtener_valor_por_indice(fila, idx_A)
+            nombre_val = obtener_valor_por_indice(fila, idx_B)
             
             # Si no hay ID o nombre, saltar la fila
             if not id_val or not nombre_val:
                 continue
             
+            fila_dict = {}
             fila_dict['ID'] = id_val
             fila_dict['Nombre del proyecto'] = nombre_val
-            fila_dict['ESTADO'] = estado_val
-            fila_dict['Ubicación'] = ubicacion_val
+            fila_dict['ESTADO'] = obtener_valor_por_indice(fila, idx_C)
+            fila_dict['Ubicación'] = obtener_valor_por_indice(fila, idx_O)
             
             # Fechas de inicio (H, o si está vacío usar E)
-            fecha_inicio_h = obtener_valor_columna(worksheet, 'H', row_num)
+            fecha_inicio_h = obtener_valor_por_indice(fila, idx_H)
             if fecha_inicio_h:
                 fila_dict['Fecha Inicio Estimada'] = parsear_fecha(fecha_inicio_h)
             else:
-                fecha_inicio_e = obtener_valor_columna(worksheet, 'E', row_num)
+                fecha_inicio_e = obtener_valor_por_indice(fila, idx_E)
                 fila_dict['Fecha Inicio Estimada'] = parsear_fecha(fecha_inicio_e)
             
             # Fechas de fin (I, o si está vacío usar F)
-            fecha_fin_i = obtener_valor_columna(worksheet, 'I', row_num)
+            fecha_fin_i = obtener_valor_por_indice(fila, idx_I)
             if fecha_fin_i:
                 fila_dict['Fecha Fin Estimada'] = parsear_fecha(fecha_fin_i)
             else:
-                fecha_fin_f = obtener_valor_columna(worksheet, 'F', row_num)
+                fecha_fin_f = obtener_valor_por_indice(fila, idx_F)
                 fila_dict['Fecha Fin Estimada'] = parsear_fecha(fecha_fin_f)
             
             # Rentabilidades SuperReentel
-            rent_sr = obtener_valor_columna(worksheet, 'BR', row_num)
-            fila_dict['Rentabilidad_Total_SuperReentel'] = rent_sr if rent_sr else (
-                obtener_valor_columna(worksheet, 'AE', row_num)
-            )
+            rent_sr = obtener_valor_por_indice(fila, idx_BR)
+            fila_dict['Rentabilidad_Total_SuperReentel'] = rent_sr if rent_sr else obtener_valor_por_indice(fila, idx_AE)
             
-            rent_sr_anual = obtener_valor_columna(worksheet, 'BU', row_num)
-            fila_dict['Rentabilidad_Anualizada_SuperReentel'] = rent_sr_anual if rent_sr_anual else (
-                obtener_valor_columna(worksheet, 'AH', row_num)
-            )
+            rent_sr_anual = obtener_valor_por_indice(fila, idx_BU)
+            fila_dict['Rentabilidad_Anualizada_SuperReentel'] = rent_sr_anual if rent_sr_anual else obtener_valor_por_indice(fila, idx_AH)
             
             # Rentabilidades ReentelPro
-            rent_rp = obtener_valor_columna(worksheet, 'BM', row_num)
-            fila_dict['Rentabilidad_Total_ReentelPro'] = rent_rp if rent_rp else (
-                obtener_valor_columna(worksheet, 'AA', row_num)
-            )
+            rent_rp = obtener_valor_por_indice(fila, idx_BM)
+            fila_dict['Rentabilidad_Total_ReentelPro'] = rent_rp if rent_rp else obtener_valor_por_indice(fila, idx_AA)
             
-            rent_rp_anual = obtener_valor_columna(worksheet, 'BP', row_num)
-            fila_dict['Rentabilidad_Anualizada_ReentelPro'] = rent_rp_anual if rent_rp_anual else (
-                obtener_valor_columna(worksheet, 'AD', row_num)
-            )
+            rent_rp_anual = obtener_valor_por_indice(fila, idx_BP)
+            fila_dict['Rentabilidad_Anualizada_ReentelPro'] = rent_rp_anual if rent_rp_anual else obtener_valor_por_indice(fila, idx_AD)
             
             # Rentabilidades Reentel
-            rent_r = obtener_valor_columna(worksheet, 'BH', row_num)
-            fila_dict['Rentabilidad_Total_Reentel'] = rent_r if rent_r else (
-                obtener_valor_columna(worksheet, 'W', row_num)
-            )
+            rent_r = obtener_valor_por_indice(fila, idx_BH)
+            fila_dict['Rentabilidad_Total_Reentel'] = rent_r if rent_r else obtener_valor_por_indice(fila, idx_W)
             
-            rent_r_anual = obtener_valor_columna(worksheet, 'BK', row_num)
-            fila_dict['Rentabilidad_Anualizada_Reentel'] = rent_r_anual if rent_r_anual else (
-                obtener_valor_columna(worksheet, 'Z', row_num)
-            )
+            rent_r_anual = obtener_valor_por_indice(fila, idx_BK)
+            fila_dict['Rentabilidad_Anualizada_Reentel'] = rent_r_anual if rent_r_anual else obtener_valor_por_indice(fila, idx_Z)
             
             datos_mapeados.append(fila_dict)
         
