@@ -676,7 +676,7 @@ with col_main:
                                 f"{proyecto['nombre']} (%)",
                                 min_value=0.0,
                                 max_value=100.0,
-                               value=round(float(st.session_state.cartera_selecciones[proyecto['id']].get('porcentaje', 0.0)), 1),
+                                value=round(float(st.session_state.cartera_selecciones[proyecto['id']].get('porcentaje', 0.0)), 1),
                                 step=0.1,
                                 key=f"input_{proyecto['id']}"
                             )
@@ -691,7 +691,7 @@ with col_main:
                         else:
                             st.info("Asigna porcentajes a los proyectos")
             
-            # ========== BOTÓN CREAR CARTERA ==========
+            # ========== BOTÓN GENERAR CARTERA ==========
             st.markdown('<div style="margin-bottom: 30px;"></div>', unsafe_allow_html=True)
             
             col1, col2, col3 = st.columns([1, 1, 1])
@@ -702,17 +702,38 @@ with col_main:
             
             with col3:
                 if len(proyectos_seleccionados) > 0 and suma_porcentajes == 100:
-                    if st.button("Crear cartera →", use_container_width=True, key="btn_paso4_next"):
+                    if st.button("Generar cartera →", use_container_width=True, key="btn_paso4_next"):
                         # Guardar cartera
                         st.session_state.datos_cliente['cartera'] = {
                             'proyectos': proyectos_seleccionados,
                             'distribuciones': st.session_state.cartera_selecciones
                         }
-                        st.success("✓ Cartera creada exitosamente")
-                        st.session_state.paso_actual = 5  # Ir a próximo paso (si existe)
-                        st.rerun()
+                        
+                        # Generar PDF
+                        from pdf_generator import generar_pdf_cartera
+                        
+                        pdf_buffer = generar_pdf_cartera(
+                            st.session_state.datos_cliente,
+                            proyectos_seleccionados,
+                            st.session_state.cartera_selecciones,
+                            df_todos
+                        )
+                        
+                        # Mostrar PDF en pantalla
+                        st.success("✓ Cartera generada exitosamente")
+                        st.markdown("---")
+                        st.markdown("### Tu cartera está lista para descargar")
+                        
+                        # Botón descargar
+                        st.download_button(
+                            label="📥 Descargar cartera (PDF)",
+                            data=pdf_buffer,
+                            file_name=f"Cartera_{st.session_state.datos_cliente['nombre'].replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                            mime="application/pdf",
+                            use_container_width=True
+                        )
                 else:
-                    st.button("Crear cartera →", use_container_width=True, disabled=True)
+                    st.button("Generar cartera →", use_container_width=True, disabled=True)
         else:
             st.error("No se cargaron proyectos")
 
