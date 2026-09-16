@@ -1,6 +1,6 @@
 """
 SIMULADOR DE CARTERA INMOBILIARIA REENTAL
-Layout: Fondo blanco + Paleta naranja/negro
+Layout final con todos los ajustes de diseño
 """
 
 import streamlit as st
@@ -23,9 +23,14 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilos personalizados - FONDO BLANCO
+# Estilos personalizados - VERSIÓN FINAL
 st.markdown("""
 <style>
+    /* Fuente Segoe UI en todo */
+    * {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+    }
+    
     /* Background BLANCO */
     .stApp {
         background-color: #ffffff;
@@ -38,9 +43,9 @@ st.markdown("""
         border-right: 3px solid #ff8c00;
     }
     
-    /* Sidebar header */
+    /* Sidebar header - SUBIDO A 60px */
     [data-testid="stSidebar"] > div:first-child {
-        padding-top: 100px !important;
+        padding-top: 60px !important;
         margin-top: 0 !important;
     }
     
@@ -50,72 +55,73 @@ st.markdown("""
         color: #000000;
     }
     
-    /* Títulos - NARANJA */
-    h1 {
+    /* Títulos secciones (Pasos) - NARANJA #ff8c00 + 22px */
+    h2 {
         color: #ff8c00;
+        font-weight: 700;
+        font-size: 22px;
+        margin-top: 30px;
+        margin-bottom: 30px;
+    }
+    
+    /* Títulos generales - NEGRO + 22px */
+    h1 {
+        color: #000000;
         font-weight: 800;
-        font-size: 42px;
+        font-size: 22px;
         margin-bottom: 10px;
         margin-top: 0 !important;
         padding-top: 0 !important;
     }
     
-    h2 {
-        color: #ff8c00;
-        font-weight: 700;
-        font-size: 28px;
-        margin-top: 30px;
-        margin-bottom: 30px;
-    }
-    
-    /* Labels - Preguntas EN NARANJA + NEGRITA + 20px UNIFORME */
+    /* Labels - Preguntas EN NEGRO + NEGRITA + 22px */
     label {
-        color: #ff8c00 !important;
+        color: #000000 !important;
         font-weight: 700 !important;
-        font-size: 20px !important;
+        font-size: 22px !important;
         margin-bottom: 12px !important;
     }
     
-    /* Botones */
+    /* Botones - LETRAS NEGRITA + 18px */
     .stButton > button {
         background-color: #ff8c00;
         color: #ffffff;
-        font-weight: 700;
+        font-weight: 700 !important;
         border: none;
         border-radius: 8px;
         padding: 14px 28px;
-        font-size: 16px;
+        font-size: 18px !important;
     }
     
     .stButton > button:hover {
         background-color: #e67e00;
     }
     
-    /* Input fields - BLANCO CON BORDE + 18px UNIFORME */
+    /* Input fields - BLANCO CON BORDE GRIS #cccccc + 20px */
     .stTextInput > div > div > input {
         background-color: #ffffff !important;
         color: #000000 !important;
-        border: 2px solid #ff8c00 !important;
+        border: 2px solid #cccccc !important;
         border-radius: 8px !important;
         padding: 12px !important;
-        font-size: 18px !important;
+        font-size: 20px !important;
     }
     
     .stTextInput > div > div > input::placeholder {
         color: #999999 !important;
     }
     
-    /* Selectbox - BLANCO CON BORDE + 18px UNIFORME */
+    /* Selectbox - BLANCO CON BORDE GRIS #cccccc + 20px */
     .stSelectbox > div > div > select {
         background-color: #ffffff !important;
         color: #000000 !important;
-        border: 2px solid #ff8c00 !important;
+        border: 2px solid #cccccc !important;
         border-radius: 8px !important;
         padding: 12px !important;
-        font-size: 18px !important;
+        font-size: 20px !important;
     }
     
-    /* Radio buttons - TEXTO NEGRO + VISIBLE */
+    /* Radio buttons - TEXTO NEGRO + 20px */
     .stRadio > div {
         background-color: transparent;
     }
@@ -123,7 +129,7 @@ st.markdown("""
     .stRadio > div > label {
         color: #000000 !important;
         font-weight: 600 !important;
-        font-size: 18px !important;
+        font-size: 20px !important;
         margin-left: 10px !important;
         padding: 12px 10px !important;
         line-height: 1.6 !important;
@@ -131,23 +137,23 @@ st.markdown("""
     
     .stRadio > div > label > div {
         color: #000000 !important;
-        font-size: 18px !important;
+        font-size: 20px !important;
     }
     
     .stRadio > div > label > div:first-child {
         background-color: transparent !important;
     }
     
-    /* Multiselect - BLANCO CON BORDE */
+    /* Multiselect - BLANCO CON BORDE GRIS */
     .stMultiSelect > div > div {
         background-color: #ffffff !important;
-        border: 2px solid #ff8c00 !important;
+        border: 2px solid #cccccc !important;
         border-radius: 8px !important;
-        font-size: 18px !important;
+        font-size: 20px !important;
     }
     
     .stMultiSelect > div > div > input {
-        font-size: 18px !important;
+        font-size: 20px !important;
         color: #000000 !important;
     }
     
@@ -204,7 +210,7 @@ if 'proyectos_seleccionados' not in st.session_state:
     st.session_state.proyectos_seleccionados = []
 
 # ============================================================================
-# SIDEBAR - BRANDING FIJO CON LOGO SVG (BLANCO)
+# SIDEBAR - BRANDING FIJO CON LOGO SVG
 # ============================================================================
 
 with st.sidebar:
@@ -226,13 +232,11 @@ with st.sidebar:
                 </clipPath>
             </defs>
         </svg>
-        <div style="color: #000000; font-weight: 700; font-size: 14px; line-height: 1.4; margin-top: 20px;">
-            Simulador de<br>Cartera<br>Inmobiliaria
+        <div style="color: #000000; font-weight: 700; font-size: 30px; line-height: 1.4; margin-top: 20px; text-transform: uppercase;">
+            SIMULADOR DE<br>CARTERA<br>INMOBILIARIA
         </div>
     </div>
     """, unsafe_allow_html=True)
-    
-    st.markdown("---")
 
 # ============================================================================
 # MAIN CONTENT - CENTRO
@@ -311,10 +315,19 @@ with col_main:
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            border_super = "3px solid #ff8c00" if st.session_state.datos_cliente['estatus'] == 'SuperReentel' else "2px solid #ffffff"
+            # SuperReentel seleccionado
+            if st.session_state.datos_cliente['estatus'] == 'SuperReentel':
+                bg_color = "#f0f9f3"
+                border_color = "#16a34a"
+                border_width = "3px"
+            else:
+                bg_color = "#ffffff"
+                border_color = "#cccccc"
+                border_width = "2px"
+            
             st.markdown(f"""
-            <div style="border: {border_super}; border-radius: 12px; padding: 20px; background-color: #ffffff; min-height: 160px; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer;">
-                <div style="background-color: #22c55e; color: white; padding: 10px 15px; border-radius: 8px; text-align: center; font-weight: 700; margin-bottom: 15px;">
+            <div style="border: {border_width} solid {border_color}; border-radius: 12px; padding: 20px; background-color: {bg_color}; min-height: 160px; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer;" onclick="document.querySelector('[data-testid=stButton]:nth-of-type(1) button').click()">
+                <div style="color: #16a34a; font-weight: 700; font-size: 16px; margin-bottom: 15px;">
                     SUPERREENTEL
                 </div>
                 <div style="color: #000000; font-size: 14px; line-height: 1.6; flex-grow: 1;">
@@ -322,15 +335,24 @@ with col_main:
                 </div>
             </div>
             """, unsafe_allow_html=True)
-            if st.button("", key="btn_super_click", use_container_width=False):
+            if st.button("", key="btn_super", use_container_width=False, label_visibility="collapsed"):
                 st.session_state.datos_cliente['estatus'] = 'SuperReentel'
                 st.rerun()
         
         with col2:
-            border_pro = "3px solid #ff8c00" if st.session_state.datos_cliente['estatus'] == 'ReentelPro' else "2px solid #ffffff"
+            # ReentelPro seleccionado
+            if st.session_state.datos_cliente['estatus'] == 'ReentelPro':
+                bg_color = "#faf5ff"
+                border_color = "#a855f7"
+                border_width = "3px"
+            else:
+                bg_color = "#ffffff"
+                border_color = "#cccccc"
+                border_width = "2px"
+            
             st.markdown(f"""
-            <div style="border: {border_pro}; border-radius: 12px; padding: 20px; background-color: #ffffff; min-height: 160px; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer;">
-                <div style="background-color: #a855f7; color: white; padding: 10px 15px; border-radius: 8px; text-align: center; font-weight: 700; margin-bottom: 15px;">
+            <div style="border: {border_width} solid {border_color}; border-radius: 12px; padding: 20px; background-color: {bg_color}; min-height: 160px; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer;">
+                <div style="color: #a855f7; font-weight: 700; font-size: 16px; margin-bottom: 15px;">
                     REENTELPRO
                 </div>
                 <div style="color: #000000; font-size: 14px; line-height: 1.6; flex-grow: 1;">
@@ -338,15 +360,24 @@ with col_main:
                 </div>
             </div>
             """, unsafe_allow_html=True)
-            if st.button("", key="btn_pro_click", use_container_width=False):
+            if st.button("", key="btn_pro", use_container_width=False, label_visibility="collapsed"):
                 st.session_state.datos_cliente['estatus'] = 'ReentelPro'
                 st.rerun()
         
         with col3:
-            border_reen = "3px solid #ff8c00" if st.session_state.datos_cliente['estatus'] == 'Reentel' else "2px solid #ffffff"
+            # Reentel seleccionado
+            if st.session_state.datos_cliente['estatus'] == 'Reentel':
+                bg_color = "#feedcf"
+                border_color = "#ca820e"
+                border_width = "3px"
+            else:
+                bg_color = "#ffffff"
+                border_color = "#cccccc"
+                border_width = "2px"
+            
             st.markdown(f"""
-            <div style="border: {border_reen}; border-radius: 12px; padding: 20px; background-color: #ffffff; min-height: 160px; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer;">
-                <div style="background-color: #9ca3af; color: white; padding: 10px 15px; border-radius: 8px; text-align: center; font-weight: 700; margin-bottom: 15px;">
+            <div style="border: {border_width} solid {border_color}; border-radius: 12px; padding: 20px; background-color: {bg_color}; min-height: 160px; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer;">
+                <div style="color: #ca820e; font-weight: 700; font-size: 16px; margin-bottom: 15px;">
                     REENTEL
                 </div>
                 <div style="color: #000000; font-size: 14px; line-height: 1.6; flex-grow: 1;">
@@ -354,7 +385,7 @@ with col_main:
                 </div>
             </div>
             """, unsafe_allow_html=True)
-            if st.button("", key="btn_reen_click", use_container_width=False):
+            if st.button("", key="btn_reen", use_container_width=False, label_visibility="collapsed"):
                 st.session_state.datos_cliente['estatus'] = 'Reentel'
                 st.rerun()
         
