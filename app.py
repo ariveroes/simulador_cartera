@@ -826,7 +826,7 @@ with col_main:
             # ========== DESCARGAR PDF ==========
             st.markdown("### Descarga tu cartera")
             
-            from pdf_generator import generar_pdf_cartera
+            from modules.pdf_generator import generar_pdf_cartera
             
             pdf_buffer = generar_pdf_cartera(
                 st.session_state.datos_cliente,
