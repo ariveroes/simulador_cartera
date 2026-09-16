@@ -55,11 +55,11 @@ st.markdown("""
         color: #000000;
     }
     
-    /* Títulos secciones (Pasos) - NARANJA #ff8c00 + 22px */
+    /* Títulos secciones (Pasos) - NARANJA #ff8c00 + 26px */
     h2 {
         color: #ff8c00 !important;
         font-weight: 700 !important;
-        font-size: 22px !important;
+        font-size: 26px !important;
         margin-top: 30px !important;
         margin-bottom: 30px !important;
         line-height: 1.2 !important;
@@ -198,6 +198,9 @@ st.markdown("""
 # INICIALIZAR SESSION STATE
 # ============================================================================
 
+if 'error_paso1' not in st.session_state:
+    st.session_state.error_paso1 = False
+
 if 'paso_actual' not in st.session_state:
     st.session_state.paso_actual = 1
 
@@ -260,6 +263,10 @@ with col_main:
         st.markdown("## Paso 1: Cuéntanos sobre ti")
         st.markdown("")
         
+        # Mostrar error si se intentó continuar sin llenar
+        if st.session_state.error_paso1:
+            st.error("❌ Por favor, rellena todos los campos antes de continuar.")
+        
         # Nombre completo
         st.markdown('<div style="margin-bottom: 8px;"></div>', unsafe_allow_html=True)
         st.markdown('<label style="color: #000000 !important;">**Nombre completo**</label>', unsafe_allow_html=True)
@@ -273,6 +280,7 @@ with col_main:
         )
         if nombre_input != st.session_state.datos_cliente['nombre']:
             st.session_state.datos_cliente['nombre'] = nombre_input
+            st.session_state.error_paso1 = False  # Limpiar error al escribir
         
         # Email
         st.markdown('<div style="margin-bottom: 8px;"></div>', unsafe_allow_html=True)
@@ -287,6 +295,7 @@ with col_main:
         )
         if email_input != st.session_state.datos_cliente['email']:
             st.session_state.datos_cliente['email'] = email_input
+            st.session_state.error_paso1 = False  # Limpiar error al escribir
         
         st.markdown('<div style="margin-bottom: 8px;"></div>', unsafe_allow_html=True)
         st.markdown('<label style="color: #000000 !important;">**Divisa preferida**</label>', unsafe_allow_html=True)
@@ -329,9 +338,6 @@ with col_main:
         
         st.markdown('<div style="margin-bottom: 30px;"></div>', unsafe_allow_html=True)
         
-        # Placeholder para mensajes de error
-        error_placeholder = st.empty()
-        
         col1, col2, col3 = st.columns([1, 1, 1])
         with col3:
             if st.button("Continuar →", use_container_width=True, key="btn_paso1_next"):
@@ -343,8 +349,10 @@ with col_main:
                     campos_vacios.append('email')
                 
                 if campos_vacios:
-                    error_placeholder.error("❌ Por favor, rellena todos los campos antes de continuar.")
+                    st.session_state.error_paso1 = True
+                    st.rerun()
                 else:
+                    st.session_state.error_paso1 = False
                     st.session_state.paso_actual = 2
                     st.rerun()
 
