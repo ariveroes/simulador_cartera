@@ -514,6 +514,23 @@ with col_main:
         
         st.session_state.datos_cliente['mercados'] = mercados_seleccionados
         
+        st.markdown('<div style="margin-bottom: 20px;"></div>', unsafe_allow_html=True)
+        st.markdown("**¿Cómo quieres distribuir tu cartera?**")
+        
+        distribucion_options = [
+            "Distribuir en partes iguales",
+            "Elegir cuánto invertir en cada proyecto"
+        ]
+        
+        idx_distribucion = 0 if st.session_state.datos_cliente.get('distribucion', 'Distribuir en partes iguales') == 'Distribuir en partes iguales' else 1
+        st.session_state.datos_cliente['distribucion'] = st.radio(
+            "Distribución",
+            distribucion_options,
+            index=idx_distribucion,
+            key="radio_distribucion",
+            label_visibility="collapsed"
+        )
+        
         st.markdown('<div style="margin-bottom: 30px;"></div>', unsafe_allow_html=True)
         
         col1, col2, col3 = st.columns([1, 1, 1])
