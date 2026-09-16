@@ -108,15 +108,16 @@ def generar_pdf_cartera(datos_cliente, proyectos_cartera, distribuciones, df_tod
     # PROYECCIONES
     elements.append(Paragraph("PROYECCIONES DE RENTABILIDAD", style_heading))
     
-    capital_estimado = 75000
-    try:
-        if '-' in str(datos_cliente.get('capital', '')):
-            valores = str(datos_cliente.get('capital', '')).split('-')
-            min_val = int(valores[0].replace('.', '').replace('€', '').strip())
-            max_val = int(valores[1].replace('.', '').replace('€', '').strip())
-            capital_estimado = (min_val + max_val) / 2
-    except:
-        pass
+    # Mapeo de capital a valores numéricos
+    capital_map = {
+        "Menos de 5.000": 2500,
+        "Entre 5.000 y 10.000": 7500,
+        "Entre 10.000 y 50.000": 30000,
+        "Más de 50.000": 100000
+    }
+    
+    capital_text = datos_cliente.get('capital', 'Entre 10.000 y 50.000')
+    capital_estimado = capital_map.get(capital_text, 75000)
     
     from modules.calculo_cartera import CalculadoraCartera
     
