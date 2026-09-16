@@ -210,6 +210,11 @@ def cargar_proyectos():
             st.warning("No hay proyectos en estado FINANCIÁNDOSE")
         else:
             st.success(f"✅ Cargados {len(df_financiando)} proyectos en FINANCIÁNDOSE")
+            
+            # DEBUG: Mostrar primeros proyectos y rentabilidades
+            print("\n=== DEBUG RENTABILIDADES ===")
+            print(df_financiando[['Nombre del proyecto', 'Rentabilidad_Total_SuperReentel', 'Rentabilidad_Anualizada_SuperReentel']].head())
+            print("============================\n")
         
         return df_financiando
         
