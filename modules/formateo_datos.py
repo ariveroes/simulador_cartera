@@ -43,13 +43,12 @@ def preparar_proyectos_para_paso4(df_proyectos, estatus_cliente):
         col_anualizada = 'Rentabilidad_Anualizada_Reentel'
     
     # Crear columnas de visualización con nombres amigables
-    df_display[f'Rentabilidad Total'] = pd.to_numeric(
-        df_display[col_total], errors='coerce'
-    ).fillna(0)
+    # Limpiar "%" y convertir a número
+    rentabilidad_total = df_display[col_total].astype(str).str.replace('%', '').str.strip()
+    df_display[f'Rentabilidad Total'] = pd.to_numeric(rentabilidad_total, errors='coerce').fillna(0)
     
-    df_display[f'Rentabilidad Anualizada'] = pd.to_numeric(
-        df_display[col_anualizada], errors='coerce'
-    ).fillna(0)
+    rentabilidad_anualizada = df_display[col_anualizada].astype(str).str.replace('%', '').str.strip()
+    df_display[f'Rentabilidad Anualizada'] = pd.to_numeric(rentabilidad_anualizada, errors='coerce').fillna(0)
     
     # Seleccionar solo columnas necesarias
     columnas_mostrar = [
