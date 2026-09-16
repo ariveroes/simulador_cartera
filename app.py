@@ -548,7 +548,7 @@ with col_main:
             
             if df_display is not None and len(df_display) > 0:
                 st.markdown("### Proyectos disponibles (ordenados por relevancia)")
-                st.dataframe(df_display, use_container_width=True)
+                st.dataframe(df_display, use_container_width=True, hide_index=True)
             else:
                 st.error("No se pudieron procesar los proyectos")
         else:
