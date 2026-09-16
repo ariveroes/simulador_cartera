@@ -197,6 +197,9 @@ def cargar_proyectos():
         
         for col in columnas_numericas:
             if col in df.columns:
+                # Limpiar "%" primero
+                df[col] = df[col].astype(str).str.replace('%', '').str.strip()
+                # Luego convertir a número
                 df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
         
         # Filtrar SOLO FINANCIÁNDOSE
