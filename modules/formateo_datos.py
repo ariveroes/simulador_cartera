@@ -1,8 +1,35 @@
-"""
-FORMATEO DE DATOS - Prepara DataFrame para visualización en Paso 4
-"""
+def preparar_distribucion_cartera(df_proyectos, distribucion_type):
+    """
+    Prepara estructura para distribución de cartera.
+    
+    Args:
+        df_proyectos: DataFrame con proyectos
+        distribucion_type: 'Distribuir en partes iguales' o 'Elegir cuánto invertir en cada proyecto'
+    
+    Returns:
+        dict con estructura para distribución
+    """
+    
+    if df_proyectos is None or len(df_proyectos) == 0:
+        return {}
+    
+    proyectos = []
+    for idx, row in df_proyectos.iterrows():
+        proyectos.append({
+            'id': row['ID'],
+            'nombre': row['Nombre del proyecto'],
+            'ubicacion': row['Ubicación'],
+            'rentabilidad': row.get('Rentabilidad_Anualizada_SuperReentel', 0),
+            'seleccionado': False,
+            'porcentaje': 0
+        })
+    
+    return {
+        'tipo': distribucion_type,
+        'proyectos': proyectos,
+        'suma_porcentaje': 0
+    }
 
-import pandas as pd
 
 
 def preparar_proyectos_para_paso4(df_proyectos, estatus_cliente):
