@@ -1,34 +1,27 @@
 """
-DATA_LOADER.PY - V2 REVISADA
+DATA_LOADER.PY - V3 REVISADA CON GSPREAD
 
 CAMBIOS:
-✅ Ahora usa maestro.py para leer Google Sheet
-✅ Más simple porque maestro.py centraliza la lectura
+✅ Ahora usa maestro.py que lee via gspread (auténticado)
+✅ Seguro: usa Streamlit secrets
 ✅ Solo filtra proyectos FINANCIÁNDOSE
 """
 
-import os
 import streamlit as st
 from modules import maestro
-
-
-# URL de Google Sheet exportada como CSV
-GSHEET_CSV_URL = os.getenv(
-    "GSHEET_CSV_URL",
-    "https://docs.google.com/spreadsheets/d/1sL6fynVPKtfaNs22t019ItKbzMFaOHbO5kqVzMxXHIY/export?format=csv&gid=0"
-)
 
 
 @st.cache_data(ttl=3600)
 def cargar_proyectos():
     """
-    Carga proyectos desde Google Sheet usando maestro.py
+    Carga proyectos desde Google Sheet usando maestro.py (gspread)
     
+    Requiere: st.secrets["gcp_service_account"]
     Solo retorna proyectos en FINANCIÁNDOSE.
     """
     try:
-        # maestro.py se encarga de leer el Sheet, normalizar datos, etc.
-        todos_proyectos = maestro.proyectos(GSHEET_CSV_URL)
+        # maestro.py se encarga de leer el Sheet via gspread, normalizar datos, etc.
+        todos_proyectos = maestro.proyectos()
         
         if not todos_proyectos:
             st.warning("No se encontraron proyectos en el Sheet")
