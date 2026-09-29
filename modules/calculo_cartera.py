@@ -1,5 +1,12 @@
 """
-CALCULADORA DE CARTERA - Ranking y cálculos de proyectos
+CALCULO_CARTERA.PY - SIMPLIFICADO
+Mantiene SOLO: rankear_proyectos() y CalculadoraCartera
+
+CAMBIOS VS ORIGINAL:
+✅ Se eliminan: normalizar_cartera() (no se usa)
+✅ Se elimina: lógica de proyecciones (ahora en propuesta.py)
+✅ Se mantiene: rankeo de proyectos (usado en Paso 3)
+✅ Se mantiene: CalculadoraCartera (compatible hacia atrás)
 """
 
 import pandas as pd
@@ -10,6 +17,14 @@ def rankear_proyectos(df_proyectos, criterios_cliente, estatus_cliente):
     Rankea proyectos según objetivo:
     - Ingresos pasivos: por tipología de dividendo (mensuales > trimestrales > final)
     - Maximizar rentabilidad: por rentabilidad anualizada más alta
+    
+    Args:
+        df_proyectos: DataFrame con proyectos
+        criterios_cliente: Dict con 'duracion' (Corto plazo / Largo plazo)
+        estatus_cliente: 'Reentel', 'ReentelPro', 'SuperReentel'
+    
+    Returns:
+        DataFrame ordenado por score de ranking
     """
     
     df = df_proyectos.copy()
@@ -67,19 +82,13 @@ def rankear_proyectos(df_proyectos, criterios_cliente, estatus_cliente):
     return df
 
 
-def normalizar_cartera(capital_total, cartera_proyectos):
-    """
-    Normaliza distribución de capital entre proyectos.
-    """
-    if not cartera_proyectos:
-        return {}
-    
-    cantidad_por_proyecto = capital_total / len(cartera_proyectos)
-    return {proyecto_id: cantidad_por_proyecto for proyecto_id in cartera_proyectos}
-
-
 class CalculadoraCartera:
-    """Clase para cálculos de cartera según estatus y parámetros"""
+    """
+    Clase para cálculos de cartera según estatus y parámetros.
+    
+    NOTA: Esta clase ahora es principalmente para compatibilidad hacia atrás.
+    La lógica principal está en propuesta.py:Cartera
+    """
     
     TASAS_REINVERSION = {
         'Reentel': 0.11,
@@ -94,7 +103,17 @@ class CalculadoraCartera:
         self.tasa_reinversion = self.TASAS_REINVERSION.get(estatus, 0.11)
     
     def calcular_proyeccion(self, capital_inicial, rentabilidad_anual, meses):
-        """Calcula proyección de capital con reinversión."""
+        """
+        Calcula proyección de capital con reinversión.
+        
+        Args:
+            capital_inicial: float en EUR
+            rentabilidad_anual: float (ej: 0.12 para 12%)
+            meses: int (plazo en meses)
+        
+        Returns:
+            float capital final
+        """
         if not capital_inicial or rentabilidad_anual is None:
             return capital_inicial
         
@@ -104,6 +123,11 @@ class CalculadoraCartera:
         return capital_final
     
     def calcular_ganancia(self, capital_inicial, rentabilidad_anual, meses):
-        """Calcula ganancia absoluta"""
+        """
+        Calcula ganancia absoluta
+        
+        Returns:
+            float ganancia en EUR
+        """
         capital_final = self.calcular_proyeccion(capital_inicial, rentabilidad_anual, meses)
         return capital_final - capital_inicial
