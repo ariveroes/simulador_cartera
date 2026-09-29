@@ -1,5 +1,13 @@
 """
-DATA LOADER - Carga proyectos desde Google Sheets intermedio
+DATA LOADER - REFACTORIZADO
+Carga proyectos desde Google Sheets incluyendo precio_emision
+
+CAMBIOS VS ORIGINAL:
+✅ Agrega: precio_emision (columna K)
+✅ Agrega: divisa (EUR/USD)
+✅ Agrega: meses_restantes_renta (columna AK)
+✅ Agrega: importe_proyecto_eur (columna M)
+✅ El resto igual
 """
 
 import pandas as pd
@@ -75,12 +83,34 @@ def obtener_valor_por_indice(fila, idx):
         return ""
 
 
+def limpiar_numero(valor_str):
+    """Limpia y convierte string a número"""
+    if not valor_str:
+        return 0.0
+    
+    valor_str = str(valor_str).strip()
+    valor_str = valor_str.replace('%', '').strip()
+    valor_str = valor_str.replace('€', '').strip()
+    valor_str = valor_str.replace(',', '.').strip()
+    
+    try:
+        return float(valor_str)
+    except:
+        return 0.0
+
+
 @st.cache_data(ttl=3600)
 def cargar_proyectos():
     """
-    Carga proyectos desde Google Sheet Intermedio usando referencias de Excel.
+    Carga proyectos desde Google Sheet Intermedio.
+    
+    CAMBIOS:
+    ✅ Ahora carga precio_emision (columna K)
+    ✅ Ahora carga divisa (EUR/USD)
+    ✅ Ahora carga meses_restantes_renta (columna AK)
+    ✅ Ahora carga importe_proyecto_eur (columna M)
+    
     Solo retorna proyectos en FINANCIÁNDOSE.
-    UNA SOLA llamada a get_all_values() para todo.
     """
     try:
         client = obtener_cliente_gspread()
@@ -108,20 +138,29 @@ def cargar_proyectos():
         idx_F = excel_col_to_index('F')   # Fecha fin alternativa
         idx_H = excel_col_to_index('H')   # Fecha inicio principal
         idx_I = excel_col_to_index('I')   # Fecha fin principal
+        idx_K = excel_col_to_index('K')   # precio_emision ← NUEVO
+        idx_M = excel_col_to_index('M')   # importe_proyecto_eur ← NUEVO
         idx_O = excel_col_to_index('O')   # Ubicación
         idx_Q = excel_col_to_index('Q')   # Tipología de dividendo
+        
+        # Rentabilidades alternativas
         idx_W = excel_col_to_index('W')   # Rentab Reentel alt
         idx_Z = excel_col_to_index('Z')   # Rentab Anualizada Reentel alt
         idx_AA = excel_col_to_index('AA') # Rentab ReentelPro alt
         idx_AD = excel_col_to_index('AD') # Rentab Anualizada ReentelPro alt
         idx_AE = excel_col_to_index('AE') # Rentab SuperReentel alt
         idx_AH = excel_col_to_index('AH') # Rentab Anualizada SuperReentel alt
+        
+        # Rentabilidades principales
         idx_BH = excel_col_to_index('BH') # Rentab Reentel
         idx_BK = excel_col_to_index('BK') # Rentab Anualizada Reentel
         idx_BM = excel_col_to_index('BM') # Rentab ReentelPro
         idx_BP = excel_col_to_index('BP') # Rentab Anualizada ReentelPro
         idx_BR = excel_col_to_index('BR') # Rentab SuperReentel
         idx_BU = excel_col_to_index('BU') # Rentab Anualizada SuperReentel
+        
+        # ← NUEVO: meses_restantes_renta
+        idx_AK = excel_col_to_index('AK') # Nº Meses restantes de renta
         
         # Datos desde fila 3 en adelante (índice 2 en la lista)
         datos_mapeados = []
@@ -157,6 +196,24 @@ def cargar_proyectos():
             else:
                 fecha_fin_f = obtener_valor_por_indice(fila, idx_F)
                 fila_dict['Fecha Fin Estimada'] = parsear_fecha(fecha_fin_f)
+            
+            # ================== NUEVO BLOQUE ==================
+            # Precio de emisión (CRÍTICO para B.1)
+            precio_emision_str = obtener_valor_por_indice(fila, idx_K)
+            fila_dict['precio_emision'] = limpiar_numero(precio_emision_str)
+            
+            # Divisa (asumir EUR por defecto)
+            # Si existe columna de divisa, leerla; si no, EUR
+            fila_dict['divisa'] = 'EUR'  # Default: EUR
+            
+            # Importe del proyecto en EUR
+            importe_eur_str = obtener_valor_por_indice(fila, idx_M)
+            fila_dict['importe_proyecto_eur'] = limpiar_numero(importe_eur_str)
+            
+            # Meses restantes de renta
+            meses_restantes_str = obtener_valor_por_indice(fila, idx_AK)
+            fila_dict['meses_restantes_renta'] = limpiar_numero(meses_restantes_str)
+            # ================== FIN NUEVO BLOQUE ==================
             
             # Rentabilidades SuperReentel
             rent_sr = obtener_valor_por_indice(fila, idx_BR)
@@ -216,10 +273,10 @@ def cargar_proyectos():
         else:
             st.success(f"✅ Cargados {len(df_financiando)} proyectos en FINANCIÁNDOSE")
             
-            # DEBUG: Mostrar primeros proyectos y rentabilidades
-            print("\n=== DEBUG RENTABILIDADES ===")
-            print(df_financiando[['Nombre del proyecto', 'Rentabilidad_Total_SuperReentel', 'Rentabilidad_Anualizada_SuperReentel']].head())
-            print("============================\n")
+            # DEBUG: Mostrar primeros proyectos incluyendo precio_emision
+            print("\n=== DEBUG CARGA DATA_LOADER ===")
+            print(df_financiando[['Nombre del proyecto', 'precio_emision', 'divisa', 'Rentabilidad_Total_SuperReentel']].head())
+            print("================================\n")
         
         return df_financiando
         
