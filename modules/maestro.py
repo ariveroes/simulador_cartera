@@ -100,9 +100,9 @@ def numero(valor):
 
 
 def porcentaje(valor):
-    """Un porcentaje del maestro: '28,94%' → 28.94 (como %, no fracción)."""
+    """Un porcentaje del maestro: '0.2894' → 28.94 (como %, no fracción)."""
     n = numero(valor)
-    return None if n is None else n  # Retorna directo (33 para "33%")
+    return None if n is None else n * 100  # Convertir fracción a porcentaje
 
 
 def fecha(valor):
