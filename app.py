@@ -1,6 +1,7 @@
 """
 SIMULADOR DE CARTERA INMOBILIARIA REENTAL
 Layout final con todos los ajustes de diseño
+VERSIÓN: CON FIX DE RENTABILIDADES (Paso 5)
 """
 
 import streamlit as st
@@ -801,7 +802,11 @@ with col_main:
                 if len(proyecto_row) > 0:
                     porcentaje = distribuciones.get(proyecto_id, {}).get('porcentaje', 0) / 100
                     try:
-                        rentabilidad = float(str(proyecto_row.iloc[0].get('Rentabilidad_Anualizada_SuperReentel', 0)).replace('%', '')) / 100
+                        # ============= FIX RENTABILIDADES =============
+                        # El valor ya viene como porcentaje (33, no 0.33)
+                        rentabilidad_pct = float(str(proyecto_row.iloc[0].get('Rentabilidad_Anualizada_SuperReentel', 0)).replace('%', ''))
+                        rentabilidad = rentabilidad_pct / 100  # Convertir a fracción para cálculos (33 → 0.33)
+                        # =============================================
                     except:
                         rentabilidad = 0
                     rentabilidad_promedio += rentabilidad * porcentaje
