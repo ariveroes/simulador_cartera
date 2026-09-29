@@ -1,37 +1,27 @@
 """
 El maestro de inmuebles, leído una sola vez para toda la herramienta.
 
+VERSIÓN CON GSPREAD: Lee via Google Sheets API (auténticado).
+No usa URL pública, usa credenciales de Streamlit secrets.
+
 POR QUÉ ESTÁ AQUÍ
 ----------------
 La hoja maestra es la fuente de verdad de todo lo que no vive en la cadena:
 el nombre del proyecto, dónde está, bajo qué emisión se tokenizó, qué
 rentabilidad se estimó para cada estatus y —en los cerrados— cuál acabó
-siendo la real. El analizador de wallets la leía para su propio uso y el
-constructor de propuestas necesita bastante más, así que la lectura sube a un
-módulo común en vez de duplicarse. Es la regla del repositorio.
-
-CÓMO SE LEE
------------
-Cada columna se busca primero por el NOMBRE de su cabecera y solo cae a la
-posición si no aparece. El maestro lo mantienen personas: una columna nueva
-insertada en medio desplaza todo lo que va detrás, y un informe que se
-construye sobre posiciones fijas no falla —devuelve el número de al lado—.
-Buscar por nombre hace que eso deje de importar.
-
-Los porcentajes vienen como texto ("28,94%") y las fechas en formatos
-variados; ambos se normalizan aquí para que nadie más tenga que hacerlo.
+siendo la real.
 """
 from __future__ import annotations
 
-import io
-import os
 from datetime import date, datetime
 
-import pandas as pd
-import requests
 import streamlit as st
+import gspread
+from google.oauth2.service_account import Credentials
 
-GSHEET_CSV_URL = os.getenv("GSHEET_CSV_URL", "")
+# Constantes
+GSHEET_ID = "1sL6fynVPKtfaNs22t019ItKbzMFaOHbO5kqVzMxXHIY"
+WORKSHEET_NAME = "Master Inmuebles Pro"
 
 # nombre de cabecera → posición de reserva (0-based) por si la cabecera cambia
 COLUMNAS = {
@@ -51,9 +41,7 @@ COLUMNAS = {
     "emision":               ("Emisión de Tokenización", 17),
     "address":               ("Token Address", 18),
     "colateralizable":       ("Permite colateralización", 21),
-    # Rentabilidades ESTIMADAS por estatus. No todos los proyectos las
-    # diferencian: los anteriores al programa de estatus repiten la misma
-    # cifra en los tres, y eso es correcto, no un fallo de lectura.
+    # Rentabilidades ESTIMADAS por estatus
     "est_total_rnt":         ("Estimación Rentab. Total Reentel", 22),
     "est_recurr_rnt":        ("Estimación Rentab. Rendim. Recurr. anualizados Reentel", 23),
     "est_plusvalia_rnt":     ("Estimación Rentab. Plusvalía Reentel", 24),
@@ -68,8 +56,7 @@ COLUMNAS = {
     "est_anual_sr":          (None, 33),
     "meses_pendientes":      ("Estimación Nº Meses pendientes de renta hasta Estimación fin", 44),
     "meses_en_curso":        ("Real Nº Meses en curso en rentabilidad", 43),
-    # Cierre real: solo lo tienen los proyectos CERRADOS y es lo que sostiene
-    # el track record.
+    # Cierre real: solo lo tienen los proyectos CERRADOS
     "fecha_fin_real":        ("Real fecha de fin", 55),
     "real_total_rnt":        ("Real Rentab. Total Reentel", 59),
     "real_anual_rnt":        ("Real Rentab. Total Anualizada Reentel", 61),
@@ -133,54 +120,100 @@ def fecha(valor):
     return None
 
 
-# ─── Lectura ─────────────────────────────────────────────────────────────────
+# ─── Lectura con gspread ─────────────────────────────────────────────────────
+
+def _obtener_cliente_gspread():
+    """Autentica con Google Sheets usando Streamlit secrets."""
+    try:
+        creds_dict = st.secrets.get("gcp_service_account")
+        if not creds_dict:
+            st.error("No se encontraron credenciales en Streamlit secrets")
+            return None
+        
+        creds = Credentials.from_service_account_info(
+            creds_dict,
+            scopes=[
+                'https://www.googleapis.com/auth/spreadsheets',
+                'https://www.googleapis.com/auth/drive'
+            ]
+        )
+        
+        client = gspread.authorize(creds)
+        return client
+    except Exception as e:
+        st.error(f"Error autenticando con Google Sheets: {e}")
+        return None
+
+
+@st.cache_data(ttl=3600)
+def _obtener_datos_sheet():
+    """Obtiene todos los datos del Sheet via gspread."""
+    client = _obtener_cliente_gspread()
+    if not client:
+        return []
+    
+    try:
+        sheet = client.open_by_key(GSHEET_ID)
+        worksheet = sheet.worksheet(WORKSHEET_NAME)
+        
+        # Obtener TODAS las filas (sin headers)
+        datos = worksheet.get_all_values()
+        
+        if not datos:
+            st.warning("Sheet vacío")
+            return []
+        
+        return datos
+    except Exception as e:
+        st.error(f"Error leyendo Google Sheet: {e}")
+        return []
+
 
 def _valor(row, cabeceras: dict, clave: str):
+    """Obtiene valor de una fila por cabecera o índice fallback."""
     nombre, pos = COLUMNAS[clave]
     if nombre and nombre in cabeceras:
         try:
-            return row.iloc[cabeceras[nombre]]
+            return row[cabeceras[nombre]]
         except (IndexError, KeyError):
             pass
     try:
-        return row.iloc[pos]
+        return row[pos] if pos < len(row) else ""
     except (IndexError, KeyError):
         return ""
 
 
-@st.cache_data(ttl=3600)
-def descargar(url: str = "") -> pd.DataFrame:
-    """El maestro en bruto, sin cabecera: la fila de títulos se localiza sola
-    porque arriba del todo hay filas decorativas que cambian de tamaño."""
-    url = url or GSHEET_CSV_URL
-    if not url:
-        return pd.DataFrame()
-    r = requests.get(url, timeout=25, allow_redirects=True)
-    r.raise_for_status()
-    return pd.read_csv(io.BytesIO(r.content), header=None, encoding="utf-8")
-
-
-def proyectos(url: str = "") -> list:
+def proyectos() -> list:
     """Todos los proyectos del maestro, ya normalizados."""
-    crudo = descargar(url)
-    if crudo.empty:
+    datos = _obtener_datos_sheet()
+    if not datos or len(datos) < 3:
         return []
-    fila_cab = next((i for i, row in crudo.iterrows()
-                     if any("Token Address" in str(v) for v in row.values)), None)
+    
+    # Encontrar la fila de cabeceras (busca "Token Address")
+    fila_cab = None
+    for i, row in enumerate(datos):
+        if any("Token Address" in str(v) for v in row):
+            fila_cab = i
+            break
+    
     if fila_cab is None:
         return []
+    
+    # Mapear cabeceras
     cabeceras = {}
-    for i, v in enumerate(crudo.iloc[fila_cab].tolist()):
+    for i, v in enumerate(datos[fila_cab]):
         nombre = str(v).strip()
-        if nombre and nombre not in cabeceras:     # la primera gana: hay títulos repetidos
+        if nombre and nombre not in cabeceras:
             cabeceras[nombre] = i
-    filas = crudo.iloc[fila_cab + 1:]
-
+    
+    filas = datos[fila_cab + 1:]
+    
     salida = []
-    for _, row in filas.iterrows():
+    for row in filas:
         addr = texto(_valor(row, cabeceras, "address")).lower()
         if not addr.startswith("0x") or len(addr) != 42:
             continue
+        
         divisa_raw = texto(_valor(row, cabeceras, "divisa_raw"))
         p = {
             "address": addr,
@@ -190,19 +223,24 @@ def proyectos(url: str = "") -> list:
             "meses_pendientes": numero(_valor(row, cabeceras, "meses_pendientes")),
             "meses_en_curso": numero(_valor(row, cabeceras, "meses_en_curso")),
         }
+        
         for clave in ("id", "nombre", "estado", "ubicacion", "tipologia_explotacion",
                       "tipologia_dividendo", "emision", "colateralizable",
                       "descripcion", "link_web", "motivo_cierre", "dossier", "whitepaper"):
             p[clave] = texto(_valor(row, cabeceras, clave))
+        
         for clave in ("lanzamiento", "fecha_financiacion", "fecha_inicio_renta",
                       "fecha_fin_estimada", "fecha_fin_real"):
             p[clave] = fecha(_valor(row, cabeceras, clave))
+        
         for clave in COLUMNAS:
             if clave.startswith(("est_", "real_")):
                 p[clave] = porcentaje(_valor(row, cabeceras, clave))
+        
         p["label"] = p["id"] or p["nombre"] or addr[:10]
         p["abierto"] = p["estado"].upper() in ABIERTOS
         salida.append(p)
+    
     return salida
 
 
