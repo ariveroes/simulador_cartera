@@ -1,12 +1,11 @@
 """
-CALCULO_CARTERA.PY - SIMPLIFICADO
+CALCULO_CARTERA.PY - CORREGIDO
+
 Mantiene SOLO: rankear_proyectos() y CalculadoraCartera
 
-CAMBIOS VS ORIGINAL:
-✅ Se eliminan: normalizar_cartera() (no se usa)
-✅ Se elimina: lógica de proyecciones (ahora en propuesta.py)
-✅ Se mantiene: rankeo de proyectos (usado en Paso 3)
-✅ Se mantiene: CalculadoraCartera (compatible hacia atrás)
+CAMBIOS:
+✅ Maneja correctamente nombres de columnas (busca variaciones)
+✅ Evita error 'str' object has no attribute 'apply'
 """
 
 import pandas as pd
@@ -39,34 +38,50 @@ def rankear_proyectos(df_proyectos, criterios_cliente, estatus_cliente):
     }
     
     col_rent = col_rent_map.get(estatus_cliente, col_rent_map['Reentel'])
-    df['rentabilidad'] = pd.to_numeric(df.get(col_rent, 0), errors='coerce').fillna(0)
+    
+    # Buscar la columna de rentabilidad (con manejo de errores)
+    if col_rent in df.columns:
+        df['rentabilidad'] = pd.to_numeric(df[col_rent], errors='coerce').fillna(0)
+    else:
+        df['rentabilidad'] = 0
     
     # === LÓGICA DE RANKING ===
     
     if 'Corto plazo' in str(objetivo):  # Ingresos pasivos periódicos
-        # Rankear por tipología de dividendo
-        def score_tipologia(tipologia):
-            tipologia_str = str(tipologia).lower()
-            if 'mensuales' in tipologia_str:
-                return 3
-            elif 'trimestrales' in tipologia_str:
-                return 2
-            elif 'final' in tipologia_str:
-                return 1
-            else:
-                return 0
+        # Buscar columna de tipología de dividendo (con variaciones de nombre)
+        col_tipologia = None
+        for posible_col in ['Tipología de Dividendo', 'tipologia_dividendo', 'Tipología dividendo']:
+            if posible_col in df.columns:
+                col_tipologia = posible_col
+                break
         
-        df['score_tipologia'] = df.get('Tipología de dividendo', '').apply(score_tipologia)
-        
-        # Score de rentabilidad normalizado
-        max_rent = df['rentabilidad'].max()
-        if max_rent > 0:
-            df['score_rentabilidad'] = df['rentabilidad'] / max_rent * 0.3
+        if col_tipologia is None:
+            # Si no existe, usar rentabilidad solo
+            df['score_ranking'] = df['rentabilidad'] / (df['rentabilidad'].max() or 1)
         else:
-            df['score_rentabilidad'] = 0.15
-        
-        # Score final: 70% tipología, 30% rentabilidad
-        df['score_ranking'] = (df['score_tipologia'] / 3 * 0.7) + df['score_rentabilidad']
+            # Rankear por tipología de dividendo
+            def score_tipologia(tipologia):
+                tipologia_str = str(tipologia).lower()
+                if 'mensual' in tipologia_str:
+                    return 3
+                elif 'trimestral' in tipologia_str:
+                    return 2
+                elif 'final' in tipologia_str:
+                    return 1
+                else:
+                    return 0
+            
+            df['score_tipologia'] = df[col_tipologia].apply(score_tipologia)
+            
+            # Score de rentabilidad normalizado
+            max_rent = df['rentabilidad'].max()
+            if max_rent > 0:
+                df['score_rentabilidad'] = df['rentabilidad'] / max_rent * 0.3
+            else:
+                df['score_rentabilidad'] = 0.15
+            
+            # Score final: 70% tipología, 30% rentabilidad
+            df['score_ranking'] = (df['score_tipologia'] / 3 * 0.7) + df['score_rentabilidad']
     
     else:  # Maximizar rentabilidad
         # Rankear SOLO por rentabilidad anualizada
@@ -86,8 +101,8 @@ class CalculadoraCartera:
     """
     Clase para cálculos de cartera según estatus y parámetros.
     
-    NOTA: Esta clase ahora es principalmente para compatibilidad hacia atrás.
-    La lógica principal está en propuesta.py:Cartera
+    NOTA: Esta clase es principalmente para compatibilidad hacia atrás.
+    La lógica principal está en propuesta.py
     """
     
     TASAS_REINVERSION = {
