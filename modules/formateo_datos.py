@@ -118,13 +118,14 @@ def preparar_proyectos_para_paso4(df_proyectos, estatus_cliente):
     columnas_mostrar = [
         'ID',
         'Nombre del proyecto',
-        'ESTADO',
+        'Estado',
         'Fecha Inicio Estimada',
         'Fecha Fin Estimada',
         'Ubicación',
         'Tipología de dividendo',
-        'Rentabilidad Total',
-        'Rentabilidad Anualizada'
+        'Rentabilidad Anualizada',
+        'Rentabilidad Total'
+        
     ]
     
     # Filtrar columnas que existan
