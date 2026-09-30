@@ -441,7 +441,7 @@ elif st.session_state.paso_actual == 3:
     with col1:
         objetivo = st.selectbox(
             "Objetivo de inversión *",
-            ["Maximizar rentabilidad", "Ingresos pasivos regulares", "Diversificación"],
+            ["Maximizar rentabilidad", "Ingresos pasivos regulares"],
             index=None,
             placeholder="Selecciona tu objetivo",
             key="select_objetivo"
