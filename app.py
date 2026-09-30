@@ -580,6 +580,8 @@ elif st.session_state.paso_actual == 4:
         st.markdown("---")
         st.markdown("### 💰 Proyectos disponibles en OTC (Mercado Secundario)")
         
+        df_con_otc = pd.DataFrame()  # se rellena abajo si hay proyectos con ofertas
+        
         if ofertas_por_proy:
             st.success(f"✅ {len(ofertas_por_proy)} proyecto(s) con ofertas OTC/P2P disponibles")
             
@@ -664,8 +666,14 @@ elif st.session_state.paso_actual == 4:
         st.markdown("### Construye tu cartera")
         st.markdown("")
         
-        # Combinar proyectos
-        df_todos = pd.concat([df_matchean, df_no_matchean], ignore_index=True) if len(df_no_matchean) > 0 else df_matchean.copy()
+        # Combinar proyectos: primera emisión + OTC (sin duplicados)
+        df_primera = pd.concat([df_matchean, df_no_matchean], ignore_index=True) if len(df_no_matchean) > 0 else df_matchean.copy()
+        if len(df_con_otc) > 0:
+            ids_primera = set(df_primera['ID'].astype(str))
+            df_solo_otc = df_con_otc[~df_con_otc['ID'].astype(str).isin(ids_primera)]
+            df_todos = pd.concat([df_primera, df_solo_otc], ignore_index=True)
+        else:
+            df_todos = df_primera
         
         col_selector, col_distribuir = st.columns([1, 2])
         
@@ -685,10 +693,11 @@ elif st.session_state.paso_actual == 4:
                 token_address = row.get('Token Address', '')
                 proyecto_id_lower = str(proyecto_id).lower()
                 token_address_lower = str(token_address).lower()
+                es_primera_emision = str(row.get('ESTADO', '')).upper() == 'FINANCIÁNDOSE'
                 
-                # Checkbox
+                # Checkbox (los proyectos solo disponibles en mercado secundario llevan "(OTC)")
                 seleccionado = st.checkbox(
-                    f"{proyecto_nombre}",
+                    f"{proyecto_nombre}" if es_primera_emision else f"{proyecto_nombre} (OTC)",
                     value=st.session_state.cartera_selecciones.get(proyecto_id, {}).get('seleccionado', False),
                     key=f"check_{proyecto_id}"
                 )
@@ -718,7 +727,8 @@ elif st.session_state.paso_actual == 4:
                     ofertas_proyecto = ofertas_por_proy.get(clave_otc, [])
                     
                     # Construir opciones
-                    opciones_precio = [f"Emisión: {precio_emision:.2f} EUR"]
+                    # Precio de emisión solo si el proyecto sigue en primera emisión
+                    opciones_precio = [f"Emisión: {precio_emision:.2f} EUR"] if es_primera_emision else []
                     mejores_ofertas = []
                     
                     for oferta in ofertas_proyecto:
@@ -739,6 +749,10 @@ elif st.session_state.paso_actual == 4:
                                 })
                         except:
                             continue
+                    
+                    # Seguridad: si no hay ninguna opción válida, usar el precio de emisión
+                    if not opciones_precio:
+                        opciones_precio = [f"Emisión: {precio_emision:.2f} EUR"]
                     
                     precio_seleccionado = st.selectbox(
                         f"Elige precio",
