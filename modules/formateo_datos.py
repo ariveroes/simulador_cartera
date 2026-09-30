@@ -2,7 +2,29 @@
 FORMATEO DE DATOS - Prepara DataFrame para visualización en Paso 4
 """
 
+import unicodedata
 import pandas as pd
+
+
+def _normalizar(texto):
+    """Quita tildes y pasa a minúsculas para comparar nombres de columnas."""
+    return unicodedata.normalize('NFKD', str(texto)).encode('ascii', 'ignore').decode().lower()
+
+
+def _buscar_columna_tipologia(df):
+    """
+    Busca la columna de tipología aunque el nombre varíe
+    (mayúsculas, tildes, 'dividendo' o 'rendimiento'...).
+    """
+    for col in df.columns:
+        nombre = _normalizar(col)
+        if 'tipolog' in nombre:
+            return col
+    for col in df.columns:
+        nombre = _normalizar(col)
+        if 'dividendo' in nombre or 'rendimiento' in nombre:
+            return col
+    return None
 
 
 def preparar_distribucion_cartera(df_proyectos, distribucion_type):
@@ -36,7 +58,6 @@ def preparar_distribucion_cartera(df_proyectos, distribucion_type):
         'proyectos': proyectos,
         'suma_porcentaje': 0
     }
-
 
 
 def preparar_proyectos_para_paso4(df_proyectos, estatus_cliente):
@@ -82,11 +103,19 @@ def preparar_proyectos_para_paso4(df_proyectos, estatus_cliente):
             df_display['Rentabilidad Anualizada'] = pd.to_numeric(rentabilidad_anualizada, errors='coerce').fillna(0)
         else:
             df_display['Rentabilidad Anualizada'] = 0
-    except Exception as e:
+    except Exception:
         df_display['Rentabilidad Total'] = 0
         df_display['Rentabilidad Anualizada'] = 0
-       tos'] = df_display[col_tipologia]
-        
+    
+    # Tipología de rendimientos (se muestra siempre; '-' si no hay dato)
+    col_tipologia = _buscar_columna_tipologia(df_display)
+    if col_tipologia:
+        df_display['Tipología de rendimientos'] = (
+            df_display[col_tipologia].fillna('').astype(str).str.strip().replace('', '-')
+        )
+    else:
+        df_display['Tipología de rendimientos'] = '-'
+    
     # Seleccionar solo columnas necesarias
     columnas_mostrar = [
         'ID',
@@ -95,7 +124,7 @@ def preparar_proyectos_para_paso4(df_proyectos, estatus_cliente):
         'Fecha Inicio Estimada',
         'Fecha Fin Estimada',
         'Ubicación',
-        'Tipología de dividendo',
+        'Tipología de rendimientos',
         'Rentabilidad Total',
         'Rentabilidad Anualizada'
     ]
