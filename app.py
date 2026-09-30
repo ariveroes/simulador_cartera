@@ -164,6 +164,9 @@ if 'cartera_selecciones' not in st.session_state:
 if 'precios_compra' not in st.session_state:
     st.session_state.precios_compra = {}
 
+if 'sel_tablas' not in st.session_state:
+    st.session_state.sel_tablas = {}
+
 # ========== FUNCIONES AUXILIARES OTC ==========
 def cargar_ofertas_otc():
     """Carga ofertas OTC del Google Sheets del compañero"""
@@ -263,9 +266,8 @@ def tabla_seleccionable(df_display, key):
         return []
     
     df_editor = df_display.copy()
-    df_editor.insert(0, 'Incluir', df_editor['ID'].map(
-        lambda pid: st.session_state.cartera_selecciones.get(pid, {}).get('seleccionado', False)
-    ))
+    marcados_antes = st.session_state.sel_tablas.get(key, set())
+    df_editor.insert(0, 'Incluir', df_editor['ID'].isin(marcados_antes))
     
     editado = st.data_editor(
         df_editor,
@@ -278,7 +280,9 @@ def tabla_seleccionable(df_display, key):
         disabled=[c for c in df_editor.columns if c != 'Incluir'],
     )
     
-    return editado.loc[editado['Incluir'] == True, 'ID'].tolist()
+    marcados = editado.loc[editado['Incluir'] == True, 'ID'].tolist()
+    st.session_state.sel_tablas[key] = set(marcados)
+    return marcados
 
 
 # ========== HEADER ==========
@@ -636,10 +640,6 @@ elif st.session_state.paso_actual == 4:
             
             if proyectos_con_otc:
                 df_con_otc = pd.DataFrame(proyectos_con_otc)
-                # Los que siguen en primera emisión ya salen arriba
-                # (su selector de precio permite elegir también las ofertas OTC)
-                ids_primera = set(df_proyectos['ID'].astype(str))
-                df_con_otc = df_con_otc[~df_con_otc['ID'].astype(str).isin(ids_primera)]
         
         if len(df_con_otc) > 0:
             st.success(f"✅ {len(df_con_otc)} proyecto(s) con ofertas OTC/P2P disponibles")
@@ -668,6 +668,8 @@ elif st.session_state.paso_actual == 4:
                 lambda pid: f"€{float(precio_min_por_id.get(pid, 0) or 0):.2f}"
             )
             ids_seleccionados += tabla_seleccionable(df_display_otc, "tabla_otc")
+        elif ofertas_por_proy:
+            st.info("📭 Hay ofertas OTC, pero ninguna coincide con un proyecto del Master")
         else:
             st.info("📭 No hay ofertas OTC disponibles en este momento")
         
@@ -980,6 +982,7 @@ elif st.session_state.paso_actual == 5:
                 st.session_state.datos_cliente = {}
                 st.session_state.cartera_selecciones = {}
                 st.session_state.precios_compra = {}
+                st.session_state.sel_tablas = {}
                 st.rerun()
     else:
         st.error("No hay cartera para mostrar")
