@@ -572,7 +572,10 @@ elif st.session_state.paso_actual == 4:
             
             for clave_otc in ofertas_por_proy.keys():
                 # Buscar en ID o Token Address
-                proyecto_data = proyectos_por_id.get(clave_otc) or proyectos_por_token.get(clave_otc)
+                # ✅ NO usar 'or' entre Series - pandas no lo soporta
+                proyecto_data = proyectos_por_id.get(clave_otc)
+                if proyecto_data is None:
+                    proyecto_data = proyectos_por_token.get(clave_otc)
                 
                 debug_matching.append({
                     'clave_otc': clave_otc,
