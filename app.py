@@ -566,21 +566,13 @@ elif st.session_state.paso_actual == 4:
         st.markdown("### 📊 Proyectos disponibles en primera emisión (Reental)")
         
         if len(df_matchean) > 0:
-            df_display_matchean = preparar_proyectos_para_paso4(df_matchean, estatus)
-            column_config = {
-                'Rentabilidad Total': st.column_config.NumberColumn(format='%.2f%%'),
-                'Rentabilidad Anualizada': st.column_config.NumberColumn(format='%.2f%%')
-            }
-            st.dataframe(df_display_matchean, use_container_width=True, hide_index=True, column_config=column_config)
+                       df_display_matchean = preparar_proyectos_para_paso4(df_matchean, estatus)
+            st.dataframe(df_display_matchean, hide_index=True, column_config=CONFIG_COLUMNAS_PASO4)
         
         if len(df_no_matchean) > 0:
             st.markdown("#### Proyectos adicionales que podrían interesarte")
-            df_display_no_matchean = preparar_proyectos_para_paso4(df_no_matchean, estatus)
-            column_config = {
-                'Rentabilidad Total': st.column_config.NumberColumn(format='%.2f%%'),
-                'Rentabilidad Anualizada': st.column_config.NumberColumn(format='%.2f%%')
-            }
-            st.dataframe(df_display_no_matchean, use_container_width=True, hide_index=True, column_config=column_config)
+                        df_display_no_matchean = preparar_proyectos_para_paso4(df_no_matchean, estatus)
+            st.dataframe(df_display_no_matchean, hide_index=True, column_config=CONFIG_COLUMNAS_PASO4)
         
         # ========== PROYECTOS OTC ==========
         st.markdown("---")
@@ -659,12 +651,7 @@ elif st.session_state.paso_actual == 4:
                 df_display_otc = preparar_proyectos_para_paso4(df_con_otc, estatus)
                 df_display_otc['Precio OTC Más Bajo'] = [f"€{p:.2f}" for p in otc_prices]
                 
-                column_config = {
-                    'Rentabilidad Total': st.column_config.NumberColumn(format='%.2f%%'),
-                    'Rentabilidad Anualizada': st.column_config.NumberColumn(format='%.2f%%'),
-                    'Precio OTC Más Bajo': st.column_config.TextColumn()
-                }
-                st.dataframe(df_display_otc, use_container_width=True, hide_index=True, column_config=column_config)
+                                st.dataframe(df_display_otc, hide_index=True, column_config=CONFIG_COLUMNAS_PASO4)
             else:
                 st.info("📭 No hay proyectos disponibles en OTC")
         else:
