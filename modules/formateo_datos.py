@@ -12,17 +12,15 @@ def _normalizar(texto):
 
 
 def _buscar_columna_tipologia(df):
-    """
-    Busca la columna de tipología aunque el nombre varíe
-    (mayúsculas, tildes, 'dividendo' o 'rendimiento'...).
-    """
-    for col in df.columns:
-        nombre = _normalizar(col)
-        if 'tipolog' in nombre:
+    """Busca la columna de tipología de dividendo aunque el nombre varíe."""
+    columnas = [(col, _normalizar(col)) for col in df.columns]
+    # 1º: columna que contenga 'tipolog' y 'dividend'
+    for col, nombre in columnas:
+        if 'tipolog' in nombre and 'dividend' in nombre:
             return col
-    for col in df.columns:
-        nombre = _normalizar(col)
-        if 'dividendo' in nombre or 'rendimiento' in nombre:
+    # 2º: cualquier columna con 'dividend'
+    for col, nombre in columnas:
+        if 'dividend' in nombre:
             return col
     return None
 
@@ -107,14 +105,14 @@ def preparar_proyectos_para_paso4(df_proyectos, estatus_cliente):
         df_display['Rentabilidad Total'] = 0
         df_display['Rentabilidad Anualizada'] = 0
     
-    # Tipología de rendimientos (se muestra siempre; '-' si no hay dato)
+    # Tipología de dividendo (se muestra siempre; '-' si no hay dato)
     col_tipologia = _buscar_columna_tipologia(df_display)
     if col_tipologia:
-        df_display['Tipología de rendimientos'] = (
+        df_display['Tipología de dividendo'] = (
             df_display[col_tipologia].fillna('').astype(str).str.strip().replace('', '-')
         )
     else:
-        df_display['Tipología de rendimientos'] = '-'
+        df_display['Tipología de dividendo'] = '-'
     
     # Seleccionar solo columnas necesarias
     columnas_mostrar = [
@@ -124,7 +122,7 @@ def preparar_proyectos_para_paso4(df_proyectos, estatus_cliente):
         'Fecha Inicio Estimada',
         'Fecha Fin Estimada',
         'Ubicación',
-        'Tipología de rendimientos',
+        'Tipología de dividendo',
         'Rentabilidad Total',
         'Rentabilidad Anualizada'
     ]
