@@ -289,7 +289,6 @@ if st.session_state.paso_actual == 1:
         divisa = st.selectbox(
             "Divisa *",
             ["EUR", "USD"],
-            index=0 if st.session_state.datos_cliente.get('divisa', 'EUR') == 'EUR' else 1,
             key="select_divisa"
         )
     
@@ -297,15 +296,11 @@ if st.session_state.paso_actual == 1:
         ya_inversor = st.selectbox(
             "¿Eres ya inversor en Reental? *",
             ["No", "Sí"],
-            index=0 if st.session_state.datos_cliente.get('ya_inversor', 'No') == 'No' else 1,
             key="select_inversor"
         )
         capital = st.selectbox(
             "Capital a invertir *",
             ["Menos de 5.000", "Entre 5.000 y 10.000", "Entre 10.000 y 50.000", "Más de 50.000"],
-            index=2 if 'capital' not in st.session_state.datos_cliente else 
-                   ["Menos de 5.000", "Entre 5.000 y 10.000", "Entre 10.000 y 50.000", "Más de 50.000"]
-                   .index(st.session_state.datos_cliente.get('capital', 'Entre 10.000 y 50.000')),
             key="select_capital"
         )
     
@@ -452,9 +447,6 @@ elif st.session_state.paso_actual == 3:
         objetivo = st.selectbox(
             "Objetivo de inversión *",
             ["Maximizar rentabilidad", "Ingresos pasivos regulares", "Diversificación"],
-            index=0 if 'objetivo' not in st.session_state.datos_cliente else 
-                   ["Maximizar rentabilidad", "Ingresos pasivos regulares", "Diversificación"]
-                   .index(st.session_state.datos_cliente.get('objetivo', 'Maximizar rentabilidad')),
             key="select_objetivo"
         )
     
@@ -462,7 +454,6 @@ elif st.session_state.paso_actual == 3:
         distribucion = st.selectbox(
             "Distribución de capital *",
             ["Distribuir en partes iguales", "Elegir cuánto invertir en cada uno"],
-            index=0 if st.session_state.datos_cliente.get('distribucion', 'Distribuir en partes iguales') == 'Distribuir en partes iguales' else 1,
             key="select_distribucion"
         )
     
@@ -711,6 +702,9 @@ elif st.session_state.paso_actual == 4:
             # ✅ Cargar ofertas (OTC + P2P) para mostrar precios
             todas_ofertas = cargar_todas_ofertas_secundario()
             ofertas_por_proy = agrupar_ofertas_por_proyecto(todas_ofertas)
+            
+            # ✅ INICIALIZAR listas
+            proyectos_seleccionados = []
             suma_porcentajes = 0
             
             for idx, row in df_todos.iterrows():
@@ -756,8 +750,9 @@ elif st.session_state.paso_actual == 4:
                     mejores_ofertas = []
                     
                     for oferta in ofertas_proyecto:
-                        if oferta.get('estado') != 'activa':
-                            continue
+                        # ✅ NO filtrar por estado - mostrar TODAS las ofertas
+                        # if oferta.get('estado') != 'activa':
+                        #     continue
                         
                         try:
                             precio = float(oferta.get('precio_venta', 0))
