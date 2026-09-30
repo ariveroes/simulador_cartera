@@ -985,6 +985,7 @@ elif st.session_state.paso_actual == 5:
         
         filas_tabla = []
         filas_graficos = []
+        proyectos_pdf = []
         rentabilidad_media = 0.0
         
         for proyecto in proyectos_cartera:
@@ -1016,6 +1017,24 @@ elif st.session_state.paso_actual == 5:
                 'Rentabilidad anualizada': rent_anual,
                 'Rentabilidad total': rent_total,
                 '% cartera': peso,
+            })
+            
+            proyectos_pdf.append({
+                'id': str(proyecto_id),
+                'nombre': proyecto['nombre'],
+                'ubicacion': str(row.get('Ubicación', '') or ''),
+                'estado': str(row.get('ESTADO', '') or ''),
+                'tipodiv': tipologia or '-',
+                'precio': f"{fmt(precio_conv)} ({tipo_precio})",
+                'tipo_precio': tipo_precio,
+                'pct': peso,
+                'importe': importe_inmuebles * peso / 100,
+                'rent_anu_rnt': a_numero(row.get('Rentabilidad_Anualizada_Reentel', 0)),
+                'rent_tot_rnt': a_numero(row.get('Rentabilidad_Total_Reentel', 0)),
+                'rent_anu_est': rent_anual,
+                'rent_tot_est': rent_total,
+                'fecha_inicio': str(row.get('Fecha Inicio Estimada', '') or ''),
+                'fecha_fin': str(row.get('Fecha Fin Estimada', '') or ''),
             })
             
             filas_graficos.append({
@@ -1176,6 +1195,35 @@ elif st.session_state.paso_actual == 5:
                 'Coste del estatus': fmt(coste_est),
             })
         
+        def media_columna(prefijo, est):
+            total = 0.0
+            for proyecto in proyectos_cartera:
+                fila = df_proy[df_proy['ID'] == proyecto['id']]
+                if len(fila) == 0:
+                    continue
+                peso = distribuciones.get(proyecto['id'], {}).get('porcentaje', 0)
+                total += a_numero(fila.iloc[0].get(f'{prefijo}_{est}', 0)) * peso / 100
+            return total
+        
+        rent_anual_media_pdf = {est: media_columna('Rentabilidad_Anualizada', est) for est in {'Reentel', estatus}}
+        rent_total_media_pdf = {est: media_columna('Rentabilidad_Total', est) for est in {'Reentel', estatus}}
+        
+        escenarios_pdf = []
+        for meses in [6, 12, 24, 36]:
+            g_rnt = CalculadoraCartera('Reentel').calcular_proyeccion(
+                importe_inmuebles, rent_anual_media_pdf['Reentel'] / 100, meses) - importe_inmuebles
+            g_est = CalculadoraCartera(estatus).calcular_proyeccion(
+                importe_inmuebles, rent_anual_media_pdf[estatus] / 100, meses) - importe_inmuebles
+            g_est_staking = g_est + coste_estatus * (staking_rnt / 100) * (meses / 12)
+            escenarios_pdf.append({
+                'meses': meses,
+                'g_rnt': g_rnt,
+                'g_est': g_est,
+                'g_est_staking': g_est_staking,
+                'rent_rnt': (g_rnt / importe_inmuebles * 100) if importe_inmuebles else 0,
+                'rent_est': (g_est_staking / capital_total * 100) if capital_total else 0,
+            })
+        
         st.dataframe(
             pd.DataFrame(filas_comparativa),
             use_container_width=True,
@@ -1212,7 +1260,11 @@ elif st.session_state.paso_actual == 5:
             'coste_estatus': coste_estatus,
             'capital_total': capital_total,
             'rentabilidad_media': rentabilidad_media,
-            'proyectos': [dict(f, Importe=importe_inmuebles * f['% cartera'] / 100) for f in filas_tabla],
+            'titular': datos.get('nombre'),
+            'proyectos': proyectos_pdf,
+            'escenarios': escenarios_pdf,
+            'rent_anual_media': rent_anual_media_pdf,
+            'rent_total_media': rent_total_media_pdf,
             'repartos': repartos_pdf,
             'comparativa': comparativa_pdf,
             'meses': MESES_COMPARATIVA,
