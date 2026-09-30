@@ -13,7 +13,7 @@ Pasos:
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-from modules.data_loader import cargar_proyectos
+from modules.data_loader import cargar_proyectos, cargar_todos_proyectos
 from modules.calculo_cartera import rankear_proyectos, CalculadoraCartera
 from modules.formateo_datos import preparar_proyectos_para_paso4
 from modules.pdf_generator import generar_pdf_cartera
@@ -452,9 +452,9 @@ elif st.session_state.paso_actual == 3:
                 st.session_state.datos_cliente['mercados'] = mercados_seleccionados
                 st.session_state.datos_cliente['distribucion'] = distribucion
                 
-                # Cargar proyectos
+                # Cargar TODOS los proyectos (incluidos cerrados con OTC)
                 try:
-                    st.session_state.df_proyectos = cargar_proyectos()
+                    st.session_state.df_proyectos = cargar_todos_proyectos()
                     st.session_state.paso_actual = 4
                     st.rerun()
                 except Exception as e:
@@ -468,7 +468,13 @@ elif st.session_state.paso_actual == 4:
     st.markdown("")
     
     if st.session_state.df_proyectos is not None and len(st.session_state.df_proyectos) > 0:
-        df_proyectos = st.session_state.df_proyectos.copy()
+        # ✅ SEPARAR: Para Primera Emisión solo FINANCIÁNDOSE, para OTC todos
+        df_proyectos_todos = st.session_state.df_proyectos.copy()
+        
+        # Filtrar solo FINANCIÁNDOSE para la sección de Primera Emisión
+        df_proyectos = df_proyectos_todos[
+            df_proyectos_todos['ESTADO'].str.upper() == 'FINANCIÁNDOSE'
+        ].copy()
         
         # Obtener parámetros
         mercados_seleccionados = st.session_state.datos_cliente.get('mercados', [])
@@ -480,7 +486,7 @@ elif st.session_state.paso_actual == 4:
         ofertas_otc_list = cargar_ofertas_otc()
         ofertas_por_proy = agrupar_ofertas_por_proyecto(ofertas_otc_list)
         
-        # Separar proyectos
+        # Separar proyectos ACTIVOS (FINANCIÁNDOSE)
         df_matchean = df_proyectos[df_proyectos['Ubicación'].isin(mercados_seleccionados)].copy()
         df_no_matchean = df_proyectos[~df_proyectos['Ubicación'].isin(mercados_seleccionados)].copy()
         
@@ -531,8 +537,8 @@ elif st.session_state.paso_actual == 4:
                     st.write(f"**Primera oferta estructura:**")
                     st.json(ofertas_otc_list[0])
             
-            # Combinar proyectos para filtrar los que tienen OTC
-            df_todos = pd.concat([df_matchean, df_no_matchean], ignore_index=True) if len(df_no_matchean) > 0 else df_matchean.copy()
+            # ✅ USAR TODOS los proyectos (incluidos cerrados) para matchear OTC
+            df_todos = df_proyectos_todos.copy()
             
             # Crear mapa de proyectos por ID y Token Address
             proyectos_por_id = {}
