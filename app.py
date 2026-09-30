@@ -523,6 +523,14 @@ elif st.session_state.paso_actual == 4:
         if ofertas_por_proy:
             st.success(f"✅ {len(ofertas_por_proy)} proyecto(s) con ofertas OTC disponibles")
             
+            # DEBUG
+            with st.expander("🔍 DEBUG - Ver detalles OTC"):
+                st.write(f"**Ofertas cargadas:** {len(ofertas_otc_list)}")
+                st.write(f"**Claves OTC encontradas:** {list(ofertas_por_proy.keys())[:10]}")
+                if ofertas_otc_list:
+                    st.write(f"**Primera oferta estructura:**")
+                    st.json(ofertas_otc_list[0])
+            
             # Combinar proyectos para filtrar los que tienen OTC
             df_todos = pd.concat([df_matchean, df_no_matchean], ignore_index=True) if len(df_no_matchean) > 0 else df_matchean.copy()
             
@@ -539,15 +547,36 @@ elif st.session_state.paso_actual == 4:
                 if token_addr:
                     proyectos_por_token[token_addr] = row
             
+            # DEBUG
+            with st.expander("🔍 DEBUG - Ver proyectos en Master"):
+                st.write(f"**Proyectos en Master (ID):** {list(proyectos_por_id.keys())[:10]}")
+                st.write(f"**Proyectos en Master (Token):** {list(proyectos_por_token.keys())[:10]}")
+            
             # Encontrar proyectos con OTC
             proyectos_con_otc = []
+            
+            # DEBUG: Ver matching
+            debug_matching = []
             
             for clave_otc in ofertas_por_proy.keys():
                 # Buscar en ID o Token Address
                 proyecto_data = proyectos_por_id.get(clave_otc) or proyectos_por_token.get(clave_otc)
                 
+                debug_matching.append({
+                    'clave_otc': clave_otc,
+                    'en_id': clave_otc in proyectos_por_id,
+                    'en_token': clave_otc in proyectos_por_token,
+                    'encontrado': proyecto_data is not None
+                })
+                
                 if proyecto_data is not None:
                     proyectos_con_otc.append(proyecto_data)
+            
+            # DEBUG
+            with st.expander("🔍 DEBUG - Matching OTC vs Master"):
+                st.write(f"**Intentos de matching:**")
+                for m in debug_matching:
+                    st.write(f"  • `{m['clave_otc']}`: ID={m['en_id']}, Token={m['en_token']}, ✓={m['encontrado']}")
             
             if proyectos_con_otc:
                 df_con_otc = pd.DataFrame(proyectos_con_otc)
