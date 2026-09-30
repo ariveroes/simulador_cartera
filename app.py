@@ -258,6 +258,37 @@ CONFIG_COLUMNAS_PASO4 = {
     'Precio OTC Más Bajo': st.column_config.TextColumn('Precio OTC', width=90),
 }
 
+# ========== SUPUESTOS DE MERCADO POR DEFECTO (Paso 5) ==========
+# Son los valores iniciales; el usuario puede cambiarlos en el Paso 5.
+TIPO_CAMBIO_DEFECTO = 1.14      # USD por 1 €
+PRECIO_RNT_DEFECTO = 0.32       # USDT por 1 RNT
+STAKING_RNT_DEFECTO = 0.0       # % anual del staking de RNT
+# RNT necesarios para cada estatus
+RNT_POR_ESTATUS = {'SuperReentel': 28000, 'ReentelPro': 14000, 'Reentel': 0}
+
+
+@st.cache_data(ttl=86400)
+def tipo_cambio_actual():
+    """USD por 1 € según el BCE (se consulta una vez al día). Si falla, valor por defecto."""
+    try:
+        from modules import divisas
+        tipo = divisas.usd_por_euro()
+        return round(tipo, 4) if tipo else TIPO_CAMBIO_DEFECTO
+    except Exception:
+        return TIPO_CAMBIO_DEFECTO
+
+
+@st.cache_data(ttl=3600)
+def precio_rnt_actual():
+    """Precio del RNT en USDT según el pool (se consulta como mucho una vez por hora)."""
+    try:
+        from modules import pool_rnt
+        precio = pool_rnt.precio_actual(st.secrets["etherscan"]["api_key"])
+        return round(precio, 4) if precio else PRECIO_RNT_DEFECTO
+    except Exception:
+        return PRECIO_RNT_DEFECTO
+
+
 def tabla_seleccionable(df_display, key):
     """
     Muestra una tabla con una casilla 'Incluir' en cada fila
@@ -839,63 +870,72 @@ elif st.session_state.paso_actual == 4:
 
 # ========== PASO 5: RESUMEN Y PDF ==========
 elif st.session_state.paso_actual == 5:
+    import altair as alt
+    
     st.markdown("## Paso 5: Tu cartera está lista")
     st.markdown("")
     
-    cartera = st.session_state.datos_cliente.get('cartera', {})
+    datos = st.session_state.datos_cliente
+    cartera = datos.get('cartera', {})
     proyectos_cartera = cartera.get('proyectos', [])
     distribuciones = cartera.get('distribuciones', {})
     precios_compra = st.session_state.precios_compra
+    df_proy = st.session_state.df_proyectos
     
     if len(proyectos_cartera) > 0:
-        # ========== RESUMEN CLIENTE ==========
-        st.markdown("### Datos de tu inversión")
+        estatus = datos.get('estatus') or 'Reentel'
+        divisa_cliente = (datos.get('divisa') or 'EUR').upper()
+        simbolo = '€' if divisa_cliente == 'EUR' else '$'
+        otra_divisa = 'USD' if divisa_cliente == 'EUR' else 'EUR'
+        otro_simbolo = '$' if divisa_cliente == 'EUR' else '€'
         
+        def fmt(importe, s=simbolo):
+            return f"{importe:,.2f} {s}"
+        
+        def a_numero(valor):
+            try:
+                return float(str(valor).replace('%', '').replace(',', '.').strip())
+            except:
+                return 0.0
+        
+        # ========== 1) INVERSOR ==========
+        st.markdown("### Inversor")
         col1, col2 = st.columns(2)
         with col1:
-            st.write(f"**Nombre:** {st.session_state.datos_cliente.get('nombre', 'N/A')}")
-            st.write(f"**Email:** {st.session_state.datos_cliente.get('email', 'N/A')}")
-            st.write(f"**Capital:** {st.session_state.datos_cliente.get('capital', 'N/A')}")
+            st.write(f"**Titular:** {datos.get('nombre', 'N/A')}")
+            st.write(f"**Email:** {datos.get('email', 'N/A')}")
+            st.write(f"**Estatus elegido:** {estatus}")
         with col2:
-            st.write(f"**Estatus:** {st.session_state.datos_cliente.get('estatus', 'N/A')}")
-            st.write(f"**Objetivo:** {st.session_state.datos_cliente.get('objetivo', 'N/A')}")
-            st.write(f"**Distribución:** {st.session_state.datos_cliente.get('distribucion', 'N/A')}")
+            st.write(f"**Capital a invertir:** {datos.get('capital', 'N/A')} {divisa_cliente}")
+            st.write(f"**Objetivo:** {datos.get('objetivo', 'N/A')}")
+            st.write(f"**Distribución de la cartera:** {datos.get('distribucion', 'N/A')}")
         
         st.markdown("---")
         
-        # ========== TABLA CARTERA CON PRECIO_COMPRA ==========
+        # ========== 2) SUPUESTOS DE MERCADO ==========
+        st.markdown("### Supuestos de mercado")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            tipo_cambio = st.number_input("Tipo de cambio (USD por 1 €)", min_value=0.01,
+                                          value=tipo_cambio_actual(), step=0.01, format="%.4f", key="sup_tipo_cambio")
+        with col2:
+            precio_rnt = st.number_input("Precio del RNT (USDT)", min_value=0.0,
+                                         value=precio_rnt_actual(), step=0.001, format="%.4f", key="sup_precio_rnt")
+        with col3:
+            staking_rnt = st.number_input("Rendimiento del staking de RNT (% anual)", min_value=0.0,
+                                          value=STAKING_RNT_DEFECTO, step=0.1, format="%.2f", key="sup_staking")
+        
+        def convertir(importe, desde, hacia):
+            desde = 'USD' if str(desde).upper() in ('USD', 'USDT') else 'EUR'
+            hacia = 'USD' if str(hacia).upper() in ('USD', 'USDT') else 'EUR'
+            if desde == hacia:
+                return importe
+            return importe * tipo_cambio if desde == 'EUR' else importe / tipo_cambio
+        
+        st.markdown("---")
+        
+        # ========== 3) TU CARTERA DE INVERSIÓN ==========
         st.markdown("### Tu cartera de inversión")
-        
-        cartera_data = []
-        for proyecto in proyectos_cartera:
-            proyecto_id = proyecto['id']
-            proyecto_row = st.session_state.df_proyectos[st.session_state.df_proyectos['ID'] == proyecto_id]
-            
-            if len(proyecto_row) > 0:
-                row = proyecto_row.iloc[0]
-                porcentaje = distribuciones.get(proyecto_id, {}).get('porcentaje', 0)
-                
-                # PRECIO_COMPRA REAL
-                precio_compra_info = precios_compra.get(proyecto_id, {})
-                precio_compra = precio_compra_info.get('precio', row.get('Precio Emisión', 0))
-                tipo_precio = precio_compra_info.get('tipo', 'Emisión')
-                
-                cartera_data.append({
-                    'Proyecto': proyecto['nombre'],
-                    'Ubicación': row.get('Ubicación', 'N/A'),
-                    'Precio Compra': f"€{precio_compra:.2f} ({tipo_precio})",
-                    'Rentabilidad Anualizada': f"{row.get('Rentabilidad_Anualizada_SuperReentel', 0):.2f}%",
-                    '% Invertido': f"{porcentaje:.1f}%"
-                })
-        
-        if cartera_data:
-            df_cartera_display = pd.DataFrame(cartera_data)
-            st.dataframe(df_cartera_display, use_container_width=True, hide_index=True)
-        
-        st.markdown("---")
-        
-        # ========== PROYECCIONES DE RENTABILIDAD ==========
-        st.markdown("### Proyecciones de patrimonio")
         
         capital_map = {
             "Menos de 5.000": 2500,
@@ -903,45 +943,159 @@ elif st.session_state.paso_actual == 5:
             "Entre 10.000 y 50.000": 30000,
             "Más de 50.000": 100000
         }
+        importe_inmuebles = capital_map.get(datos.get('capital'), 30000)  # en la divisa del cliente
         
-        capital_text = st.session_state.datos_cliente.get('capital', 'Entre 10.000 y 50.000')
-        capital_estimado = capital_map.get(capital_text, 75000)
+        rnt_estatus = RNT_POR_ESTATUS.get(estatus, 0)
+        coste_estatus = convertir(rnt_estatus * precio_rnt, 'USD', divisa_cliente)
+        capital_total = importe_inmuebles + coste_estatus
         
-        estatus = st.session_state.datos_cliente.get('estatus', None)
-        calculadora = CalculadoraCartera(estatus or 'Reentel')
+        # Columnas de rentabilidad según estatus
+        col_anual = f'Rentabilidad_Anualizada_{estatus}'
+        col_total = f'Rentabilidad_Total_{estatus}'
         
-        # Calcular rentabilidad promedio
-        rentabilidad_promedio = 0
+        # Columna de tipología de dividendo
+        try:
+            from modules.formateo_datos import _buscar_columna_tipologia
+            col_tipologia = _buscar_columna_tipologia(df_proy)
+        except Exception:
+            col_tipologia = next((c for c in df_proy.columns if 'tipolog' in c.lower()), None)
+        
+        filas_tabla = []
+        filas_graficos = []
+        rentabilidad_media = 0.0
+        
         for proyecto in proyectos_cartera:
             proyecto_id = proyecto['id']
-            proyecto_row = st.session_state.df_proyectos[st.session_state.df_proyectos['ID'] == proyecto_id]
-            if len(proyecto_row) > 0:
-                porcentaje = distribuciones.get(proyecto_id, {}).get('porcentaje', 0) / 100
-                try:
-                    rentabilidad_pct = float(str(proyecto_row.iloc[0].get('Rentabilidad_Anualizada_SuperReentel', 0)).replace('%', ''))
-                    rentabilidad = rentabilidad_pct / 100
-                except:
-                    rentabilidad = 0
-                rentabilidad_promedio += rentabilidad * porcentaje
+            fila = df_proy[df_proy['ID'] == proyecto_id]
+            if len(fila) == 0:
+                continue
+            row = fila.iloc[0]
+            
+            peso = distribuciones.get(proyecto_id, {}).get('porcentaje', 0)
+            
+            info_precio = precios_compra.get(proyecto_id, {})
+            precio = a_numero(info_precio.get('precio', row.get('Precio Emisión', 0)))
+            divisa_precio = info_precio.get('divisa', 'EUR')
+            tipo_precio = info_precio.get('tipo', 'Emisión')
+            precio_conv = convertir(precio, divisa_precio, divisa_cliente)
+            
+            rent_anual = a_numero(row.get(col_anual, 0))
+            rent_total = a_numero(row.get(col_total, 0))
+            rentabilidad_media += rent_anual * peso / 100
+            
+            tipologia = str(row.get(col_tipologia, '') or '').strip() if col_tipologia else ''
+            
+            filas_tabla.append({
+                'Proyecto': proyecto['nombre'],
+                'Ubicación': row.get('Ubicación', ''),
+                'Precio de compra': f"{fmt(precio_conv)} ({tipo_precio})",
+                'Tipo de dividendo': tipologia or '-',
+                'Rentabilidad anualizada': rent_anual,
+                'Rentabilidad total': rent_total,
+                '% cartera': peso,
+            })
+            
+            filas_graficos.append({
+                'ubicacion': str(row.get('Ubicación', '') or 'Sin dato'),
+                'tipologia': tipologia or 'Sin dato',
+                'emision': str(row.get('Emisión', '') or 'Sin dato'),
+                'divisa': str(row.get('Divisa', '') or 'Sin dato'),
+                'peso': peso,
+            })
+        
+        # ----- Tarjetas resumen -----
+        def tarjeta(titulo, valor, sub):
+            return f"""
+            <div style="border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; background: #ffffff; min-height: 105px;">
+                <div style="font-size: 12px; font-weight: 700; color: #666666; letter-spacing: 0.5px;">{titulo}</div>
+                <div style="font-size: 26px; font-weight: 700; color: #1f2937; margin: 4px 0;">{valor}</div>
+                <div style="font-size: 12px; color: #9ca3af;">{sub}</div>
+            </div>
+            """
+        
+        tarjetas = [
+            ("🏠 INMUEBLES", f"{len(filas_tabla)}", "proyectos en cartera"),
+            ("💶 EN INMUEBLES", fmt(importe_inmuebles),
+             fmt(convertir(importe_inmuebles, divisa_cliente, otra_divisa), otro_simbolo)),
+            ("⭐ COSTE DEL ESTATUS", fmt(coste_estatus), f"{rnt_estatus:,} RNT · {estatus}"),
+            ("💰 CAPITAL TOTAL", fmt(capital_total), "inmuebles + estatus"),
+            ("📈 RENT. ANUALIZADA", f"{rentabilidad_media:.2f} %", f"media ponderada · {estatus}"),
+        ]
+        cols = st.columns(5)
+        for col, (titulo, valor, sub) in zip(cols, tarjetas):
+            col.markdown(tarjeta(titulo, valor, sub), unsafe_allow_html=True)
+        
+        st.caption("Las rentabilidades se ponderan por el % de la cartera invertido en cada proyecto.")
+        st.markdown("")
+        
+        # ----- Tabla de proyectos -----
+        if filas_tabla:
+            st.dataframe(
+                pd.DataFrame(filas_tabla),
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    'Rentabilidad anualizada': st.column_config.NumberColumn(format='%.2f%%'),
+                    'Rentabilidad total': st.column_config.NumberColumn(format='%.2f%%'),
+                    '% cartera': st.column_config.NumberColumn(format='%.1f%%'),
+                }
+            )
+        
+        # ----- Gráficos -----
+        if filas_graficos:
+            df_graf = pd.DataFrame(filas_graficos)
+            colores = ['#f5a623', '#3b82f6', '#16a34a', '#a855f7', '#ef4444', '#14b8a6', '#6b7280']
+            
+            def donut(campo, titulo):
+                datos_g = df_graf.groupby(campo, as_index=False)['peso'].sum()
+                datos_g = datos_g[datos_g['peso'] > 0]
+                total = datos_g['peso'].sum()
+                datos_g['pct'] = datos_g['peso'] / total if total else 0
+                datos_g = datos_g.rename(columns={campo: 'categoria'})
+                
+                base = alt.Chart(datos_g).encode(
+                    theta=alt.Theta('peso:Q', stack=True),
+                    color=alt.Color('categoria:N', scale=alt.Scale(range=colores),
+                                    legend=alt.Legend(orient='bottom', title=None)),
+                    tooltip=[alt.Tooltip('categoria:N', title=titulo),
+                             alt.Tooltip('pct:Q', format='.0%', title='Peso')]
+                )
+                arco = base.mark_arc(innerRadius=55, outerRadius=95)
+                texto = base.mark_text(radius=112, size=11).encode(text=alt.Text('pct:Q', format='.0%'))
+                return (arco + texto).properties(title=titulo, height=290)
+            
+            st.markdown("")
+            g1, g2, g3, g4 = st.columns(4)
+            g1.altair_chart(donut('ubicacion', 'Distribución geográfica'), use_container_width=True)
+            g2.altair_chart(donut('tipologia', 'Tipología de dividendo'), use_container_width=True)
+            g3.altair_chart(donut('emision', 'Emisión de tokenización'), use_container_width=True)
+            g4.altair_chart(donut('divisa', 'Divisa del inmueble'), use_container_width=True)
+            
+            st.caption("Cada reparto se pondera por el % de la cartera. La emisión de tokenización indica bajo qué "
+                       "estructura se emitió el token, que no coincide necesariamente con dónde está el inmueble ni con su moneda.")
+        
+        st.markdown("---")
+        
+        # ========== PROYECCIONES ==========
+        st.markdown("### Proyecciones de patrimonio")
+        
+        calculadora = CalculadoraCartera(estatus)
+        rentabilidad_decimal = rentabilidad_media / 100
         
         proyecciones_data = []
         for meses in [6, 12, 24, 36, 60]:
-            capital_final = calculadora.calcular_proyeccion(capital_estimado, rentabilidad_promedio, meses)
-            ganancia = capital_final - capital_estimado
-            roi = (ganancia / capital_estimado * 100) if capital_estimado > 0 else 0
-            
+            capital_final = calculadora.calcular_proyeccion(importe_inmuebles, rentabilidad_decimal, meses)
+            ganancia = capital_final - importe_inmuebles
+            roi = (ganancia / importe_inmuebles * 100) if importe_inmuebles > 0 else 0
             proyecciones_data.append({
                 'Plazo': f"{meses} meses",
-                'Capital Inicial': f"€{capital_estimado:,.0f}",
-                'Capital Final': f"€{capital_final:,.0f}",
-                'Ganancia': f"€{ganancia:,.0f}",
+                'Capital Inicial': fmt(importe_inmuebles),
+                'Capital Final': fmt(capital_final),
+                'Ganancia': fmt(ganancia),
                 'ROI': f"{roi:.2f}%"
             })
         
-        df_proyecciones = pd.DataFrame(proyecciones_data)
-        st.dataframe(df_proyecciones, use_container_width=True, hide_index=True)
-        
-        st.info(f"📊 Capital Estimado: €{capital_estimado:,.0f} | Rentabilidad Promedio Anual: {rentabilidad_promedio*100:.2f}%")
+        st.dataframe(pd.DataFrame(proyecciones_data), use_container_width=True, hide_index=True)
         
         st.markdown("---")
         
@@ -959,7 +1113,7 @@ elif st.session_state.paso_actual == 5:
         st.download_button(
             label="📥 Descargar cartera (PDF)",
             data=pdf_buffer,
-            file_name=f"Cartera_{st.session_state.datos_cliente['nombre'].replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf",
+            file_name=f"Cartera_{datos['nombre'].replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf",
             mime="application/pdf",
             use_container_width=True
         )
@@ -981,6 +1135,7 @@ elif st.session_state.paso_actual == 5:
                 st.rerun()
     else:
         st.error("No hay cartera para mostrar")
+
 
 # ========== FOOTER ==========
 st.markdown("---")
