@@ -118,7 +118,7 @@ def preparar_proyectos_para_paso4(df_proyectos, estatus_cliente):
     columnas_mostrar = [
         'ID',
         'Nombre del proyecto',
-        'Estado',
+        'ESTADO',
         'Fecha Inicio Estimada',
         'Fecha Fin Estimada',
         'Ubicación',
