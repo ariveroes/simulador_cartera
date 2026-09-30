@@ -16,7 +16,6 @@ from datetime import datetime
 from modules.data_loader import cargar_proyectos
 from modules.calculo_cartera import rankear_proyectos, CalculadoraCartera
 from modules.formateo_datos import preparar_proyectos_para_paso4
-from modules.otc_storage import ofertas_por_proyecto, mejor_oferta_otc
 from modules.pdf_generator import generar_pdf_cartera
 
 # ========== CONFIGURACIÓN STREAMLIT ==========
@@ -164,6 +163,42 @@ if 'cartera_selecciones' not in st.session_state:
 
 if 'precios_compra' not in st.session_state:
     st.session_state.precios_compra = {}
+
+# ========== FUNCIONES AUXILIARES OTC ==========
+@st.cache_data(ttl=600, show_spinner=False)
+def cargar_ofertas_otc():
+    """Carga ofertas OTC del Google Sheets del compañero"""
+    try:
+        from modules import otc_storage
+        ofertas = otc_storage.read_list("Ofertas")
+        return ofertas if ofertas else []
+    except Exception as e:
+        st.warning(f"⚠️ No se pudo cargar ofertas OTC: {str(e)}")
+        return []
+
+def agrupar_ofertas_por_proyecto(ofertas):
+    """Agrupa ofertas OTC por proyecto_id o token_address"""
+    ofertas_por_proyecto = {}
+    
+    for oferta in ofertas:
+        if oferta.get('estado') != 'activa':
+            continue
+        
+        # Usar proyecto_id o token_address como clave
+        proyecto_id = (oferta.get('proyecto_id') or '').lower()
+        token_address = (oferta.get('token_address') or '').lower()
+        
+        clave = proyecto_id or token_address or None
+        
+        if not clave:
+            continue
+        
+        if clave not in ofertas_por_proyecto:
+            ofertas_por_proyecto[clave] = []
+        
+        ofertas_por_proyecto[clave].append(oferta)
+    
+    return ofertas_por_proyecto
 
 # ========== HEADER ==========
 col1, col2, col3 = st.columns([1, 3, 1])
@@ -441,6 +476,10 @@ elif st.session_state.paso_actual == 4:
         estatus = st.session_state.datos_cliente.get('estatus', '')
         distribucion_type = st.session_state.datos_cliente.get('distribucion', 'Distribuir en partes iguales')
         
+        # Cargar ofertas OTC
+        ofertas_otc_list = cargar_ofertas_otc()
+        ofertas_por_proy = agrupar_ofertas_por_proyecto(ofertas_otc_list)
+        
         # Separar proyectos
         df_matchean = df_proyectos[df_proyectos['Ubicación'].isin(mercados_seleccionados)].copy()
         df_no_matchean = df_proyectos[~df_proyectos['Ubicación'].isin(mercados_seleccionados)].copy()
@@ -455,8 +494,6 @@ elif st.session_state.paso_actual == 4:
                 df_matchean = rankear_proyectos(df_matchean, criterios, estatus)
             except:
                 pass
-        
-
         
         # ========== MOSTRAR PROYECTOS DISPONIBLES ==========
         st.markdown("")
@@ -483,48 +520,39 @@ elif st.session_state.paso_actual == 4:
         st.markdown("---")
         st.markdown("### 💰 Proyectos disponibles en OTC (Mercado Secundario)")
         
-        # Combinar proyectos para buscar OTC
-        df_todos_temp = pd.concat([df_matchean, df_no_matchean], ignore_index=True)
-        
-        # Obtener ofertas OTC
-        otc_projects = {}
-        try:
-            from modules.otc_storage import read_list
-            todas_ofertas = read_list("Ofertas")
+        if ofertas_por_proy:
+            st.success(f"✅ {len(ofertas_por_proy)} proyecto(s) con ofertas OTC disponibles")
             
-            # DEBUG
-            st.write(f"🔍 DEBUG: Se leyeron {len(todas_ofertas)} ofertas del Google Sheets")
-            if todas_ofertas:
-                st.write(f"Primera oferta estructura: {todas_ofertas[0]}")
+            # Combinar proyectos para filtrar los que tienen OTC
+            df_todos = pd.concat([df_matchean, df_no_matchean], ignore_index=True) if len(df_no_matchean) > 0 else df_matchean.copy()
             
-            for oferta in todas_ofertas:
-                proyecto_id = oferta.get('proyecto_id', '').lower()
+            # Crear mapa de proyectos por ID y Token Address
+            proyectos_por_id = {}
+            proyectos_por_token = {}
+            
+            for idx, row in df_todos.iterrows():
+                proyecto_id = str(row.get('ID', '')).lower()
+                token_addr = str(row.get('Token Address', '')).lower()
+                
                 if proyecto_id:
-                    if proyecto_id not in otc_projects:
-                        otc_projects[proyecto_id] = []
-                    otc_projects[proyecto_id].append(oferta)
+                    proyectos_por_id[proyecto_id] = row
+                if token_addr:
+                    proyectos_por_token[token_addr] = row
             
-            st.write(f"📊 DEBUG: {len(otc_projects)} proyectos únicos con OTC")
-            if otc_projects:
-                st.write(f"IDs encontrados: {list(otc_projects.keys())[:5]}")
-        except Exception as e:
-            st.warning(f"⚠️ No se pudo cargar las ofertas OTC: {str(e)}")
-            otc_projects = {}
-        
-        # Filtrar proyectos que tienen ofertas OTC
-        if otc_projects:
-            df_con_otc = df_todos_temp.copy()
-            df_con_otc['token_address_lower'] = df_con_otc.get('Token Address', '').fillna('').str.lower()
+            # Encontrar proyectos con OTC
+            proyectos_con_otc = []
             
-            # DEBUG
-            st.write(f"📋 DEBUG: Proyectos disponibles tienen estos Token Address:")
-            st.write(df_con_otc[['Nombre del proyecto', 'Token Address']].head(10).to_dict('records'))
+            for clave_otc in ofertas_por_proy.keys():
+                # Buscar en ID o Token Address
+                proyecto_data = proyectos_por_id.get(clave_otc) or proyectos_por_token.get(clave_otc)
+                
+                if proyecto_data is not None:
+                    proyectos_con_otc.append(proyecto_data)
             
-            df_con_otc = df_con_otc[df_con_otc['token_address_lower'].isin(otc_projects.keys())]
-            st.write(f"✅ DEBUG: Después del filtro, {len(df_con_otc)} proyectos tienen OTC")
-            
-            if len(df_con_otc) > 0:
-                # Rankear también estos
+            if proyectos_con_otc:
+                df_con_otc = pd.DataFrame(proyectos_con_otc)
+                
+                # Rankear
                 try:
                     criterios = {
                         'ubicaciones': mercados_seleccionados,
@@ -537,20 +565,23 @@ elif st.session_state.paso_actual == 4:
                 # Agregar columna de precio OTC más bajo
                 otc_prices = []
                 for idx, row in df_con_otc.iterrows():
-                    token_addr = row.get('Token Address', '').lower()
-                    if token_addr in otc_projects:
-                        ofertas = otc_projects[token_addr]
-                        precios = []
-                        for oferta in ofertas:
-                            try:
-                                precio = float(oferta.get('precio_venta', 0))
+                    proyecto_id = str(row.get('ID', '')).lower()
+                    token_addr = str(row.get('Token Address', '')).lower()
+                    clave = proyecto_id or token_addr
+                    
+                    ofertas = ofertas_por_proy.get(clave, [])
+                    precios = []
+                    
+                    for oferta in ofertas:
+                        try:
+                            precio = float(oferta.get('precio_venta', 0))
+                            if precio > 0:
                                 precios.append(precio)
-                            except:
-                                pass
-                        if precios:
-                            otc_prices.append(min(precios))
-                        else:
-                            otc_prices.append(row.get('Precio Emisión', 0))
+                        except:
+                            pass
+                    
+                    if precios:
+                        otc_prices.append(min(precios))
                     else:
                         otc_prices.append(row.get('Precio Emisión', 0))
                 
@@ -567,9 +598,9 @@ elif st.session_state.paso_actual == 4:
                 }
                 st.dataframe(df_display_otc, use_container_width=True, hide_index=True, column_config=column_config)
             else:
-                st.info("📭 No hay proyectos disponibles en OTC en este momento")
+                st.info("📭 No hay proyectos disponibles en OTC")
         else:
-            st.info("📭 No hay proyectos disponibles en OTC en este momento")
+            st.info("📭 No hay ofertas OTC disponibles en este momento")
         
         # ========== CONSTRUIR CARTERA ==========
         st.markdown("")
@@ -577,7 +608,7 @@ elif st.session_state.paso_actual == 4:
         st.markdown("")
         
         # Combinar proyectos
-        df_todos = pd.concat([df_matchean, df_no_matchean], ignore_index=True)
+        df_todos = pd.concat([df_matchean, df_no_matchean], ignore_index=True) if len(df_no_matchean) > 0 else df_matchean.copy()
         
         col_selector, col_distribuir = st.columns([1, 2])
         
@@ -590,6 +621,8 @@ elif st.session_state.paso_actual == 4:
                 proyecto_id = row['ID']
                 proyecto_nombre = row['Nombre del proyecto']
                 token_address = row.get('Token Address', '')
+                proyecto_id_lower = str(proyecto_id).lower()
+                token_address_lower = str(token_address).lower()
                 
                 # Checkbox
                 seleccionado = st.checkbox(
@@ -617,29 +650,36 @@ elif st.session_state.paso_actual == 4:
                     st.markdown(f"**Precio para {proyecto_nombre}:**")
                     
                     precio_emision = row.get('Precio Emisión', 0)
+                    
+                    # Buscar ofertas OTC para este proyecto
+                    clave_otc = proyecto_id_lower or token_address_lower
+                    ofertas_proyecto = ofertas_por_proy.get(clave_otc, [])
+                    
+                    # Construir opciones
+                    opciones_precio = [f"Emisión: {precio_emision:.2f} EUR"]
                     mejores_ofertas = []
                     
-                    try:
-                        ofertas = ofertas_por_proyecto(token_address)
-                        for oferta in ofertas:
-                            try:
-                                precio = float(oferta.get('precio_venta', 0))
-                                divisa = oferta.get('divisa', 'EUR')
-                                n_tokens = oferta.get('n_tokens', 0)
+                    for oferta in ofertas_proyecto:
+                        if oferta.get('estado') != 'activa':
+                            continue
+                        
+                        try:
+                            precio = float(oferta.get('precio_venta', 0))
+                            divisa = oferta.get('divisa', 'EUR')
+                            n_tokens = oferta.get('n_tokens', 0)
+                            inversor = oferta.get('inversor', 'Desconocido')
+                            
+                            if precio > 0:
+                                label = f"OTC: {precio:.2f} {divisa} ({n_tokens} tokens) - {inversor}"
+                                opciones_precio.append(label)
                                 mejores_ofertas.append({
-                                    'label': f"OTC: {precio:.2f} {divisa} ({n_tokens} tokens)",
+                                    'label': label,
                                     'precio': precio,
                                     'divisa': divisa,
                                     'n_tokens': n_tokens
                                 })
-                            except:
-                                continue
-                    except:
-                        pass
-                    
-                    # Opciones
-                    opciones_precio = [f"Emisión: {precio_emision:.2f} EUR"]
-                    opciones_precio.extend([o['label'] for o in mejores_ofertas])
+                        except:
+                            continue
                     
                     precio_seleccionado = st.selectbox(
                         f"Elige precio",
@@ -650,8 +690,14 @@ elif st.session_state.paso_actual == 4:
                     
                     # Guardar precio
                     if "OTC:" in precio_seleccionado:
-                        oferta_idx = opciones_precio.index(precio_seleccionado) - 1
-                        if oferta_idx >= 0 and oferta_idx < len(mejores_ofertas):
+                        # Encontrar índice en mejores_ofertas
+                        oferta_idx = -1
+                        for i, oferta in enumerate(mejores_ofertas):
+                            if oferta['label'] == precio_seleccionado:
+                                oferta_idx = i
+                                break
+                        
+                        if oferta_idx >= 0:
                             st.session_state.precios_compra[proyecto_id] = {
                                 'precio': mejores_ofertas[oferta_idx]['precio'],
                                 'divisa': mejores_ofertas[oferta_idx]['divisa'],
