@@ -1,420 +1,413 @@
 """
-PDF_GENERATOR.PY
+PDF_GENERATOR.PY - Dossier comercial de la cartera simulada.
 
-Incluye precios_compra en:
-- Tabla de cartera (muestra Precio Compra y tipo: Emisión vs OTC)
-- Cálculos de importe con precio real
-- Análisis en PDF con precio actual
+Sigue el guion y el diseño del documento de propuesta del equipo:
+portada, resumen de la cuenta, comparativa por estatus, análisis de la
+cartera, resumen de activos y condiciones de la simulación.
+
+Todo se dibuja con reportlab (también los gráficos), así que no necesita
+librerías adicionales.
+
+Los datos llegan ya calculados desde el Paso 5 de la app en `resumen`,
+para que el PDF muestre exactamente las mismas cifras que la pantalla.
 """
 
 from io import BytesIO
-from datetime import datetime
-import pandas as pd
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch, cm
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, Image
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT, TA_JUSTIFY
+from datetime import date
+
+from reportlab.graphics.charts.barcharts import VerticalBarChart
+from reportlab.graphics.charts.doughnut import Doughnut
+from reportlab.graphics.charts.legends import Legend
+from reportlab.graphics.shapes import Drawing, String
 from reportlab.lib import colors
-from reportlab.pdfgen import canvas
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.units import cm
+from reportlab.platypus import (PageBreak, Paragraph, SimpleDocTemplate,
+                                Spacer, Table, TableStyle)
+
+# ─── Colores y página ────────────────────────────────────────────────────────
+
+DORADO = "#F5A623"
+NAVY = "#0D1B2E"
+AZUL = "#3B82F6"
+
+PDF_DORADO = colors.HexColor(DORADO)
+PDF_NAVY = colors.HexColor(NAVY)
+PDF_GRIS = colors.HexColor("#F2F4F8")
+PDF_BORDE = colors.HexColor("#CBD5E1")
+
+PALETA = ["#F5A623", "#3B82F6", "#4DE4A0", "#1E4080", "#E05C38", "#7ECBA1", "#CC88FF"]
+
+PAGINA = landscape(A4)
+ANCHO_UTIL = PAGINA[0] - 3.0 * cm
+
+ESTATUS_ORDEN = ["Reentel", "ReentelPro", "SuperReentel"]
 
 
-COLOR_NARANJA = colors.HexColor('#ff8c00')
-COLOR_GRIS = colors.HexColor('#666666')
-COLOR_BLANCO = colors.whitesmoke
-COLOR_FONDO = colors.HexColor('#f9f9f9')
+# ─── Formato (estilo español: 1.234,56) ──────────────────────────────────────
+
+def _num(v, dec=2):
+    if v is None:
+        return "—"
+    return f"{v:,.{dec}f}".replace(",", "@").replace(".", ",").replace("@", ".")
 
 
-def generar_pdf_cartera(datos_cliente, proyectos_cartera, distribuciones, df_proyectos, precios_compra=None):
-    """
-    Genera un PDF profesional con la cartera del cliente.
-    
-    Args:
-        datos_cliente: dict con datos personales
-        proyectos_cartera: list de proyectos seleccionados
-        distribuciones: dict con porcentajes
-        df_proyectos: DataFrame con datos
-        precios_compra: dict con precios reales seleccionados {proyecto_id: {precio, divisa, tipo}}
-    
-    Returns:
-        bytes del PDF
-    """
-    
-    if precios_compra is None:
-        precios_compra = {}
-    
-    pdf_buffer = BytesIO()
-    
-    doc = SimpleDocTemplate(
-        pdf_buffer,
-        pagesize=A4,
-        rightMargin=0.6*inch,
-        leftMargin=0.6*inch,
-        topMargin=0.8*inch,
-        bottomMargin=0.8*inch,
-    )
-    
-    styles = getSampleStyleSheet()
-    
-    # Estilos
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=28,
-        textColor=COLOR_NARANJA,
-        spaceAfter=12,
-        alignment=TA_CENTER,
-        fontName='Helvetica-Bold'
-    )
-    
-    subtitle_style = ParagraphStyle(
-        'CustomSubtitle',
-        parent=styles['Heading2'],
-        fontSize=14,
-        textColor=COLOR_GRIS,
-        spaceAfter=24,
-        alignment=TA_CENTER,
-        fontName='Helvetica'
-    )
-    
-    heading_style = ParagraphStyle(
-        'CustomHeading',
-        parent=styles['Heading2'],
-        fontSize=13,
-        textColor=COLOR_NARANJA,
-        spaceAfter=10,
-        spaceBefore=12,
-        fontName='Helvetica-Bold',
-        borderColor=COLOR_NARANJA,
-        borderWidth=2,
-        borderPadding=5
-    )
-    
-    normal_style = ParagraphStyle(
-        'CustomNormal',
-        parent=styles['Normal'],
-        fontSize=10,
-        textColor=colors.black,
-        alignment=TA_LEFT,
-        spaceAfter=6
-    )
-    
-    content = []
-    
-    # ========== PÁGINA 1: PORTADA ==========
-    content.append(Spacer(1, 0.8*inch))
-    content.append(Paragraph("SIMULADOR DE CARTERA", title_style))
-    content.append(Paragraph("INMOBILIARIA REENTAL", title_style))
-    content.append(Spacer(1, 0.3*inch))
-    content.append(Paragraph("Reporte Personalizado de Inversión", subtitle_style))
-    
-    content.append(Spacer(1, 0.5*inch))
-    
-    portada_info = [
-        [f"<b>Inversor:</b> {datos_cliente.get('nombre', 'Cliente')}", 
-         f"<b>Email:</b> {datos_cliente.get('email', 'N/A')}"],
-        [f"<b>Estatus:</b> {datos_cliente.get('estatus', 'Reentel')}", 
-         f"<b>Capital Estimado:</b> {datos_cliente.get('capital', 'N/A')}"],
-        [f"<b>Objetivo:</b> {'Ingresos Pasivos' if 'ingresos' in datos_cliente.get('objetivo', '').lower() else 'Maximizar Rentabilidad'}", 
-         f"<b>Generado:</b> {datetime.now().strftime('%d/%m/%Y')}"],
-    ]
-    
-    portada_table = Table(portada_info, colWidths=[3.2*inch, 3.2*inch])
-    portada_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('TOPPADDING', (0, 0), (-1, -1), 8),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-    ]))
-    
-    content.append(portada_table)
-    content.append(Spacer(1, 1*inch))
-    content.append(Paragraph(
-        "<i>Este documento es informativo y no constituye asesoramiento financiero. "
-        "Consulte con un profesional antes de invertir. "
-        "Los precios mostrados corresponden a precios de emisión y/u ofertas OTC reales al momento de generación.</i>",
-        ParagraphStyle('Disclaimer', parent=styles['Normal'], fontSize=9, textColor=COLOR_GRIS, alignment=TA_CENTER)
-    ))
-    
-    content.append(PageBreak())
-    
-    # ========== PÁGINA 2: RESUMEN Y CARTERA ==========
-    content.append(Paragraph("1. RESUMEN EJECUTIVO", heading_style))
-    content.append(Spacer(1, 0.2*inch))
-    
-    kpi_data = [
-        ['KPI', 'Valor'],
-        ['Número de Proyectos', str(len(proyectos_cartera))],
-        ['Distribución', datos_cliente.get('distribucion', 'Partes iguales')],
-        ['Mercados', ', '.join(datos_cliente.get('mercados', ['Global']))],
-        ['Estatus Seleccionado', datos_cliente.get('estatus', 'Reentel')],
-    ]
-    
-    kpi_table = Table(kpi_data, colWidths=[2.5*inch, 3.9*inch])
-    kpi_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), COLOR_NARANJA),
-        ('TEXTCOLOR', (0, 0), (-1, 0), COLOR_BLANCO),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
-        ('TOPPADDING', (0, 0), (-1, 0), 10),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.lightgrey),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, COLOR_FONDO]),
-    ]))
-    
-    content.append(kpi_table)
-    content.append(Spacer(1, 0.3*inch))
-    
-    # ========== TABLA CARTERA CON PRECIO_COMPRA ==========
-    content.append(Paragraph("2. CARTERA DE INVERSIÓN (CON PRECIOS REALES)", heading_style))
-    content.append(Spacer(1, 0.2*inch))
-    
-    cartera_data = [['Proyecto', 'Ubicación', 'Precio Compra', 'Rent. Anual', '% Invertido']]
-    
-    for proyecto in proyectos_cartera:
-        proyecto_id = proyecto['id']
-        proyecto_row = df_proyectos[df_proyectos['ID'] == proyecto_id]
-        
-        if len(proyecto_row) > 0:
-            row = proyecto_row.iloc[0]
-            porcentaje = distribuciones.get(proyecto_id, {}).get('porcentaje', 0)
-            rentabilidad = row.get('Rentabilidad_Anualizada_SuperReentel', 0)
-            
-            # NUEVO: Mostrar precio_compra real
-            precio_info = precios_compra.get(proyecto_id, {})
-            precio_compra = precio_info.get('precio', row.get('Precio Emisión', 0))
-            tipo_precio = precio_info.get('tipo', 'Emisión')
-            
-            precio_str = f"€{precio_compra:.2f} ({tipo_precio})"
-            
-            cartera_data.append([
-                proyecto['nombre'][:35],
-                row.get('Ubicación', 'N/A'),
-                precio_str,
-                f"{rentabilidad:.2f}%",
-                f"{porcentaje:.1f}%"
-            ])
-    
-    cartera_table = Table(cartera_data, colWidths=[1.6*inch, 1.0*inch, 1.3*inch, 1.1*inch, 0.9*inch])
-    cartera_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), COLOR_NARANJA),
-        ('TEXTCOLOR', (0, 0), (-1, 0), COLOR_BLANCO),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 9),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-        ('TOPPADDING', (0, 0), (-1, 0), 8),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.lightgrey),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, COLOR_FONDO]),
-    ]))
-    
-    content.append(cartera_table)
-    content.append(Spacer(1, 0.3*inch))
-    
-    # Nota sobre precios
-    content.append(Paragraph(
-        "<b>Nota de Precios:</b> Emisión = Precio oficial del token | OTC = Precio de compra en mercado secundario (oferta real)",
-        ParagraphStyle('Note', parent=styles['Normal'], fontSize=8, textColor=COLOR_GRIS)
-    ))
-    content.append(Spacer(1, 0.2*inch))
-    
-    # ========== ANÁLISIS POR UBICACIÓN ==========
-    content.append(Paragraph("3. ANÁLISIS POR UBICACIÓN", heading_style))
-    content.append(Spacer(1, 0.2*inch))
-    
-    ubicaciones = {}
-    for proyecto in proyectos_cartera:
-        proyecto_id = proyecto['id']
-        proyecto_row = df_proyectos[df_proyectos['ID'] == proyecto_id]
-        if len(proyecto_row) > 0:
-            ubicacion = proyecto_row.iloc[0].get('Ubicación', 'N/A')
-            porcentaje = distribuciones.get(proyecto_id, {}).get('porcentaje', 0)
-            
-            if ubicacion not in ubicaciones:
-                ubicaciones[ubicacion] = {'porcentaje': 0, 'count': 0}
-            ubicaciones[ubicacion]['porcentaje'] += porcentaje
-            ubicaciones[ubicacion]['count'] += 1
-    
-    ubicacion_data = [['Ubicación', 'Proyectos', '% Cartera']]
-    for ub, info in sorted(ubicaciones.items()):
-        ubicacion_data.append([ub, str(info['count']), f"{info['porcentaje']:.1f}%"])
-    
-    ubicacion_table = Table(ubicacion_data, colWidths=[2.5*inch, 1.5*inch, 2.4*inch])
-    ubicacion_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), COLOR_NARANJA),
-        ('TEXTCOLOR', (0, 0), (-1, 0), COLOR_BLANCO),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-        ('TOPPADDING', (0, 0), (-1, 0), 8),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.lightgrey),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, COLOR_FONDO]),
-    ]))
-    
-    content.append(ubicacion_table)
-    
-    content.append(PageBreak())
-    
-    # ========== PÁGINA 3: PROYECCIONES ==========
-    content.append(Paragraph("4. PROYECCIONES DE PATRIMONIO", heading_style))
-    content.append(Spacer(1, 0.2*inch))
-    
-    capital_map = {
-        "Menos de 5.000": 2500,
-        "Entre 5.000 y 10.000": 7500,
-        "Entre 10.000 y 50.000": 30000,
-        "Más de 50.000": 100000
+def _dinero(v, divisa="EUR"):
+    if v is None:
+        return "—"
+    return f"${_num(v)}" if divisa == "USD" else f"{_num(v)} €"
+
+
+def _pct(v, dec=2):
+    """v en unidades de porcentaje (10.22 -> '10,22 %')."""
+    return "—" if v is None else f"{_num(v, dec)} %"
+
+
+# ─── Estilos y piezas ────────────────────────────────────────────────────────
+
+def _estilos():
+    return {
+        "h1": ParagraphStyle("h1", fontSize=30, leading=34, fontName="Helvetica-Bold",
+                             textColor=colors.white, alignment=TA_LEFT),
+        "h1sub": ParagraphStyle("h1s", fontSize=14, leading=18, fontName="Helvetica",
+                                textColor=colors.HexColor("#AAB6C8"), alignment=TA_LEFT),
+        "txt": ParagraphStyle("txt", fontSize=9.5, leading=13, fontName="Helvetica",
+                              textColor=PDF_NAVY, alignment=TA_LEFT),
+        "nota": ParagraphStyle("nota", fontSize=7.5, leading=10, fontName="Helvetica",
+                               textColor=colors.HexColor("#5A6675"), alignment=TA_LEFT),
+        "cel": ParagraphStyle("cel", fontSize=8, leading=10.5, fontName="Helvetica",
+                              textColor=PDF_NAVY, alignment=TA_CENTER),
+        "celL": ParagraphStyle("celL", fontSize=8, leading=10.5, fontName="Helvetica",
+                               textColor=PDF_NAVY, alignment=TA_LEFT),
+        "cab": ParagraphStyle("cab", fontSize=8, leading=10.5, fontName="Helvetica-Bold",
+                              textColor=colors.white, alignment=TA_CENTER),
+        "cabL": ParagraphStyle("cabL", fontSize=8, leading=10.5, fontName="Helvetica-Bold",
+                               textColor=colors.white, alignment=TA_LEFT),
+        "kpiv": ParagraphStyle("kpiv", fontSize=20, leading=24, fontName="Helvetica-Bold",
+                               textColor=PDF_DORADO, alignment=TA_CENTER),
+        "kpil": ParagraphStyle("kpil", fontSize=8, leading=11, fontName="Helvetica",
+                               textColor=PDF_NAVY, alignment=TA_CENTER),
     }
-    
-    capital_text = datos_cliente.get('capital', 'Entre 10.000 y 50.000')
-    capital_estimado = capital_map.get(capital_text, 75000)
-    
-    from modules.calculo_cartera import CalculadoraCartera
-    
-    estatus = datos_cliente.get('estatus', 'Reentel')
-    calculadora = CalculadoraCartera(estatus)
-    
-    rentabilidad_promedio = 0
-    for proyecto in proyectos_cartera:
-        proyecto_id = proyecto['id']
-        proyecto_row = df_proyectos[df_proyectos['ID'] == proyecto_id]
-        if len(proyecto_row) > 0:
-            porcentaje = distribuciones.get(proyecto_id, {}).get('porcentaje', 0) / 100
-            try:
-                rentabilidad_pct = float(str(proyecto_row.iloc[0].get('Rentabilidad_Anualizada_SuperReentel', 0)).replace('%', ''))
-                rentabilidad = rentabilidad_pct / 100
-            except:
-                rentabilidad = 0
-            rentabilidad_promedio += rentabilidad * porcentaje
-    
-    proyecciones_data = [['Plazo', 'Capital Inicial', 'Capital Final', 'Ganancia', 'ROI']]
-    
-    for meses in [6, 12, 24, 36, 60]:
-        capital_final = calculadora.calcular_proyeccion(capital_estimado, rentabilidad_promedio, meses)
-        ganancia = capital_final - capital_estimado
-        roi = (ganancia / capital_estimado * 100) if capital_estimado > 0 else 0
-        
-        proyecciones_data.append([
-            f"{meses} meses",
-            f"€{capital_estimado:,.0f}",
-            f"€{capital_final:,.0f}",
-            f"€{ganancia:,.0f}",
-            f"{roi:.2f}%"
-        ])
-    
-    proyecciones_table = Table(proyecciones_data, colWidths=[0.9*inch, 1.3*inch, 1.3*inch, 1.2*inch, 1.0*inch])
-    proyecciones_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), COLOR_NARANJA),
-        ('TEXTCOLOR', (0, 0), (-1, 0), COLOR_BLANCO),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 9),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-        ('TOPPADDING', (0, 0), (-1, 0), 8),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.lightgrey),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, COLOR_FONDO]),
-    ]))
-    
-    content.append(proyecciones_table)
-    content.append(Spacer(1, 0.3*inch))
-    
-    content.append(Paragraph(
-        f"<b>Capital Estimado:</b> €{capital_estimado:,.0f} | "
-        f"<b>Rentabilidad Promedio Anual:</b> {rentabilidad_promedio*100:.2f}%",
-        ParagraphStyle('Note', parent=styles['Normal'], fontSize=9, textColor=COLOR_GRIS)
-    ))
-    content.append(Spacer(1, 0.3*inch))
-    
-    # Resumen técnico
-    content.append(Paragraph("5. RESUMEN TÉCNICO", heading_style))
-    content.append(Spacer(1, 0.2*inch))
-    
-    tech_data = [
-        ['Parámetro', 'Valor'],
-        ['Número de Proyectos', str(len(proyectos_cartera))],
-        ['Rentabilidad Media Ponderada', f"{rentabilidad_promedio*100:.2f}%"],
-        ['Diversificación por Ubicación', f"{len(ubicaciones)} mercados"],
-        ['Precios: Emisión vs OTC', "Ambos tipos incluidos"],
-        ['Plazo de Análisis', '6 a 60 meses'],
-    ]
-    
-    tech_table = Table(tech_data, colWidths=[2.5*inch, 3.9*inch])
-    tech_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), COLOR_NARANJA),
-        ('TEXTCOLOR', (0, 0), (-1, 0), COLOR_BLANCO),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
-        ('TOPPADDING', (0, 0), (-1, 0), 10),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.lightgrey),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, COLOR_FONDO]),
-    ]))
-    
-    content.append(tech_table)
-    
-    content.append(PageBreak())
-    
-    # ========== PÁGINA 4: AVISO LEGAL ==========
-    content.append(Paragraph("AVISO LEGAL Y TÉRMINOS", heading_style))
-    content.append(Spacer(1, 0.2*inch))
-    
-    legal_text = f"""
-    <b>Responsabilidad y Limitaciones:</b><br/>
-    Este documento es información educativa y no constituye asesoramiento financiero, fiscal o legal. 
-    Las proyecciones mostradas son estimaciones basadas en datos históricos y parámetros actuales, 
-    y pueden no reflejar resultados futuros. La rentabilidad pasada no garantiza resultados futuros.<br/><br/>
-    
-    <b>Precios Utilizados:</b><br/>
-    • Emisión: Precio oficial del token en su lanzamiento o programa de inversión.<br/>
-    • OTC: Precio de compra en mercado secundario / ofertas reales disponibles.<br/>
-    • Los precios pueden cambiar sin previo aviso.<br/><br/>
-    
-    <b>Riesgos de Inversión:</b><br/>
-    • Las inversiones inmobiliarias conllevan riesgos de liquidez, mercado y crédito.<br/>
-    • Los rendimientos pueden ser menores a los proyectados.<br/>
-    • El mercado OTC es menos líquido que el mercado principal.<br/>
-    • Consulte con un asesor financiero independiente antes de invertir.<br/><br/>
-    
-    <b>Datos y Privacidad:</b><br/>
-    Este documento contiene información confidencial y personal. Úselo únicamente para fines de análisis personal.
-    No comparta con terceros sin consentimiento.<br/><br/>
-    
-    <b>Fecha de Generación:</b> {datetime.now().strftime('%d de %B de %Y a las %H:%M')}<br/>
-    <b>Herramienta:</b> Simulador de Cartera Inmobiliaria Reental (FASE 3 - Precios OTC)
+
+
+def _banda(titulo):
+    t = Table([[Paragraph(titulo, ParagraphStyle("b", fontSize=11, leading=14,
+                                                 fontName="Helvetica-Bold",
+                                                 textColor=colors.white))]],
+              colWidths=[ANCHO_UTIL])
+    t.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), PDF_NAVY),
+                           ("TOPPADDING", (0, 0), (-1, -1), 7),
+                           ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+                           ("LEFTPADDING", (0, 0), (-1, -1), 10)]))
+    return t
+
+
+def _tabla(cab, filas, anchos, E):
+    data = [[Paragraph(str(c), E["cabL"] if i == 0 else E["cab"]) for i, c in enumerate(cab)]]
+    for f in filas:
+        data.append([Paragraph(str(v), E["celL"] if i == 0 else E["cel"]) for i, v in enumerate(f)])
+    t = Table(data, colWidths=anchos, repeatRows=1)
+    ts = [("GRID", (0, 0), (-1, -1), 0.4, PDF_BORDE),
+          ("BACKGROUND", (0, 0), (-1, 0), PDF_NAVY),
+          ("TOPPADDING", (0, 0), (-1, -1), 4),
+          ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+          ("VALIGN", (0, 0), (-1, -1), "MIDDLE")]
+    for i in range(1, len(data)):
+        ts.append(("BACKGROUND", (0, i), (-1, i), PDF_GRIS if i % 2 == 0 else colors.white))
+    t.setStyle(TableStyle(ts))
+    return t
+
+
+def _kpis(items, E):
+    """Fila de tarjetas (valor, etiqueta)."""
+    ancho = ANCHO_UTIL / len(items)
+    celdas = [Table([[Paragraph(v, E["kpiv"])], [Paragraph(l, E["kpil"])]], colWidths=[ancho - 0.4 * cm])
+              for v, l in items]
+    t = Table([celdas], colWidths=[ancho] * len(items))
+    t.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), PDF_GRIS),
+                           ("INNERGRID", (0, 0), (-1, -1), 2, colors.white),
+                           ("TOPPADDING", (0, 0), (-1, -1), 10),
+                           ("BOTTOMPADDING", (0, 0), (-1, -1), 10)]))
+    return t
+
+
+# ─── Gráficos (reportlab) ────────────────────────────────────────────────────
+
+def _donut(reparto, titulo, ancho, alto=7.5 * cm):
+    """Anillo con el peso (%) de cada categoría y su leyenda debajo."""
+    d = Drawing(ancho, alto)
+    d.add(String(ancho / 2, alto - 12, titulo, fontName="Helvetica-Bold",
+                 fontSize=10, fillColor=PDF_NAVY, textAnchor="middle"))
+
+    items = [(k, v) for k, v in reparto.items() if v and v > 0]
+    if not items:
+        return d
+
+    radio = min(ancho, alto) * 0.30
+    dn = Doughnut()
+    dn.x = ancho / 2 - radio
+    dn.y = alto - 22 - 2 * radio
+    dn.width = dn.height = 2 * radio
+    dn.data = [v for _, v in items]
+    dn.labels = [f"{_num(v, 0)} %" for _, v in items]
+    dn.innerRadiusFraction = 0.55
+    dn.slices.strokeColor = colors.white
+    dn.slices.strokeWidth = 1
+    dn.slices.fontName = "Helvetica"
+    dn.slices.fontSize = 7
+    dn.slices.fontColor = PDF_NAVY
+    dn.slices.labelRadius = 1.25
+    for i in range(len(items)):
+        dn.slices[i].fillColor = colors.HexColor(PALETA[i % len(PALETA)])
+    d.add(dn)
+
+    ley = Legend()
+    ley.x = 10
+    ley.y = dn.y - 14
+    ley.fontName = "Helvetica"
+    ley.fontSize = 7
+    ley.alignment = "right"
+    ley.columnMaximum = 3
+    ley.deltax = ancho / 2 - 10
+    ley.dxTextSpace = 4
+    ley.boxAnchor = "nw"
+    ley.colorNamePairs = [(colors.HexColor(PALETA[i % len(PALETA)]), f"{k} — {_num(v, 1)} %")
+                          for i, (k, v) in enumerate(items)]
+    d.add(ley)
+    return d
+
+
+def _barras_estatus(comparativa, divisa, meses, ancho, alto=6.5 * cm):
+    """Ganancia a N meses por estatus."""
+    d = Drawing(ancho, alto)
+    filas = [c for c in comparativa if c.get("ganancia") is not None]
+    if not filas:
+        return d
+
+    bc = VerticalBarChart()
+    bc.x, bc.y = 55, 30
+    bc.width, bc.height = ancho - 80, alto - 55
+    bc.data = [[c["ganancia"] for c in filas]]
+    bc.categoryAxis.categoryNames = [c["estatus"] for c in filas]
+    bc.categoryAxis.labels.fontName = "Helvetica"
+    bc.categoryAxis.labels.fontSize = 8
+    bc.valueAxis.valueMin = 0
+    bc.valueAxis.labels.fontName = "Helvetica"
+    bc.valueAxis.labels.fontSize = 7
+    bc.valueAxis.labelTextFormat = lambda v: _num(v, 0)
+    bc.barWidth = 18
+    bc.barLabelFormat = lambda v: _dinero(v, divisa)
+    bc.barLabels.fontName = "Helvetica-Bold"
+    bc.barLabels.fontSize = 7
+    bc.barLabels.nudge = 7
+    colores = [AZUL, "#1E4080", DORADO]
+    for i in range(len(filas)):
+        bc.bars[(0, i)].fillColor = colors.HexColor(colores[i % 3])
+        bc.bars[(0, i)].strokeColor = None
+    d.add(bc)
+    d.add(String(ancho / 2, alto - 10, f"Ganancia a {meses} meses por estatus",
+                 fontName="Helvetica-Bold", fontSize=10, fillColor=PDF_NAVY, textAnchor="middle"))
+    return d
+
+
+# ─── Resumen mínimo si la app no lo envía ────────────────────────────────────
+
+def _resumen_basico(datos_cliente, proyectos_cartera, distribuciones, df_proyectos, precios_compra):
+    filas = []
+    for p in proyectos_cartera:
+        fila = df_proyectos[df_proyectos["ID"] == p["id"]]
+        ub = fila.iloc[0].get("Ubicación", "") if len(fila) else ""
+        info = precios_compra.get(p["id"], {})
+        filas.append({
+            "Proyecto": p["nombre"], "Ubicación": ub,
+            "Precio de compra": f"{_num(info.get('precio', 0))} {info.get('divisa', 'EUR')} ({info.get('tipo', 'Emisión')})",
+            "Tipo de dividendo": "-", "Rentabilidad anualizada": None, "Rentabilidad total": None,
+            "% cartera": distribuciones.get(p["id"], {}).get("porcentaje", 0), "Importe": None,
+        })
+    return {"divisa": (datos_cliente.get("divisa") or "EUR").upper(), "estatus": datos_cliente.get("estatus") or "Reentel",
+            "n_inmuebles": len(filas), "proyectos": filas, "repartos": {}, "comparativa": [],
+            "tipo_cambio": None, "precio_rnt": None, "staking": None, "rnt_estatus": 0,
+            "importe_inmuebles": None, "coste_estatus": None, "capital_total": None,
+            "rentabilidad_media": None, "meses": 36}
+
+
+# ─── Documento ───────────────────────────────────────────────────────────────
+
+def generar_pdf_cartera(datos_cliente, proyectos_cartera, distribuciones, df_proyectos,
+                        precios_compra=None, resumen=None):
+    """Genera el PDF y devuelve sus bytes.
+
+    `resumen` lo prepara el Paso 5 de la app con todas las cifras ya calculadas.
     """
-    
-    content.append(Paragraph(legal_text, ParagraphStyle(
-        'Legal',
-        parent=styles['Normal'],
-        fontSize=8,
-        textColor=COLOR_GRIS,
-        alignment=TA_JUSTIFY,
-        spaceAfter=12
-    )))
-    
-    content.append(Spacer(1, 0.3*inch))
-    
-    footer = Paragraph(
-        "<b>© 2024 Reental Wealth Services. Todos los derechos reservados.</b><br/>"
-        "Para más información: <a href='https://reental.com'>www.reental.com</a>",
-        ParagraphStyle(
-            'Footer',
-            parent=styles['Normal'],
-            fontSize=9,
-            textColor=COLOR_NARANJA,
-            alignment=TA_CENTER,
-            spaceAfter=10
-        )
-    )
-    content.append(footer)
-    
-    # Construir PDF
-    doc.build(content)
-    
-    pdf_buffer.seek(0)
-    return pdf_buffer.getvalue()
+    precios_compra = precios_compra or {}
+    R = resumen or _resumen_basico(datos_cliente, proyectos_cartera, distribuciones,
+                                   df_proyectos, precios_compra)
+    E = _estilos()
+    hoy = date.today()
+
+    divisa = R.get("divisa", "EUR")
+    estatus = R.get("estatus", "Reentel")
+    tc = R.get("tipo_cambio")
+
+    def en(importe, hacia):
+        """Convierte un importe de la divisa del cliente a EUR o USD."""
+        if importe is None or tc is None:
+            return importe if hacia == divisa else None
+        if hacia == divisa:
+            return importe
+        return importe * tc if divisa == "EUR" else importe / tc
+
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=PAGINA,
+                            leftMargin=1.5 * cm, rightMargin=1.5 * cm,
+                            topMargin=1.3 * cm, bottomMargin=1.6 * cm,
+                            title=f"Propuesta Reental — {datos_cliente.get('nombre', '')}",
+                            author="Reental Wealth")
+    story = []
+
+    # ── 1. Portada ───────────────────────────────────────────────────────────
+    portada = Table(
+        [[Paragraph("SIMULACIÓN DE CARTERA INMOBILIARIA", E["h1"])],
+         [Spacer(1, 0.4 * cm)],
+         [Paragraph(f"Propuesta para <b>{datos_cliente.get('nombre') or '—'}</b>", E["h1sub"])],
+         [Paragraph(f"Estatus propuesto: <font color='{DORADO}'><b>{estatus}</b></font>", E["h1sub"])],
+         [Spacer(1, 1.2 * cm)],
+         [Paragraph(f"Elaborado por el servicio <b>Reental Wealth</b> · {hoy.strftime('%d/%m/%Y')}",
+                    E["h1sub"])]],
+        colWidths=[ANCHO_UTIL])
+    portada.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), PDF_NAVY),
+                                 ("LEFTPADDING", (0, 0), (-1, -1), 28),
+                                 ("RIGHTPADDING", (0, 0), (-1, -1), 28),
+                                 ("TOPPADDING", (0, 0), (0, 0), 46),
+                                 ("BOTTOMPADDING", (0, -1), (-1, -1), 46)]))
+    inversor = [
+        ["Titular", datos_cliente.get("nombre", "—"), "Capital a invertir", f"{datos_cliente.get('capital', '—')} {divisa}"],
+        ["Email", datos_cliente.get("email", "—"), "Objetivo", datos_cliente.get("objetivo", "—")],
+        ["Estatus elegido", estatus, "Distribución de la cartera", datos_cliente.get("distribucion", "—")],
+    ]
+    story += [portada, Spacer(1, 0.5 * cm),
+              _tabla(["Inversor", "", "", ""], inversor,
+                     [ANCHO_UTIL * c for c in (0.14, 0.30, 0.18, 0.38)], E),
+              Spacer(1, 0.4 * cm),
+              Paragraph("Los inversores de Reental se agrupan en tres categorías. SuperReentel es la más alta "
+                        "y puede alcanzar hasta un 50 % más de rendimiento en cada proyecto; después ReentelPro "
+                        "y, como categoría base, Reentel.", E["nota"]),
+              PageBreak()]
+
+    # ── 2. Resumen de la cuenta ──────────────────────────────────────────────
+    story += [_banda("RESUMEN DE LA CUENTA"), Spacer(1, 0.4 * cm),
+              _kpis([(_num(R.get("n_inmuebles"), 0), "inmuebles en cartera"),
+                     (_dinero(R.get("importe_inmuebles"), divisa), "invertido en inmuebles"),
+                     (_dinero(R.get("coste_estatus"), divisa), f"coste del estatus {estatus}"),
+                     (_pct(R.get("rentabilidad_media")), f"rentabilidad anualizada estimada · {estatus}")], E),
+              Spacer(1, 0.5 * cm)]
+
+    filas_cuenta = [
+        ["Inversión en inmuebles", _dinero(en(R.get("importe_inmuebles"), "EUR")),
+         _dinero(en(R.get("importe_inmuebles"), "USD"), "USD")],
+        [f"Adquisición del estatus {estatus} ({_num(R.get('rnt_estatus'), 0)} RNT)",
+         _dinero(en(R.get("coste_estatus"), "EUR")), _dinero(en(R.get("coste_estatus"), "USD"), "USD")],
+        ["<b>Capital total desplegado</b>", f"<b>{_dinero(en(R.get('capital_total'), 'EUR'))}</b>",
+         f"<b>{_dinero(en(R.get('capital_total'), 'USD'), 'USD')}</b>"],
+    ]
+    story += [_tabla(["Concepto", "Importe (€)", "Importe ($)"], filas_cuenta,
+                     [ANCHO_UTIL * 0.5, ANCHO_UTIL * 0.25, ANCHO_UTIL * 0.25], E),
+              Spacer(1, 0.5 * cm)]
+
+    comp = {c["estatus"]: c for c in R.get("comparativa", [])}
+    if comp:
+        base, prop = comp.get("Reentel", {}), comp.get(estatus, {})
+        story.append(_tabla(
+            ["Rentabilidad estimada de la cartera", "Reentel (base)", f"{estatus} (propuesto)"],
+            [["Anualizada media", _pct(base.get("rent_anual")), _pct(prop.get("rent_anual"))],
+             [f"Ganancia a {R.get('meses', 36)} meses", _dinero(base.get("ganancia"), divisa),
+              _dinero(prop.get("ganancia"), divisa)]],
+            [ANCHO_UTIL * 0.5, ANCHO_UTIL * 0.25, ANCHO_UTIL * 0.25], E))
+        story.append(Spacer(1, 0.35 * cm))
+
+    story += [Paragraph(
+        "Cada rentabilidad se pondera por el porcentaje de la cartera invertido en cada proyecto. "
+        f"Tipo de cambio aplicado: 1 € = {_num(tc, 4)} $. Precio del RNT tomado del pool RNT/USDT: "
+        f"{_num(R.get('precio_rnt'), 4)} $.", E["nota"]),
+        PageBreak()]
+
+    # ── 3. Comparativa por estatus ───────────────────────────────────────────
+    if R.get("comparativa"):
+        meses = R.get("meses", 36)
+        story += [_banda("COMPARATIVA POR ESTATUS"), Spacer(1, 0.35 * cm),
+                  _barras_estatus(R["comparativa"], divisa, meses, ANCHO_UTIL * 0.9),
+                  Spacer(1, 0.35 * cm)]
+        filas = [[c["estatus"], _dinero(c.get("ganancia"), divisa), _pct(c.get("rent_cartera")),
+                  _pct(c.get("rent_total")), _dinero(c.get("coste"), divisa)]
+                 for c in R["comparativa"]]
+        story += [_tabla(["Estatus", f"Ganancia a {meses} meses", "Rent. sobre la cartera",
+                          "Rent. sobre el capital total", "Coste del estatus"], filas,
+                         [ANCHO_UTIL * c for c in (0.24, 0.19, 0.19, 0.19, 0.19)], E),
+                  Spacer(1, 0.3 * cm),
+                  Paragraph(
+                      "La ganancia incluye lo que producen los inmuebles con la rentabilidad de cada estatus y "
+                      f"el rendimiento del staking de los RNT del estatus ({_pct(R.get('staking'))} anual). "
+                      "La rentabilidad sobre el capital total incluye la compra del estatus: el RNT adquirido "
+                      "no se consume, se conserva y además genera rendimiento en staking.", E["nota"]),
+                  PageBreak()]
+
+    # ── 4. Análisis de la cartera ────────────────────────────────────────────
+    repartos = R.get("repartos") or {}
+    if repartos:
+        story += [_banda("ANÁLISIS DE LA CARTERA PROPUESTA"), Spacer(1, 0.5 * cm)]
+        n = len(repartos)
+        graficos = [_donut(rep, titulo, ANCHO_UTIL / n - 0.3 * cm) for titulo, rep in repartos.items()]
+        t = Table([graficos], colWidths=[ANCHO_UTIL / n] * n)
+        t.setStyle(TableStyle([("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                               ("VALIGN", (0, 0), (-1, -1), "TOP")]))
+        story += [t, PageBreak()]
+
+    # ── 5. Resumen de activos ────────────────────────────────────────────────
+    story += [_banda("RESUMEN DE ACTIVOS"), Spacer(1, 0.35 * cm)]
+    filas = []
+    for p in R.get("proyectos", []):
+        filas.append([f"<b>{p.get('Proyecto', '')}</b>", p.get("Ubicación", "—"),
+                      p.get("Precio de compra", "—"), p.get("Tipo de dividendo", "—"),
+                      _pct(p.get("Rentabilidad anualizada")), _pct(p.get("Rentabilidad total")),
+                      _pct(p.get("% cartera"), 1), _dinero(p.get("Importe"), divisa)])
+    story += [_tabla(["Inmueble", "Ubicación", "Precio de compra", "Tipo de dividendo",
+                      f"Rent. anualizada ({estatus})", "Rent. total", "% cartera", "Inversión"],
+                     filas, [ANCHO_UTIL * c for c in (0.19, 0.10, 0.17, 0.14, 0.11, 0.09, 0.08, 0.12)], E),
+              Spacer(1, 0.3 * cm),
+              Paragraph("<b>Emisión</b> = precio oficial del token en su lanzamiento · <b>OTC</b> = precio de "
+                        "una oferta real en el mercado secundario en la fecha de este documento.", E["nota"]),
+              PageBreak()]
+
+    # ── 6. Condiciones ───────────────────────────────────────────────────────
+    story += [_banda("CONDICIONES DE ESTA SIMULACIÓN"), Spacer(1, 0.4 * cm),
+              Paragraph(
+                  "Este documento es una <b>simulación con fines informativos</b> y no constituye "
+                  "asesoramiento financiero, fiscal ni una oferta de inversión. Las rentabilidades indicadas "
+                  "como estimadas son proyecciones basadas en los datos de cada proyecto en la fecha de "
+                  "emisión de este documento y <b>no garantizan resultados futuros</b>. La inversión "
+                  "inmobiliaria tokenizada conlleva riesgo de pérdida del capital. El mercado OTC es menos "
+                  "líquido que el mercado primario.", E["txt"]),
+              Spacer(1, 0.3 * cm),
+              Paragraph(
+                  "Fuentes y supuestos: datos de proyecto del maestro de inmuebles de Reental; precio del RNT "
+                  f"tomado del pool RNT/USDT ({_num(R.get('precio_rnt'), 4)} $); tipo de cambio de referencia "
+                  f"del Banco Central Europeo (1 € = {_num(tc, 4)} $); rendimiento de staking del RNT "
+                  f"{_pct(R.get('staking'))}. Los importes en una divisa distinta a la elegida son conversiones "
+                  "a la fecha de emisión y variarán con el tipo de cambio.", E["nota"])]
+
+    # ── Pie de página ────────────────────────────────────────────────────────
+    def _pie(canvas, doc_):
+        canvas.saveState()
+        ancho, _alto = PAGINA
+        canvas.setFont("Helvetica", 7)
+        canvas.setFillColor(colors.HexColor("#8A94A6"))
+        canvas.drawString(1.5 * cm, 0.9 * cm,
+                          f"Reental Wealth · Simulación de cartera · {hoy.strftime('%d/%m/%Y')} · "
+                          "No constituye asesoramiento ni oferta de inversión")
+        canvas.drawRightString(ancho - 1.5 * cm, 0.9 * cm, str(canvas.getPageNumber()))
+        canvas.restoreState()
+
+    doc.build(story, onFirstPage=_pie, onLaterPages=_pie)
+    return buf.getvalue()
