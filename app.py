@@ -259,10 +259,10 @@ CONFIG_COLUMNAS_PASO4 = {
 }
 
 # ========== SUPUESTOS DE MERCADO POR DEFECTO (Paso 5) ==========
-# Son los valores iniciales; el usuario puede cambiarlos en el Paso 5.
+# Se usan si no se puede leer el valor real. No son editables por el usuario.
 TIPO_CAMBIO_DEFECTO = 1.14      # USD por 1 €
 PRECIO_RNT_DEFECTO = 0.32       # USDT por 1 RNT
-STAKING_RNT_DEFECTO = 0.0       # % anual del staking de RNT
+STAKING_RNT = 3.5               # % anual del staking de RNT (fijo)
 # RNT necesarios para cada estatus
 RNT_POR_ESTATUS = {'SuperReentel': 28000, 'ReentelPro': 14000, 'Reentel': 0}
 
@@ -914,16 +914,14 @@ elif st.session_state.paso_actual == 5:
         
         # ========== 2) SUPUESTOS DE MERCADO ==========
         st.markdown("### Supuestos de mercado")
+        tipo_cambio = tipo_cambio_actual()
+        precio_rnt = precio_rnt_actual()
+        staking_rnt = STAKING_RNT
+        
         col1, col2, col3 = st.columns(3)
-        with col1:
-            tipo_cambio = st.number_input("Tipo de cambio (USD por 1 €)", min_value=0.01,
-                                          value=tipo_cambio_actual(), step=0.01, format="%.4f", key="sup_tipo_cambio")
-        with col2:
-            precio_rnt = st.number_input("Precio del RNT (USDT)", min_value=0.0,
-                                         value=precio_rnt_actual(), step=0.001, format="%.4f", key="sup_precio_rnt")
-        with col3:
-            staking_rnt = st.number_input("Rendimiento del staking de RNT (% anual)", min_value=0.0,
-                                          value=STAKING_RNT_DEFECTO, step=0.1, format="%.2f", key="sup_staking")
+        col1.metric("Tipo de cambio (USD por 1 €)", f"{tipo_cambio:.4f}")
+        col2.metric("Precio del RNT (USDT)", f"{precio_rnt:.4f}")
+        col3.metric("Rendimiento del staking de RNT (% anual)", f"{staking_rnt:.2f} %")
         
         def convertir(importe, desde, hacia):
             desde = 'USD' if str(desde).upper() in ('USD', 'USDT') else 'EUR'
@@ -998,7 +996,6 @@ elif st.session_state.paso_actual == 5:
             filas_graficos.append({
                 'ubicacion': str(row.get('Ubicación', '') or 'Sin dato'),
                 'tipologia': tipologia or 'Sin dato',
-                'emision': str(row.get('Emisión', '') or 'Sin dato'),
                 'divisa': str(row.get('Divisa', '') or 'Sin dato'),
                 'peso': peso,
             })
@@ -1065,14 +1062,10 @@ elif st.session_state.paso_actual == 5:
                 return (arco + texto).properties(title=titulo, height=290)
             
             st.markdown("")
-            g1, g2, g3, g4 = st.columns(4)
+            g1, g2, g3 = st.columns(3)
             g1.altair_chart(donut('ubicacion', 'Distribución geográfica'), use_container_width=True)
             g2.altair_chart(donut('tipologia', 'Tipología de dividendo'), use_container_width=True)
-            g3.altair_chart(donut('emision', 'Emisión de tokenización'), use_container_width=True)
-            g4.altair_chart(donut('divisa', 'Divisa del inmueble'), use_container_width=True)
-            
-            st.caption("Cada reparto se pondera por el % de la cartera. La emisión de tokenización indica bajo qué "
-                       "estructura se emitió el token, que no coincide necesariamente con dónde está el inmueble ni con su moneda.")
+            g3.altair_chart(donut('divisa', 'Divisa del inmueble'), use_container_width=True)
         
         st.markdown("---")
         
