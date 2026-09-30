@@ -176,6 +176,51 @@ def cargar_ofertas_otc():
         st.warning(f"⚠️ No se pudo cargar ofertas OTC: {str(e)}")
         return []
 
+@st.cache_data(ttl=600, show_spinner=False)
+def cargar_ofertas_p2p():
+    """Carga operaciones P2P cerradas (como ofertas del mercado secundario)"""
+    try:
+        from modules import p2p_mercado
+        df_p2p = p2p_mercado.cargar()
+        
+        if df_p2p.empty:
+            return []
+        
+        # Convertir a lista de dicts compatible con OTC
+        # P2P contiene operaciones CERRADAS, las mostramos como "ofertas histónicas"
+        ofertas_p2p = []
+        for idx, row in df_p2p.iterrows():
+            oferta = {
+                'id': row.get('hash', f"P2P-{idx}"),
+                'proyecto_id': row.get('proyecto', '').lower() if pd.notna(row.get('proyecto')) else '',
+                'token_address': row.get('token_address', '').lower() if pd.notna(row.get('token_address')) else '',
+                'proyecto_nombre': row.get('proyecto', ''),
+                'n_tokens': row.get('tokens', 0),
+                'precio_venta': row.get('precio_unitario', 0),
+                'divisa': 'USD',
+                'inversor': row.get('vendedor', 'Desconocido'),
+                'estado': 'cerrada',  # P2P son operaciones ya cerradas
+                'canal': 'P2P',
+                'fecha': row.get('fecha', '')
+            }
+            ofertas_p2p.append(oferta)
+        
+        return ofertas_p2p
+    except Exception as e:
+        st.warning(f"⚠️ No se pudo cargar ofertas P2P: {str(e)}")
+        return []
+
+@st.cache_data(ttl=600, show_spinner=False)
+def cargar_todas_ofertas_secundario():
+    """Carga TODAS las ofertas del mercado secundario: OTC + P2P"""
+    ofertas_otc = cargar_ofertas_otc()
+    ofertas_p2p = cargar_ofertas_p2p()
+    
+    # Combinar ambos canales
+    todas_ofertas = (ofertas_otc or []) + (ofertas_p2p or [])
+    
+    return todas_ofertas
+
 def agrupar_ofertas_por_proyecto(ofertas):
     """Agrupa ofertas OTC por proyecto_id o token_address"""
     ofertas_por_proyecto = {}
@@ -488,8 +533,8 @@ elif st.session_state.paso_actual == 4:
         estatus = st.session_state.datos_cliente.get('estatus', None)  # ← Sin asumir 'Reentel'
         distribucion_type = st.session_state.datos_cliente.get('distribucion', 'Distribuir en partes iguales')
         
-        # Cargar ofertas OTC
-        ofertas_otc_list = cargar_ofertas_otc()
+        # Cargar ofertas OTC + P2P
+        ofertas_otc_list = cargar_todas_ofertas_secundario()
         ofertas_por_proy = agrupar_ofertas_por_proyecto(ofertas_otc_list)
         
         # Separar proyectos ACTIVOS (FINANCIÁNDOSE)
@@ -658,7 +703,10 @@ elif st.session_state.paso_actual == 4:
         
         with col_selector:
             st.markdown("**Selecciona proyectos:**")
-            proyectos_seleccionados = []
+            
+            # ✅ Cargar ofertas (OTC + P2P) para mostrar precios
+            todas_ofertas = cargar_todas_ofertas_secundario()
+            ofertas_por_proy = agrupar_ofertas_por_proyecto(todas_ofertas)
             suma_porcentajes = 0
             
             for idx, row in df_todos.iterrows():
