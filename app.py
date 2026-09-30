@@ -289,6 +289,8 @@ if st.session_state.paso_actual == 1:
         divisa = st.selectbox(
             "Divisa *",
             ["EUR", "USD"],
+            index=None,
+            placeholder="Selecciona una divisa",
             key="select_divisa"
         )
     
@@ -296,11 +298,15 @@ if st.session_state.paso_actual == 1:
         ya_inversor = st.selectbox(
             "¿Eres ya inversor en Reental? *",
             ["No", "Sí"],
+            index=None,
+            placeholder="Selecciona una opción",
             key="select_inversor"
         )
         capital = st.selectbox(
             "Capital a invertir *",
             ["Menos de 5.000", "Entre 5.000 y 10.000", "Entre 10.000 y 50.000", "Más de 50.000"],
+            index=None,
+            placeholder="Selecciona tu rango de capital",
             key="select_capital"
         )
     
@@ -312,7 +318,7 @@ if st.session_state.paso_actual == 1:
     
     with col3:
         if st.button("Siguiente >", use_container_width=True, key="btn_paso1_next"):
-            if nombre and email and divisa and capital:
+            if nombre and email and divisa is not None and capital is not None and ya_inversor is not None:
                 st.session_state.datos_cliente = {
                     'nombre': nombre,
                     'email': email,
@@ -447,6 +453,8 @@ elif st.session_state.paso_actual == 3:
         objetivo = st.selectbox(
             "Objetivo de inversión *",
             ["Maximizar rentabilidad", "Ingresos pasivos regulares", "Diversificación"],
+            index=None,
+            placeholder="Selecciona tu objetivo",
             key="select_objetivo"
         )
     
@@ -454,6 +462,8 @@ elif st.session_state.paso_actual == 3:
         distribucion = st.selectbox(
             "Distribución de capital *",
             ["Distribuir en partes iguales", "Elegir cuánto invertir en cada uno"],
+            index=None,
+            placeholder="Selecciona tu estrategia",
             key="select_distribucion"
         )
     
@@ -492,7 +502,8 @@ elif st.session_state.paso_actual == 3:
     with col3:
         estatus_seleccionado = st.session_state.datos_cliente.get('estatus')
         
-        if objetivo and mercados_seleccionados and distribucion and estatus_seleccionado:
+        # ✅ Validar que TODOS los campos estén completos (no None)
+        if objetivo is not None and mercados_seleccionados and distribucion is not None and estatus_seleccionado is not None:
             if st.button("Siguiente >", use_container_width=True, key="btn_paso3_next"):
                 st.session_state.datos_cliente['objetivo'] = objetivo
                 st.session_state.datos_cliente['mercados'] = mercados_seleccionados
@@ -506,7 +517,7 @@ elif st.session_state.paso_actual == 3:
                 except Exception as e:
                     st.error(f"Error cargando proyectos: {e}")
         else:
-            st.button("Siguiente >", use_container_width=True, disabled=True)
+            st.button("Siguiente >", use_container_width=True, disabled=True, key="btn_paso3_next_disabled")
 
 # ========== PASO 4: PROYECTOS Y PRECIOS ==========
 elif st.session_state.paso_actual == 4:
