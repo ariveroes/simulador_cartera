@@ -579,15 +579,27 @@ elif st.session_state.paso_actual == 4:
         st.markdown("### 💰 Proyectos disponibles en OTC (Mercado Secundario)")
         
         if ofertas_por_proy:
-            st.success(f"✅ {len(ofertas_por_proy)} proyecto(s) con ofertas OTC disponibles")
+            st.success(f"✅ {len(ofertas_por_proy)} proyecto(s) con ofertas OTC/P2P disponibles")
             
             # DEBUG
-            with st.expander("🔍 DEBUG - Ver detalles OTC"):
-                st.write(f"**Ofertas cargadas:** {len(ofertas_otc_list)}")
-                st.write(f"**Claves OTC encontradas:** {list(ofertas_por_proy.keys())[:10]}")
-                if ofertas_otc_list:
-                    st.write(f"**Primera oferta estructura:**")
-                    st.json(ofertas_otc_list[0])
+            with st.expander("🔍 DEBUG - Ver detalles OTC/P2P"):
+                st.write(f"**Ofertas cargadas (total):** {len(ofertas_otc_list)}")
+                
+                # Contar por canal
+                canales = {}
+                for o in ofertas_otc_list:
+                    canal = o.get('canal', o.get('estado', 'unknown'))
+                    canales[canal] = canales.get(canal, 0) + 1
+                st.write(f"**Por canal:** {canales}")
+                
+                st.write(f"**Claves OTC encontradas:** {len(ofertas_por_proy)} únicas")
+                st.write(f"  Primeras 20: {list(ofertas_por_proy.keys())[:20]}")
+                
+                # Mostrar ofertas sin proyecto_id ni token_address
+                sin_datos = [o for o in ofertas_otc_list if not o.get('proyecto_id') and not o.get('token_address')]
+                st.write(f"**Ofertas sin proyecto_id/token_address:** {len(sin_datos)}")
+                if sin_datos:
+                    st.write(f"  Primera: {sin_datos[0]}")
             
             # ✅ USAR TODOS los proyectos (incluidos cerrados) para matchear OTC
             df_todos = df_proyectos_todos.copy()
@@ -607,8 +619,20 @@ elif st.session_state.paso_actual == 4:
             
             # DEBUG
             with st.expander("🔍 DEBUG - Ver proyectos en Master"):
-                st.write(f"**Proyectos en Master (ID):** {list(proyectos_por_id.keys())[:10]}")
-                st.write(f"**Proyectos en Master (Token):** {list(proyectos_por_token.keys())[:10]}")
+                st.write(f"**Proyectos en Master (ID):** {list(proyectos_por_id.keys())[:20]}")
+                st.write(f"**Proyectos en Master (Token):** {list(proyectos_por_token.keys())[:20]}")
+            
+            # DEBUG: Proyectos que se descartaron
+            proyectos_sin_match = [c for c in ofertas_por_proy.keys() if c not in proyectos_por_id and c not in proyectos_por_token]
+            with st.expander("🔍 DEBUG - Ofertas SIN match en Master"):
+                st.write(f"**Claves OTC que NO encontraron proyecto:** {len(proyectos_sin_match)}")
+                st.write(f"  Ejemplos: {proyectos_sin_match[:10]}")
+                
+                # Mostrar qué datos tienen
+                if proyectos_sin_match:
+                    ejemplos_sin_match = [o for o in ofertas_otc_list if (o.get('proyecto_id') or '').lower() in proyectos_sin_match][:3]
+                    for e in ejemplos_sin_match:
+                        st.write(f"  • ID={e.get('proyecto_id')}, Token={e.get('token_address')}, Nombre={e.get('proyecto_nombre')}")
             
             # Encontrar proyectos con OTC
             proyectos_con_otc = []
@@ -641,6 +665,13 @@ elif st.session_state.paso_actual == 4:
             
             if proyectos_con_otc:
                 df_con_otc = pd.DataFrame(proyectos_con_otc)
+                
+                # DEBUG
+                with st.expander("🔍 DEBUG - Resumen Matching"):
+                    st.write(f"**Ofertas únicas:** {len(ofertas_por_proy)}")
+                    st.write(f"**Proyectos encontrados en Master:** {len(proyectos_con_otc)}")
+                    st.write(f"**Ofertas descartadas (sin match):** {len(proyectos_sin_match)}")
+                    st.write(f"**% Match:** {len(proyectos_con_otc) / len(ofertas_por_proy) * 100:.1f}%")
                 
                 # Rankear
                 try:
