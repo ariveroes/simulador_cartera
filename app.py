@@ -1069,26 +1069,53 @@ elif st.session_state.paso_actual == 5:
         
         st.markdown("---")
         
-        # ========== PROYECCIONES ==========
-        st.markdown("### Proyecciones de patrimonio")
+        # ========== COMPARATIVA POR ESTATUS (36 MESES) ==========
+        st.markdown("### Comparativa por estatus")
         
-        calculadora = CalculadoraCartera(estatus)
-        rentabilidad_decimal = rentabilidad_media / 100
+        MESES_COMPARATIVA = 36
         
-        proyecciones_data = []
-        for meses in [6, 12, 24, 36, 60]:
-            capital_final = calculadora.calcular_proyeccion(importe_inmuebles, rentabilidad_decimal, meses)
-            ganancia = capital_final - importe_inmuebles
-            roi = (ganancia / importe_inmuebles * 100) if importe_inmuebles > 0 else 0
-            proyecciones_data.append({
-                'Plazo': f"{meses} meses",
-                'Capital Inicial': fmt(importe_inmuebles),
-                'Capital Final': fmt(capital_final),
-                'Ganancia': fmt(ganancia),
-                'ROI': f"{roi:.2f}%"
+        def rentabilidad_media_estatus(est):
+            """Rentabilidad anualizada media de la cartera con las columnas de ese estatus."""
+            total = 0.0
+            for proyecto in proyectos_cartera:
+                fila = df_proy[df_proy['ID'] == proyecto['id']]
+                if len(fila) == 0:
+                    continue
+                peso = distribuciones.get(proyecto['id'], {}).get('porcentaje', 0)
+                total += a_numero(fila.iloc[0].get(f'Rentabilidad_Anualizada_{est}', 0)) * peso / 100
+            return total
+        
+        filas_comparativa = []
+        for est in ['Reentel', 'ReentelPro', 'SuperReentel']:
+            rent_est = rentabilidad_media_estatus(est) / 100
+            capital_final = CalculadoraCartera(est).calcular_proyeccion(importe_inmuebles, rent_est, MESES_COMPARATIVA)
+            ganancia_inmuebles = capital_final - importe_inmuebles
+            
+            rnt_est = RNT_POR_ESTATUS.get(est, 0)
+            coste_est = convertir(rnt_est * precio_rnt, 'USD', divisa_cliente)
+            # Rendimiento del staking de los RNT del estatus durante el mismo plazo
+            ganancia_staking = coste_est * (staking_rnt / 100) * (MESES_COMPARATIVA / 12)
+            
+            ganancia = ganancia_inmuebles + ganancia_staking
+            capital_total_est = importe_inmuebles + coste_est
+            
+            filas_comparativa.append({
+                'Estatus': est,
+                f'Ganancia a {MESES_COMPARATIVA} meses': fmt(ganancia),
+                'Rent. sobre la cartera': (ganancia / importe_inmuebles * 100) if importe_inmuebles else 0,
+                'Rent. sobre el capital total': (ganancia / capital_total_est * 100) if capital_total_est else 0,
+                'Coste del estatus': fmt(coste_est),
             })
         
-        st.dataframe(pd.DataFrame(proyecciones_data), use_container_width=True, hide_index=True)
+        st.dataframe(
+            pd.DataFrame(filas_comparativa),
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                'Rent. sobre la cartera': st.column_config.NumberColumn(format='%.2f %%'),
+                'Rent. sobre el capital total': st.column_config.NumberColumn(format='%.2f %%'),
+            }
+        )
         
         st.markdown("---")
         
