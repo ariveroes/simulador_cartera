@@ -1,5 +1,5 @@
 """
-PDF_GENERATOR.PY - FASE 3 ACTUALIZADO
+PDF_GENERATOR.PY
 
 Incluye precios_compra en:
 - Tabla de cartera (muestra Precio Compra y tipo: Emisión vs OTC)
