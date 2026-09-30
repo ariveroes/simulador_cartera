@@ -85,14 +85,7 @@ def preparar_proyectos_para_paso4(df_proyectos, estatus_cliente):
     except Exception as e:
         df_display['Rentabilidad Total'] = 0
         df_display['Rentabilidad Anualizada'] = 0
-        # Localizar la columna de tipología aunque el nombre varíe (tildes, mayúsculas...)
-    import unicodedata
-    def _normalizar(texto):
-        return unicodedata.normalize('NFKD', str(texto)).encode('ascii', 'ignore').decode().lower()
-
-    col_tipologia = next((c for c in df_display.columns if 'tipolog' in _normalizar(c)), None)
-    if col_tipologia:
-        df_display['Tipología de rendimientos'] = df_display[col_tipologia]
+       tos'] = df_display[col_tipologia]
         
     # Seleccionar solo columnas necesarias
     columnas_mostrar = [
