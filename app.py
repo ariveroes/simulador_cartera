@@ -266,6 +266,17 @@ STAKING_RNT = 3.5               # % anual del staking de RNT (fijo)
 # RNT necesarios para cada estatus
 RNT_POR_ESTATUS = {'SuperReentel': 28000, 'ReentelPro': 14000, 'Reentel': 0}
 
+# Código ISO numérico de cada país (para pintarlo en el mapa del Paso 5).
+# Si aparece un mercado nuevo en el Master, basta con añadirlo aquí.
+CODIGOS_PAIS = {
+    'espana': 724, 'mexico': 484, 'usa': 840, 'eeuu': 840, 'estados unidos': 840,
+    'republica dominicana': 214, 'argentina': 32, 'emiratos arabes': 784,
+    'emiratos arabes unidos': 784, 'dubai': 784, 'portugal': 620, 'francia': 250,
+    'italia': 380, 'alemania': 276, 'suecia': 752, 'polonia': 616, 'panama': 591,
+    'colombia': 170, 'costa rica': 188, 'reino unido': 826, 'andorra': 20,
+}
+
+
 
 @st.cache_data(ttl=86400)
 def tipo_cambio_actual():
@@ -1066,6 +1077,50 @@ elif st.session_state.paso_actual == 5:
             g1.altair_chart(donut('ubicacion', 'Distribución geográfica'), use_container_width=True)
             g2.altair_chart(donut('tipologia', 'Tipología de dividendo'), use_container_width=True)
             g3.altair_chart(donut('divisa', 'Divisa del inmueble'), use_container_width=True)
+            
+            # ----- Mapa de distribución geográfica -----
+            import unicodedata
+            def _norm(t):
+                return unicodedata.normalize('NFKD', str(t)).encode('ascii', 'ignore').decode().lower().strip()
+            
+            reparto_pais = df_graf.groupby('ubicacion', as_index=False)['peso'].sum()
+            reparto_pais = reparto_pais[reparto_pais['peso'] > 0]
+            total_peso = reparto_pais['peso'].sum()
+            reparto_pais['pct'] = reparto_pais['peso'] / total_peso * 100 if total_peso else 0
+            reparto_pais['id'] = reparto_pais['ubicacion'].map(lambda u: CODIGOS_PAIS.get(_norm(u)))
+            en_mapa = reparto_pais.dropna(subset=['id']).astype({'id': int})
+            
+            if len(en_mapa) > 0:
+                paises = alt.topo_feature(
+                    'https://cdn.jsdelivr.net/npm/vega-datasets@v1.29.0/data/world-110m.json', 'countries')
+                
+                fondo = alt.Chart(paises).mark_geoshape(
+                    fill='#eceef1', stroke='#ffffff', strokeWidth=0.5
+                ).transform_filter('datum.id != 10')   # sin la Antártida
+                
+                invertidos = alt.Chart(paises).mark_geoshape(
+                    stroke='#ffffff', strokeWidth=0.5
+                ).transform_lookup(
+                    lookup='id',
+                    from_=alt.LookupData(en_mapa, 'id', ['ubicacion', 'pct'])
+                ).transform_filter(
+                    'isValid(datum.pct)'
+                ).encode(
+                    color=alt.Color('pct:Q', scale=alt.Scale(range=['#f7c77a', '#e08900']), legend=None),
+                    tooltip=[alt.Tooltip('ubicacion:N', title='País'),
+                             alt.Tooltip('pct:Q', format='.1f', title='% de la inversión')]
+                )
+                
+                mapa = (fondo + invertidos).project('equalEarth').properties(
+                    title='Distribución geográfica de la inversión', height=420
+                )
+                st.altair_chart(mapa, use_container_width=True)
+            
+            leyenda = " · ".join(
+                f"<span style='color:#e08900;'>■</span> {r.ubicacion} — {r.pct:.1f}%"
+                for r in reparto_pais.sort_values('pct').itertuples()
+            )
+            st.markdown(f"<div style='font-size:13px; color:#666666;'>{leyenda}</div>", unsafe_allow_html=True)
         
         st.markdown("---")
         
