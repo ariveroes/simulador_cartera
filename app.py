@@ -238,6 +238,20 @@ def agrupar_ofertas_por_proyecto(ofertas):
     
     return ofertas_por_proyecto
 
+# Anchos y formatos de columnas para las tablas del Paso 4
+CONFIG_COLUMNAS_PASO4 = {
+    'ID': st.column_config.Column(width="small"),
+    'Nombre del proyecto': st.column_config.Column(width="large"),
+    'Tipología de dividendo': st.column_config.Column(width="medium"),
+    'ESTADO': st.column_config.Column(width="small"),
+    'Fecha Inicio Estimada': st.column_config.Column(width="small"),
+    'Fecha Fin Estimada': st.column_config.Column(width="small"),
+    'Ubicación': st.column_config.Column(width="small"),
+    'Rentabilidad Total': st.column_config.NumberColumn(format='%.2f%%', width="small"),
+    'Rentabilidad Anualizada': st.column_config.NumberColumn(format='%.2f%%', width="small"),
+    'Precio OTC Más Bajo': st.column_config.TextColumn(width="small"),
+}
+
 # ========== HEADER ==========
 col1, col2, col3 = st.columns([1, 3, 1])
 with col2:
