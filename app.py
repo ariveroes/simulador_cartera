@@ -177,8 +177,11 @@ def cargar_ofertas_otc():
 
 def cargar_ofertas_p2p():
     """Carga operaciones P2P cerradas (como ofertas del mercado secundario)"""
+    print(">>> INICIANDO cargar_ofertas_p2p()")
     try:
+        print(">>> Importando p2p_mercado...")
         from modules import p2p_mercado
+        print(">>> Llamando p2p_mercado.cargar()...")
         df_p2p = p2p_mercado.cargar()
         
         print(f"✅ P2P cargado: {len(df_p2p) if df_p2p is not None else 'None'} filas")
@@ -540,8 +543,11 @@ elif st.session_state.paso_actual == 4:
         distribucion_type = st.session_state.datos_cliente.get('distribucion', 'Distribuir en partes iguales')
         
         # Cargar ofertas OTC + P2P
+        print("\n=== INICIANDO CARGA OTC/P2P ===")
         ofertas_otc_list = cargar_todas_ofertas_secundario()
+        print(f"OFERTAS TOTALES CARGADAS: {len(ofertas_otc_list)}")
         ofertas_por_proy = agrupar_ofertas_por_proyecto(ofertas_otc_list)
+        print(f"PROYECTOS CON OFERTAS: {len(ofertas_por_proy)}\n")
         
         # Separar proyectos ACTIVOS (FINANCIÁNDOSE)
         df_matchean = df_proyectos[df_proyectos['Ubicación'].isin(mercados_seleccionados)].copy()
