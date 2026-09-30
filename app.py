@@ -456,7 +456,10 @@ elif st.session_state.paso_actual == 4:
             except:
                 pass
         
-        # ========== PROYECTOS REENTAL (PRIMERA EMISIÓN) ==========
+
+        
+        # ========== MOSTRAR PROYECTOS DISPONIBLES ==========
+        st.markdown("")
         st.markdown("### 📊 Proyectos disponibles en primera emisión (Reental)")
         
         if len(df_matchean) > 0:
@@ -480,77 +483,80 @@ elif st.session_state.paso_actual == 4:
         st.markdown("---")
         st.markdown("### 💰 Proyectos disponibles en OTC (Mercado Secundario)")
         
-        # Obtener todas las ofertas OTC
-        ofertas_otc = ofertas_por_proyecto("")  # dummy, vamos a leer todos
+        # Combinar proyectos para buscar OTC
+        df_todos_temp = pd.concat([df_matchean, df_no_matchean], ignore_index=True)
+        
+        # Obtener ofertas OTC
         otc_projects = {}
         try:
-            todas_ofertas = ofertas_por_proyecto.__self__.read_list("Ofertas") if hasattr(ofertas_por_proyecto, '__self__') else []
-            if not todas_ofertas:
-                todas_ofertas = []
-                # Cargar desde Google Sheets directamente
-                from modules.otc_storage import read_list
-                todas_ofertas = read_list("Ofertas")
+            from modules.otc_storage import read_list
+            todas_ofertas = read_list("Ofertas")
             
             for oferta in todas_ofertas:
                 proyecto_id = oferta.get('proyecto_id', '').lower()
-                if proyecto_id and proyecto_id.startswith('0x'):
+                if proyecto_id:
                     if proyecto_id not in otc_projects:
                         otc_projects[proyecto_id] = []
                     otc_projects[proyecto_id].append(oferta)
-        except:
+        except Exception as e:
+            st.warning(f"⚠️ No se pudo cargar las ofertas OTC: {str(e)}")
             otc_projects = {}
         
         # Filtrar proyectos que tienen ofertas OTC
-        df_con_otc = df_todos.copy()
-        df_con_otc['token_address_lower'] = df_con_otc.get('Token Address', '').str.lower()
-        df_con_otc = df_con_otc[df_con_otc['token_address_lower'].isin(otc_projects.keys())]
-        
-        if len(df_con_otc) > 0:
-            # Rankear también estos
-            try:
-                criterios = {
-                    'ubicaciones': mercados_seleccionados,
-                    'duracion': 'Largo plazo' if 'maximizar' in objetivo.lower() else 'Corto plazo'
-                }
-                df_con_otc = rankear_proyectos(df_con_otc, criterios, estatus)
-            except:
-                pass
+        if otc_projects:
+            df_con_otc = df_todos_temp.copy()
+            df_con_otc['token_address_lower'] = df_con_otc.get('Token Address', '').fillna('').str.lower()
+            df_con_otc = df_con_otc[df_con_otc['token_address_lower'].isin(otc_projects.keys())]
             
-            # Agregar columna de precio OTC más bajo
-            otc_prices = []
-            for idx, row in df_con_otc.iterrows():
-                token_addr = row.get('Token Address', '').lower()
-                if token_addr in otc_projects:
-                    ofertas = otc_projects[token_addr]
-                    precios = []
-                    for oferta in ofertas:
-                        try:
-                            precio = float(oferta.get('precio_venta', 0))
-                            precios.append(precio)
-                        except:
-                            pass
-                    if precios:
-                        otc_prices.append(min(precios))
+            if len(df_con_otc) > 0:
+                # Rankear también estos
+                try:
+                    criterios = {
+                        'ubicaciones': mercados_seleccionados,
+                        'duracion': 'Largo plazo' if 'maximizar' in objetivo.lower() else 'Corto plazo'
+                    }
+                    df_con_otc = rankear_proyectos(df_con_otc, criterios, estatus)
+                except:
+                    pass
+                
+                # Agregar columna de precio OTC más bajo
+                otc_prices = []
+                for idx, row in df_con_otc.iterrows():
+                    token_addr = row.get('Token Address', '').lower()
+                    if token_addr in otc_projects:
+                        ofertas = otc_projects[token_addr]
+                        precios = []
+                        for oferta in ofertas:
+                            try:
+                                precio = float(oferta.get('precio_venta', 0))
+                                precios.append(precio)
+                            except:
+                                pass
+                        if precios:
+                            otc_prices.append(min(precios))
+                        else:
+                            otc_prices.append(row.get('Precio Emisión', 0))
                     else:
                         otc_prices.append(row.get('Precio Emisión', 0))
-                else:
-                    otc_prices.append(row.get('Precio Emisión', 0))
-            
-            df_con_otc['Precio OTC Más Bajo'] = otc_prices
-            
-            # Mostrar tabla
-            df_display_otc = preparar_proyectos_para_paso4(df_con_otc, estatus)
-            df_display_otc['Precio OTC Más Bajo'] = [f"€{p:.2f}" for p in otc_prices]
-            
-            column_config = {
-                'Rentabilidad Total': st.column_config.NumberColumn(format='%.2f%%'),
-                'Rentabilidad Anualizada': st.column_config.NumberColumn(format='%.2f%%'),
-                'Precio OTC Más Bajo': st.column_config.TextColumn()
-            }
-            st.dataframe(df_display_otc, use_container_width=True, hide_index=True, column_config=column_config)
+                
+                df_con_otc['Precio OTC Más Bajo'] = otc_prices
+                
+                # Mostrar tabla
+                df_display_otc = preparar_proyectos_para_paso4(df_con_otc, estatus)
+                df_display_otc['Precio OTC Más Bajo'] = [f"€{p:.2f}" for p in otc_prices]
+                
+                column_config = {
+                    'Rentabilidad Total': st.column_config.NumberColumn(format='%.2f%%'),
+                    'Rentabilidad Anualizada': st.column_config.NumberColumn(format='%.2f%%'),
+                    'Precio OTC Más Bajo': st.column_config.TextColumn()
+                }
+                st.dataframe(df_display_otc, use_container_width=True, hide_index=True, column_config=column_config)
+            else:
+                st.info("📭 No hay proyectos disponibles en OTC en este momento")
         else:
             st.info("📭 No hay proyectos disponibles en OTC en este momento")
         
+        # ========== CONSTRUIR CARTERA ==========
         st.markdown("")
         st.markdown("### Construye tu cartera")
         st.markdown("")
