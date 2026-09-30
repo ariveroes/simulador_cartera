@@ -688,70 +688,70 @@ elif st.session_state.paso_actual == 4:
         # ========== CONSTRUIR CARTERA ==========
         st.markdown("---")
         st.markdown("### Construye tu cartera")
-        st.markdown("")
+        aviso_distribucion = st.empty()  # mensaje de estado (se rellena al final)
         
         proyectos_seleccionados = []
         suma_porcentajes = 0
+        reparto_igual = distribucion_type == 'Distribuir en partes iguales'
+        ids_validos = [pid for pid in ids_seleccionados if pid in filas_por_id]
+        porcentaje_igual = 100 / len(ids_validos) if ids_validos else 0
         
-        col_selector, col_distribuir = st.columns([1, 2])
+        if ids_validos:
+            col_h1, col_h2 = st.columns(2)
+            col_h1.markdown("**Precio de compra**")
+            col_h2.markdown("**Distribución de capital (%)**")
         
-        with col_selector:
-            st.markdown("**Precio de compra:**")
+        for proyecto_id in ids_validos:
+            row = filas_por_id[proyecto_id]
             
-            if not ids_seleccionados:
-                st.info("Marca en las tablas de arriba los proyectos que quieras incluir")
+            proyecto_nombre = row['Nombre del proyecto']
+            token_address = row.get('Token Address', '')
+            es_primera_emision = str(row.get('ESTADO', '')).upper() == 'FINANCIÁNDOSE'
+            precio_emision = row.get('Precio Emisión', 0)
             
-            for proyecto_id in ids_seleccionados:
-                row = filas_por_id.get(proyecto_id)
-                if row is None:
+            proyectos_seleccionados.append({
+                'id': proyecto_id,
+                'nombre': proyecto_nombre,
+                'ubicacion': row['Ubicación'],
+                'rentabilidad': row.get('Rentabilidad_Anualizada_SuperReentel', 0),
+                'address': token_address,
+                'precio_emision': precio_emision
+            })
+            
+            # Opciones de precio
+            clave_otc = str(proyecto_id).lower() or str(token_address).lower()
+            ofertas_proyecto = ofertas_por_proy.get(clave_otc, [])
+            
+            # Precio de emisión solo si el proyecto sigue en primera emisión
+            opciones_precio = [f"Emisión: {precio_emision:.2f} EUR"] if es_primera_emision else []
+            mejores_ofertas = []
+            
+            for oferta in ofertas_proyecto:
+                try:
+                    precio = float(oferta.get('precio_venta', 0))
+                    divisa = oferta.get('divisa', 'EUR')
+                    n_tokens = oferta.get('n_tokens', 0)
+                    if precio > 0:
+                        label = f"OTC: {precio:.2f} {divisa} · {n_tokens} tokens disponibles"
+                        opciones_precio.append(label)
+                        mejores_ofertas.append({
+                            'label': label,
+                            'precio': precio,
+                            'divisa': divisa,
+                            'n_tokens': n_tokens
+                        })
+                except:
                     continue
-                
-                proyecto_nombre = row['Nombre del proyecto']
-                token_address = row.get('Token Address', '')
-                es_primera_emision = str(row.get('ESTADO', '')).upper() == 'FINANCIÁNDOSE'
-                precio_emision = row.get('Precio Emisión', 0)
-                
-                proyectos_seleccionados.append({
-                    'id': proyecto_id,
-                    'nombre': proyecto_nombre,
-                    'ubicacion': row['Ubicación'],
-                    'rentabilidad': row.get('Rentabilidad_Anualizada_SuperReentel', 0),
-                    'address': token_address,
-                    'precio_emision': precio_emision
-                })
-                
-                # ========== COMBO DE PRECIOS ==========
-                st.markdown(f"**{proyecto_nombre}**")
-                
-                clave_otc = str(proyecto_id).lower() or str(token_address).lower()
-                ofertas_proyecto = ofertas_por_proy.get(clave_otc, [])
-                
-                # Precio de emisión solo si el proyecto sigue en primera emisión
-                opciones_precio = [f"Emisión: {precio_emision:.2f} EUR"] if es_primera_emision else []
-                mejores_ofertas = []
-                
-                for oferta in ofertas_proyecto:
-                    try:
-                        precio = float(oferta.get('precio_venta', 0))
-                        divisa = oferta.get('divisa', 'EUR')
-                        n_tokens = oferta.get('n_tokens', 0)
-                        
-                        if precio > 0:
-                            label = f"OTC: {precio:.2f} {divisa} · {n_tokens} tokens disponibles"
-                            opciones_precio.append(label)
-                            mejores_ofertas.append({
-                                'label': label,
-                                'precio': precio,
-                                'divisa': divisa,
-                                'n_tokens': n_tokens
-                            })
-                    except:
-                        continue
-                
-                # Seguridad: si no hay ninguna opción válida, usar el precio de emisión
-                if not opciones_precio:
-                    opciones_precio = [f"Emisión: {precio_emision:.2f} EUR"]
-                
+            
+            # Seguridad: si no hay ninguna opción válida, usar el precio de emisión
+            if not opciones_precio:
+                opciones_precio = [f"Emisión: {precio_emision:.2f} EUR"]
+            
+            # Fila del proyecto: precio (izquierda) y % (derecha) a la misma altura
+            st.markdown(f"**{proyecto_nombre}**")
+            col_precio, col_pct = st.columns(2)
+            
+            with col_precio:
                 precio_seleccionado = st.selectbox(
                     "Elige precio",
                     opciones_precio,
@@ -759,7 +759,6 @@ elif st.session_state.paso_actual == 4:
                     label_visibility="collapsed"
                 )
                 
-                # Guardar precio
                 if "OTC:" in precio_seleccionado:
                     for oferta in mejores_ofertas:
                         if oferta['label'] == precio_seleccionado:
@@ -775,47 +774,43 @@ elif st.session_state.paso_actual == 4:
                         'divisa': 'EUR',
                         'tipo': 'Emisión'
                     }
-                
-                st.markdown("")
-        
-        with col_distribuir:
-            st.markdown("**Distribución de capital:**")
             
-            if len(proyectos_seleccionados) == 0:
-                st.info("Selecciona al menos un proyecto")
-            else:
-                if distribucion_type == 'Distribuir en partes iguales':
-                    porcentaje_por_proyecto = 100 / len(proyectos_seleccionados)
-                    st.markdown(f"Se distribuirá **{porcentaje_por_proyecto:.1f}%** en cada proyecto:")
-                    
-                    for proyecto in proyectos_seleccionados:
-                        st.session_state.cartera_selecciones[proyecto['id']]['porcentaje'] = porcentaje_por_proyecto
-                        st.write(f"• {proyecto['nombre']}: {porcentaje_por_proyecto:.1f}%")
-                    
-                    suma_porcentajes = 100
-                
+            with col_pct:
+                if reparto_igual:
+                    porcentaje = porcentaje_igual
+                    st.text_input(
+                        f"pct_{proyecto_id}",
+                        value=f"{porcentaje:.1f}%",
+                        disabled=True,
+                        label_visibility="collapsed"
+                    )
                 else:
-                    suma_porcentajes = 0
-                    
-                    for proyecto in proyectos_seleccionados:
-                        porcentaje = st.number_input(
-                            f"{proyecto['nombre']} (%)",
-                            min_value=0.0,
-                            max_value=100.0,
-                            value=round(float(st.session_state.cartera_selecciones[proyecto['id']].get('porcentaje', 0.0)), 1),
-                            step=0.1,
-                            key=f"input_{proyecto['id']}"
-                        )
-                        st.session_state.cartera_selecciones[proyecto['id']]['porcentaje'] = porcentaje
-                        suma_porcentajes += porcentaje
-                    
-                    suma_porcentajes = round(suma_porcentajes, 1)
-                    if suma_porcentajes == 100:
-                        st.success(f"✓ Total: {suma_porcentajes}%")
-                    elif suma_porcentajes > 0:
-                        st.warning(f"⚠ Total: {suma_porcentajes}% (Falta {100 - suma_porcentajes:.1f}%)")
-                    else:
-                        st.info("Asigna porcentajes a los proyectos")
+                    porcentaje = st.number_input(
+                        f"{proyecto_nombre} (%)",
+                        min_value=0.0,
+                        max_value=100.0,
+                        value=round(float(st.session_state.cartera_selecciones[proyecto_id].get('porcentaje', 0.0)), 1),
+                        step=0.1,
+                        key=f"input_{proyecto_id}",
+                        label_visibility="collapsed"
+                    )
+                st.session_state.cartera_selecciones[proyecto_id]['porcentaje'] = porcentaje
+                suma_porcentajes += porcentaje
+        
+        # Mensaje de estado justo debajo de "Construye tu cartera"
+        if not ids_validos:
+            aviso_distribucion.info("Marca en las tablas de arriba los proyectos que quieras incluir")
+        elif reparto_igual:
+            suma_porcentajes = 100
+            aviso_distribucion.info(f"Se distribuirá {porcentaje_igual:.1f}% en cada proyecto")
+        else:
+            suma_porcentajes = round(suma_porcentajes, 1)
+            if suma_porcentajes == 100:
+                aviso_distribucion.success(f"✓ Total: {suma_porcentajes}%")
+            elif suma_porcentajes > 0:
+                aviso_distribucion.warning(f"⚠ Total: {suma_porcentajes}% (Falta {100 - suma_porcentajes:.1f}%)")
+            else:
+                aviso_distribucion.info("Asigna porcentajes a los proyectos")
         
         st.markdown("")
         st.markdown("---")
