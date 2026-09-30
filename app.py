@@ -1146,6 +1146,7 @@ elif st.session_state.paso_actual == 5:
             return total
         
         filas_comparativa = []
+        comparativa_pdf = []
         for est in ['Reentel', 'ReentelPro', 'SuperReentel']:
             rent_est = rentabilidad_media_estatus(est) / 100
             capital_final = CalculadoraCartera(est).calcular_proyeccion(importe_inmuebles, rent_est, MESES_COMPARATIVA)
@@ -1159,6 +1160,14 @@ elif st.session_state.paso_actual == 5:
             ganancia = ganancia_inmuebles + ganancia_staking
             capital_total_est = importe_inmuebles + coste_est
             
+            comparativa_pdf.append({
+                'estatus': est,
+                'rent_anual': rent_est * 100,
+                'ganancia': ganancia,
+                'rent_cartera': (ganancia / importe_inmuebles * 100) if importe_inmuebles else 0,
+                'rent_total': (ganancia / capital_total_est * 100) if capital_total_est else 0,
+                'coste': coste_est,
+            })
             filas_comparativa.append({
                 'Estatus': est,
                 f'Ganancia a {MESES_COMPARATIVA} meses': fmt(ganancia),
@@ -1182,12 +1191,40 @@ elif st.session_state.paso_actual == 5:
         # ========== DESCARGAR PDF ==========
         st.markdown("### Descarga tu cartera")
         
+        repartos_pdf = {}
+        if filas_graficos:
+            for campo, titulo in (('ubicacion', 'Distribución geográfica'),
+                                  ('tipologia', 'Tipología de dividendo'),
+                                  ('divisa', 'Divisa del inmueble')):
+                serie = df_graf.groupby(campo)['peso'].sum()
+                total = serie.sum()
+                repartos_pdf[titulo] = (serie / total * 100).to_dict() if total else {}
+        
+        resumen_pdf = {
+            'divisa': divisa_cliente,
+            'estatus': estatus,
+            'tipo_cambio': tipo_cambio,
+            'precio_rnt': precio_rnt,
+            'staking': staking_rnt,
+            'rnt_estatus': rnt_estatus,
+            'n_inmuebles': len(filas_tabla),
+            'importe_inmuebles': importe_inmuebles,
+            'coste_estatus': coste_estatus,
+            'capital_total': capital_total,
+            'rentabilidad_media': rentabilidad_media,
+            'proyectos': [dict(f, Importe=importe_inmuebles * f['% cartera'] / 100) for f in filas_tabla],
+            'repartos': repartos_pdf,
+            'comparativa': comparativa_pdf,
+            'meses': MESES_COMPARATIVA,
+        }
+        
         pdf_buffer = generar_pdf_cartera(
             st.session_state.datos_cliente,
             proyectos_cartera,
             distribuciones,
             st.session_state.df_proyectos,
-            precios_compra
+            precios_compra,
+            resumen=resumen_pdf
         )
         
         st.download_button(
