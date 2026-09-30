@@ -177,23 +177,15 @@ def cargar_ofertas_otc():
 
 def cargar_ofertas_p2p():
     """Carga operaciones P2P cerradas (como ofertas del mercado secundario)"""
-    print(">>> INICIANDO cargar_ofertas_p2p()")
     try:
-        print(">>> Importando p2p_mercado...")
         from modules import p2p_mercado
-        print(">>> Llamando p2p_mercado.cargar()...")
         df_p2p = p2p_mercado.cargar()
         
-        print(f"✅ P2P cargado: {len(df_p2p) if df_p2p is not None else 'None'} filas")
-        
         if df_p2p is None or df_p2p.empty:
-            print("⚠️ DataFrame P2P vacío")
             return []
         
-        print(f"📊 Columnas P2P: {df_p2p.columns.tolist()}")
-        
         # Convertir a lista de dicts compatible con OTC
-        # P2P contiene operaciones CERRADAS, las mostramos como "ofertas histónicas"
+        # P2P contiene operaciones CERRADAS, las mostramos como "ofertas históricas"
         ofertas_p2p = []
         for idx, row in df_p2p.iterrows():
             oferta = {
@@ -211,12 +203,8 @@ def cargar_ofertas_p2p():
             }
             ofertas_p2p.append(oferta)
         
-        print(f"✅ {len(ofertas_p2p)} ofertas P2P convertidas")
         return ofertas_p2p
-    except Exception as e:
-        print(f"❌ Error P2P: {str(e)}")
-        import traceback
-        traceback.print_exc()
+    except Exception:
         return []
 
 def cargar_todas_ofertas_secundario():
@@ -234,8 +222,6 @@ def agrupar_ofertas_por_proyecto(ofertas):
     ofertas_por_proyecto = {}
     
     for oferta in ofertas:
-        # ✅ NO filtrar por estado - MOSTRAR TODAS las ofertas
-        
         # Usar proyecto_id o token_address como clave
         proyecto_id = (oferta.get('proyecto_id') or '').lower()
         token_address = (oferta.get('token_address') or '').lower()
@@ -437,7 +423,7 @@ elif st.session_state.paso_actual == 2:
             st.session_state.paso_actual = 1
             st.rerun()
     with col3:
-        # ✅ Validar que estatus esté seleccionado (no None)
+        # Validar que estatus esté seleccionado (no None)
         if estatus_seleccionado is not None:
             if st.button("Siguiente >", use_container_width=True, key="btn_paso2_next"):
                 st.session_state.paso_actual = 3
@@ -487,7 +473,7 @@ elif st.session_state.paso_actual == 3:
     mercados_seleccionados = st.multiselect(
         "Mercados",
         mercados_disponibles,
-        default=st.session_state.datos_cliente.get('mercados', []),  # ← Vacío, sin preselección
+        default=st.session_state.datos_cliente.get('mercados', []),
         key="multiselect_mercados",
         label_visibility="collapsed"
     )
@@ -505,7 +491,7 @@ elif st.session_state.paso_actual == 3:
     with col3:
         estatus_seleccionado = st.session_state.datos_cliente.get('estatus')
         
-        # ✅ Validar que TODOS los campos estén completos (no None)
+        # Validar que TODOS los campos estén completos (no None)
         if objetivo is not None and mercados_seleccionados and distribucion is not None and estatus_seleccionado is not None:
             if st.button("Siguiente >", use_container_width=True, key="btn_paso3_next"):
                 st.session_state.datos_cliente['objetivo'] = objetivo
@@ -528,7 +514,7 @@ elif st.session_state.paso_actual == 4:
     st.markdown("")
     
     if st.session_state.df_proyectos is not None and len(st.session_state.df_proyectos) > 0:
-        # ✅ SEPARAR: Para Primera Emisión solo FINANCIÁNDOSE, para OTC todos
+        # SEPARAR: Para Primera Emisión solo FINANCIÁNDOSE, para OTC todos
         df_proyectos_todos = st.session_state.df_proyectos.copy()
         
         # Filtrar solo FINANCIÁNDOSE para la sección de Primera Emisión
@@ -539,15 +525,12 @@ elif st.session_state.paso_actual == 4:
         # Obtener parámetros
         mercados_seleccionados = st.session_state.datos_cliente.get('mercados', [])
         objetivo = st.session_state.datos_cliente.get('objetivo', '')
-        estatus = st.session_state.datos_cliente.get('estatus', None)  # ← Sin asumir 'Reentel'
+        estatus = st.session_state.datos_cliente.get('estatus', None)
         distribucion_type = st.session_state.datos_cliente.get('distribucion', 'Distribuir en partes iguales')
         
         # Cargar ofertas OTC + P2P
-        print("\n=== INICIANDO CARGA OTC/P2P ===")
         ofertas_otc_list = cargar_todas_ofertas_secundario()
-        print(f"OFERTAS TOTALES CARGADAS: {len(ofertas_otc_list)}")
         ofertas_por_proy = agrupar_ofertas_por_proyecto(ofertas_otc_list)
-        print(f"PROYECTOS CON OFERTAS: {len(ofertas_por_proy)}\n")
         
         # Separar proyectos ACTIVOS (FINANCIÁNDOSE)
         df_matchean = df_proyectos[df_proyectos['Ubicación'].isin(mercados_seleccionados)].copy()
@@ -592,27 +575,7 @@ elif st.session_state.paso_actual == 4:
         if ofertas_por_proy:
             st.success(f"✅ {len(ofertas_por_proy)} proyecto(s) con ofertas OTC/P2P disponibles")
             
-            # DEBUG
-            with st.expander("🔍 DEBUG - Ver detalles OTC/P2P"):
-                st.write(f"**Ofertas cargadas (total):** {len(ofertas_otc_list)}")
-                
-                # Contar por canal
-                canales = {}
-                for o in ofertas_otc_list:
-                    canal = o.get('canal', o.get('estado', 'unknown'))
-                    canales[canal] = canales.get(canal, 0) + 1
-                st.write(f"**Por canal:** {canales}")
-                
-                st.write(f"**Claves OTC encontradas:** {len(ofertas_por_proy)} únicas")
-                st.write(f"  Primeras 20: {list(ofertas_por_proy.keys())[:20]}")
-                
-                # Mostrar ofertas sin proyecto_id ni token_address
-                sin_datos = [o for o in ofertas_otc_list if not o.get('proyecto_id') and not o.get('token_address')]
-                st.write(f"**Ofertas sin proyecto_id/token_address:** {len(sin_datos)}")
-                if sin_datos:
-                    st.write(f"  Primera: {sin_datos[0]}")
-            
-            # ✅ USAR TODOS los proyectos (incluidos cerrados) para matchear OTC
+            # USAR TODOS los proyectos (incluidos cerrados) para matchear OTC
             df_todos = df_proyectos_todos.copy()
             
             # Crear mapa de proyectos por ID y Token Address
@@ -628,61 +591,20 @@ elif st.session_state.paso_actual == 4:
                 if token_addr:
                     proyectos_por_token[token_addr] = row
             
-            # DEBUG
-            with st.expander("🔍 DEBUG - Ver proyectos en Master"):
-                st.write(f"**Proyectos en Master (ID):** {list(proyectos_por_id.keys())[:20]}")
-                st.write(f"**Proyectos en Master (Token):** {list(proyectos_por_token.keys())[:20]}")
-            
-            # DEBUG: Proyectos que se descartaron
-            proyectos_sin_match = [c for c in ofertas_por_proy.keys() if c not in proyectos_por_id and c not in proyectos_por_token]
-            with st.expander("🔍 DEBUG - Ofertas SIN match en Master"):
-                st.write(f"**Claves OTC que NO encontraron proyecto:** {len(proyectos_sin_match)}")
-                st.write(f"  Ejemplos: {proyectos_sin_match[:10]}")
-                
-                # Mostrar qué datos tienen
-                if proyectos_sin_match:
-                    ejemplos_sin_match = [o for o in ofertas_otc_list if (o.get('proyecto_id') or '').lower() in proyectos_sin_match][:3]
-                    for e in ejemplos_sin_match:
-                        st.write(f"  • ID={e.get('proyecto_id')}, Token={e.get('token_address')}, Nombre={e.get('proyecto_nombre')}")
-            
             # Encontrar proyectos con OTC
             proyectos_con_otc = []
             
-            # DEBUG: Ver matching
-            debug_matching = []
-            
             for clave_otc in ofertas_por_proy.keys():
-                # Buscar en ID o Token Address
-                # ✅ NO usar 'or' entre Series - pandas no lo soporta
+                # Buscar en ID o Token Address (no usar 'or' entre Series)
                 proyecto_data = proyectos_por_id.get(clave_otc)
                 if proyecto_data is None:
                     proyecto_data = proyectos_por_token.get(clave_otc)
                 
-                debug_matching.append({
-                    'clave_otc': clave_otc,
-                    'en_id': clave_otc in proyectos_por_id,
-                    'en_token': clave_otc in proyectos_por_token,
-                    'encontrado': proyecto_data is not None
-                })
-                
                 if proyecto_data is not None:
                     proyectos_con_otc.append(proyecto_data)
             
-            # DEBUG
-            with st.expander("🔍 DEBUG - Matching OTC vs Master"):
-                st.write(f"**Intentos de matching:**")
-                for m in debug_matching:
-                    st.write(f"  • `{m['clave_otc']}`: ID={m['en_id']}, Token={m['en_token']}, ✓={m['encontrado']}")
-            
             if proyectos_con_otc:
                 df_con_otc = pd.DataFrame(proyectos_con_otc)
-                
-                # DEBUG
-                with st.expander("🔍 DEBUG - Resumen Matching"):
-                    st.write(f"**Ofertas únicas:** {len(ofertas_por_proy)}")
-                    st.write(f"**Proyectos encontrados en Master:** {len(proyectos_con_otc)}")
-                    st.write(f"**Ofertas descartadas (sin match):** {len(proyectos_sin_match)}")
-                    st.write(f"**% Match:** {len(proyectos_con_otc) / len(ofertas_por_proy) * 100:.1f}%")
                 
                 # Rankear
                 try:
@@ -747,11 +669,10 @@ elif st.session_state.paso_actual == 4:
         with col_selector:
             st.markdown("**Selecciona proyectos:**")
             
-            # ✅ Cargar ofertas (OTC + P2P) para mostrar precios
+            # Cargar ofertas (OTC + P2P) para mostrar precios
             todas_ofertas = cargar_todas_ofertas_secundario()
             ofertas_por_proy = agrupar_ofertas_por_proyecto(todas_ofertas)
             
-            # ✅ INICIALIZAR listas
             proyectos_seleccionados = []
             suma_porcentajes = 0
             
@@ -798,10 +719,6 @@ elif st.session_state.paso_actual == 4:
                     mejores_ofertas = []
                     
                     for oferta in ofertas_proyecto:
-                        # ✅ NO filtrar por estado - mostrar TODAS las ofertas
-                        # if oferta.get('estado') != 'activa':
-                        #     continue
-                        
                         try:
                             precio = float(oferta.get('precio_venta', 0))
                             divisa = oferta.get('divisa', 'EUR')
@@ -829,7 +746,6 @@ elif st.session_state.paso_actual == 4:
                     
                     # Guardar precio
                     if "OTC:" in precio_seleccionado:
-                        # Encontrar índice en mejores_ofertas
                         oferta_idx = -1
                         for i, oferta in enumerate(mejores_ofertas):
                             if oferta['label'] == precio_seleccionado:
@@ -987,8 +903,8 @@ elif st.session_state.paso_actual == 5:
         capital_text = st.session_state.datos_cliente.get('capital', 'Entre 10.000 y 50.000')
         capital_estimado = capital_map.get(capital_text, 75000)
         
-        estatus = st.session_state.datos_cliente.get('estatus', None)  # ← Sin asumir 'Reentel'
-        calculadora = CalculadoraCartera(estatus or 'Reentel')  # ← Usar 'Reentel' solo en cálculos
+        estatus = st.session_state.datos_cliente.get('estatus', None)
+        calculadora = CalculadoraCartera(estatus or 'Reentel')
         
         # Calcular rentabilidad promedio
         rentabilidad_promedio = 0
