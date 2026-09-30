@@ -288,7 +288,7 @@ elif st.session_state.paso_actual == 2:
     
     col1, col2, col3 = st.columns(3)
     
-    estatus_seleccionado = st.session_state.datos_cliente.get('estatus', 'Reentel')
+    estatus_seleccionado = st.session_state.datos_cliente.get('estatus', None)
     
     # ========== SUPERREENTEL ==========
     with col1:
@@ -384,9 +384,13 @@ elif st.session_state.paso_actual == 2:
             st.session_state.paso_actual = 1
             st.rerun()
     with col3:
-        if st.button("Siguiente >", use_container_width=True, key="btn_paso2_next"):
-            st.session_state.paso_actual = 3
-            st.rerun()
+        # ✅ Validar que estatus esté seleccionado (no None)
+        if estatus_seleccionado is not None:
+            if st.button("Siguiente >", use_container_width=True, key="btn_paso2_next"):
+                st.session_state.paso_actual = 3
+                st.rerun()
+        else:
+            st.button("Siguiente >", use_container_width=True, disabled=True, key="btn_paso2_next_disabled")
 
 # ========== PASO 3: PARÁMETROS ==========
 elif st.session_state.paso_actual == 3:
@@ -430,7 +434,7 @@ elif st.session_state.paso_actual == 3:
     mercados_seleccionados = st.multiselect(
         "Mercados",
         mercados_disponibles,
-        default=st.session_state.datos_cliente.get('mercados', mercados_disponibles[:2] if len(mercados_disponibles) >= 2 else mercados_disponibles),
+        default=st.session_state.datos_cliente.get('mercados', []),  # ← Vacío, sin preselección
         key="multiselect_mercados",
         label_visibility="collapsed"
     )
@@ -446,7 +450,9 @@ elif st.session_state.paso_actual == 3:
             st.rerun()
     
     with col3:
-        if objetivo and mercados_seleccionados and distribucion:
+        estatus_seleccionado = st.session_state.datos_cliente.get('estatus')
+        
+        if objetivo and mercados_seleccionados and distribucion and estatus_seleccionado:
             if st.button("Siguiente >", use_container_width=True, key="btn_paso3_next"):
                 st.session_state.datos_cliente['objetivo'] = objetivo
                 st.session_state.datos_cliente['mercados'] = mercados_seleccionados
@@ -479,7 +485,7 @@ elif st.session_state.paso_actual == 4:
         # Obtener parámetros
         mercados_seleccionados = st.session_state.datos_cliente.get('mercados', [])
         objetivo = st.session_state.datos_cliente.get('objetivo', '')
-        estatus = st.session_state.datos_cliente.get('estatus', '')
+        estatus = st.session_state.datos_cliente.get('estatus', None)  # ← Sin asumir 'Reentel'
         distribucion_type = st.session_state.datos_cliente.get('distribucion', 'Distribuir en partes iguales')
         
         # Cargar ofertas OTC
@@ -883,8 +889,8 @@ elif st.session_state.paso_actual == 5:
         capital_text = st.session_state.datos_cliente.get('capital', 'Entre 10.000 y 50.000')
         capital_estimado = capital_map.get(capital_text, 75000)
         
-        estatus = st.session_state.datos_cliente.get('estatus', 'Reentel')
-        calculadora = CalculadoraCartera(estatus)
+        estatus = st.session_state.datos_cliente.get('estatus', None)  # ← Sin asumir 'Reentel'
+        calculadora = CalculadoraCartera(estatus or 'Reentel')  # ← Usar 'Reentel' solo en cálculos
         
         # Calcular rentabilidad promedio
         rentabilidad_promedio = 0
