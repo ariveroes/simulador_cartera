@@ -492,12 +492,21 @@ elif st.session_state.paso_actual == 4:
             from modules.otc_storage import read_list
             todas_ofertas = read_list("Ofertas")
             
+            # DEBUG
+            st.write(f"🔍 DEBUG: Se leyeron {len(todas_ofertas)} ofertas del Google Sheets")
+            if todas_ofertas:
+                st.write(f"Primera oferta estructura: {todas_ofertas[0]}")
+            
             for oferta in todas_ofertas:
                 proyecto_id = oferta.get('proyecto_id', '').lower()
                 if proyecto_id:
                     if proyecto_id not in otc_projects:
                         otc_projects[proyecto_id] = []
                     otc_projects[proyecto_id].append(oferta)
+            
+            st.write(f"📊 DEBUG: {len(otc_projects)} proyectos únicos con OTC")
+            if otc_projects:
+                st.write(f"IDs encontrados: {list(otc_projects.keys())[:5]}")
         except Exception as e:
             st.warning(f"⚠️ No se pudo cargar las ofertas OTC: {str(e)}")
             otc_projects = {}
@@ -506,7 +515,13 @@ elif st.session_state.paso_actual == 4:
         if otc_projects:
             df_con_otc = df_todos_temp.copy()
             df_con_otc['token_address_lower'] = df_con_otc.get('Token Address', '').fillna('').str.lower()
+            
+            # DEBUG
+            st.write(f"📋 DEBUG: Proyectos disponibles tienen estos Token Address:")
+            st.write(df_con_otc[['Nombre del proyecto', 'Token Address']].head(10).to_dict('records'))
+            
             df_con_otc = df_con_otc[df_con_otc['token_address_lower'].isin(otc_projects.keys())]
+            st.write(f"✅ DEBUG: Después del filtro, {len(df_con_otc)} proyectos tienen OTC")
             
             if len(df_con_otc) > 0:
                 # Rankear también estos
