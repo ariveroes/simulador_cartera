@@ -735,10 +735,9 @@ elif st.session_state.paso_actual == 4:
                         precio = float(oferta.get('precio_venta', 0))
                         divisa = oferta.get('divisa', 'EUR')
                         n_tokens = oferta.get('n_tokens', 0)
-                        inversor = oferta.get('inversor', 'Desconocido')
                         
                         if precio > 0:
-                            label = f"OTC: {precio:.2f} {divisa} ({n_tokens} tokens) - {inversor}"
+                            label = f"OTC: {precio:.2f} {divisa} · {n_tokens} tokens disponibles"
                             opciones_precio.append(label)
                             mejores_ofertas.append({
                                 'label': label,
