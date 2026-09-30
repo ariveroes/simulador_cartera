@@ -183,8 +183,13 @@ def cargar_ofertas_p2p():
         from modules import p2p_mercado
         df_p2p = p2p_mercado.cargar()
         
-        if df_p2p.empty:
+        print(f"✅ P2P cargado: {len(df_p2p) if df_p2p is not None else 'None'} filas")
+        
+        if df_p2p is None or df_p2p.empty:
+            print("⚠️ DataFrame P2P vacío")
             return []
+        
+        print(f"📊 Columnas P2P: {df_p2p.columns.tolist()}")
         
         # Convertir a lista de dicts compatible con OTC
         # P2P contiene operaciones CERRADAS, las mostramos como "ofertas histónicas"
@@ -205,9 +210,12 @@ def cargar_ofertas_p2p():
             }
             ofertas_p2p.append(oferta)
         
+        print(f"✅ {len(ofertas_p2p)} ofertas P2P convertidas")
         return ofertas_p2p
     except Exception as e:
-        st.warning(f"⚠️ P2P no disponible: {str(e)}")
+        print(f"❌ Error P2P: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return []
 
 @st.cache_data(ttl=600, show_spinner=False)
