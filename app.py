@@ -238,7 +238,9 @@ def agrupar_ofertas_por_proyecto(ofertas):
     
     return ofertas_por_proyecto
 
-# Anchos y formatos de columnas para las tablas del Paso 4
+# ========== ANCHOS Y FORMATOS DE COLUMNAS (TABLAS PASO 4) ==========
+# Para cambiar el ancho de una columna, edita solo su línea aquí.
+# width admite "small", "medium", "large" o un número de píxeles (ej. 90).
 CONFIG_COLUMNAS_PASO4 = {
     'ID': st.column_config.Column(width="small"),
     'Nombre del proyecto': st.column_config.Column(width="large"),
@@ -247,9 +249,9 @@ CONFIG_COLUMNAS_PASO4 = {
     'Fecha Inicio Estimada': st.column_config.Column(width="small"),
     'Fecha Fin Estimada': st.column_config.Column(width="small"),
     'Ubicación': st.column_config.Column(width="small"),
-    'Rentabilidad Total': st.column_config.NumberColumn('Rentabilidad total', format='%.2f%%', width=30),
-    'Rentabilidad Anualizada': st.column_config.NumberColumn('Rentabilidad anualizada', format='%.2f%%', width=30),
-    'Precio OTC Más Bajo': st.column_config.TextColumn('Precio OTC', width=30),
+    'Rentabilidad Total': st.column_config.NumberColumn('Rentabilidad total', format='%.2f%%', width=90),
+    'Rentabilidad Anualizada': st.column_config.NumberColumn('Rentabilidad anualizada', format='%.2f%%', width=90),
+    'Precio OTC Más Bajo': st.column_config.TextColumn('Precio OTC', width=90),
 }
 
 # ========== HEADER ==========
@@ -566,12 +568,12 @@ elif st.session_state.paso_actual == 4:
         st.markdown("### 📊 Proyectos disponibles en primera emisión (Reental)")
         
         if len(df_matchean) > 0:
-                       df_display_matchean = preparar_proyectos_para_paso4(df_matchean, estatus)
+            df_display_matchean = preparar_proyectos_para_paso4(df_matchean, estatus)
             st.dataframe(df_display_matchean, hide_index=True, column_config=CONFIG_COLUMNAS_PASO4)
         
         if len(df_no_matchean) > 0:
             st.markdown("#### Proyectos adicionales que podrían interesarte")
-                        df_display_no_matchean = preparar_proyectos_para_paso4(df_no_matchean, estatus)
+            df_display_no_matchean = preparar_proyectos_para_paso4(df_no_matchean, estatus)
             st.dataframe(df_display_no_matchean, hide_index=True, column_config=CONFIG_COLUMNAS_PASO4)
         
         # ========== PROYECTOS OTC ==========
@@ -651,7 +653,7 @@ elif st.session_state.paso_actual == 4:
                 df_display_otc = preparar_proyectos_para_paso4(df_con_otc, estatus)
                 df_display_otc['Precio OTC Más Bajo'] = [f"€{p:.2f}" for p in otc_prices]
                 
-                                st.dataframe(df_display_otc, hide_index=True, column_config=CONFIG_COLUMNAS_PASO4)
+                st.dataframe(df_display_otc, hide_index=True, column_config=CONFIG_COLUMNAS_PASO4)
             else:
                 st.info("📭 No hay proyectos disponibles en OTC")
         else:
