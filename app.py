@@ -247,9 +247,9 @@ CONFIG_COLUMNAS_PASO4 = {
     'Fecha Inicio Estimada': st.column_config.Column(width="small"),
     'Fecha Fin Estimada': st.column_config.Column(width="small"),
     'Ubicación': st.column_config.Column(width="small"),
-    'Rentabilidad Total': st.column_config.NumberColumn('Rent. Total', format='%.2f%%', width=90),
-    'Rentabilidad Anualizada': st.column_config.NumberColumn('Rent. Anual', format='%.2f%%', width=90),
-    'Precio OTC Más Bajo': st.column_config.TextColumn('Precio OTC', width=90),
+    'Rentabilidad Total': st.column_config.NumberColumn('Rent. Total', format='%.2f%%', width=70),
+    'Rentabilidad Anualizada': st.column_config.NumberColumn('Rent. Anual', format='%.2f%%', width=70),
+    'Precio OTC Más Bajo': st.column_config.TextColumn('Precio OTC', width=70),
 }
 
 # ========== HEADER ==========
