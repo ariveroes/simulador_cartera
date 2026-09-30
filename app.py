@@ -381,12 +381,20 @@ elif st.session_state.paso_actual == 3:
     st.markdown("")
     st.markdown("**Selecciona los mercados de interés:** *")
     
-   df_temp = cargar_proyectos()  # Lee del Master
-mercados_disponibles = sorted(df_temp['Ubicación'].unique().tolist())  # Extrae únicos
+    # Cargar proyectos para extraer mercados únicos
+    try:
+        df_temp = cargar_proyectos()
+        if df_temp is not None and len(df_temp) > 0:
+            mercados_disponibles = sorted(df_temp['Ubicación'].unique().tolist())
+        else:
+            mercados_disponibles = ["España", "Portugal", "Francia", "Italia", "Alemania", "Suecia", "Polonia"]
+    except:
+        mercados_disponibles = ["España", "Portugal", "Francia", "Italia", "Alemania", "Suecia", "Polonia"]
+    
     mercados_seleccionados = st.multiselect(
         "Mercados",
         mercados_disponibles,
-        default=st.session_state.datos_cliente.get('mercados', ['España', 'Portugal']),
+        default=st.session_state.datos_cliente.get('mercados', ['España', 'Portugal'] if 'España' in mercados_disponibles else mercados_disponibles[:2] if len(mercados_disponibles) > 0 else []),
         key="multiselect_mercados",
         label_visibility="collapsed"
     )
