@@ -207,7 +207,8 @@ def cargar_ofertas_p2p():
             ofertas_p2p.append(oferta)
         
         return ofertas_p2p
-    except Exception:
+    except Exception as e:
+        st.warning(f"⚠️ No se pudieron cargar las operaciones P2P: {e}")
         return []
 
 def cargar_todas_ofertas_secundario():
