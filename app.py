@@ -923,16 +923,30 @@ elif st.session_state.paso_actual == 5:
         
         st.markdown("---")
         
+        # Tarjeta de resumen (se usa en supuestos y en la cartera)
+        def tarjeta(titulo, valor, sub):
+            return f"""
+            <div style="border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; background: #ffffff; min-height: 105px;">
+                <div style="font-size: 12px; font-weight: 700; color: #666666; letter-spacing: 0.5px;">{titulo}</div>
+                <div style="font-size: 26px; font-weight: 700; color: #1f2937; margin: 4px 0;">{valor}</div>
+                <div style="font-size: 12px; color: #9ca3af;">{sub}</div>
+            </div>
+            """
+        
         # ========== 2) SUPUESTOS DE MERCADO ==========
         st.markdown("### Supuestos de mercado")
         tipo_cambio = tipo_cambio_actual()
         precio_rnt = precio_rnt_actual()
         staking_rnt = STAKING_RNT
         
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Tipo de cambio (USD por 1 €)", f"{tipo_cambio:.4f}")
-        col2.metric("Precio del RNT (USDT)", f"{precio_rnt:.4f}")
-        col3.metric("Rendimiento del staking de RNT (% anual)", f"{staking_rnt:.2f} %")
+        tarjetas_supuestos = [
+            ("💱 TIPO DE CAMBIO", f"{tipo_cambio:.4f}", "USD por 1 € · referencia BCE"),
+            ("🪙 PRECIO DEL RNT", f"{precio_rnt:.4f} USDT", "pool RNT/USDT · SushiSwap"),
+            ("🔒 STAKING DE RNT", f"{staking_rnt:.2f} %", "rendimiento anual"),
+        ]
+        cols = st.columns(3)
+        for col, (titulo, valor, sub) in zip(cols, tarjetas_supuestos):
+            col.markdown(tarjeta(titulo, valor, sub), unsafe_allow_html=True)
         
         def convertir(importe, desde, hacia):
             desde = 'USD' if str(desde).upper() in ('USD', 'USDT') else 'EUR'
@@ -1012,15 +1026,6 @@ elif st.session_state.paso_actual == 5:
             })
         
         # ----- Tarjetas resumen -----
-        def tarjeta(titulo, valor, sub):
-            return f"""
-            <div style="border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; background: #ffffff; min-height: 105px;">
-                <div style="font-size: 12px; font-weight: 700; color: #666666; letter-spacing: 0.5px;">{titulo}</div>
-                <div style="font-size: 26px; font-weight: 700; color: #1f2937; margin: 4px 0;">{valor}</div>
-                <div style="font-size: 12px; color: #9ca3af;">{sub}</div>
-            </div>
-            """
-        
         tarjetas = [
             ("🏠 INMUEBLES", f"{len(filas_tabla)}", "proyectos en cartera"),
             ("💶 EN INMUEBLES", fmt(importe_inmuebles),
