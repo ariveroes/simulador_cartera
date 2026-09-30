@@ -381,11 +381,12 @@ elif st.session_state.paso_actual == 3:
     st.markdown("")
     st.markdown("**Selecciona los mercados de interés:** *")
     
-    # Cargar proyectos para extraer mercados únicos
+    # Obtener todos los mercados únicos del Master Inmuebles (incluyendo cerrados)
     try:
-        df_temp = cargar_proyectos()
-        if df_temp is not None and len(df_temp) > 0:
-            mercados_disponibles = sorted(df_temp['Ubicación'].unique().tolist())
+        from modules.maestro import proyectos
+        todos_los_proyectos = proyectos()
+        if todos_los_proyectos:
+            mercados_disponibles = sorted(list(set([p.get('ubicacion', '').strip() for p in todos_los_proyectos if p.get('ubicacion', '').strip()])))
         else:
             mercados_disponibles = ["España", "Portugal", "Francia", "Italia", "Alemania", "Suecia", "Polonia"]
     except:
@@ -394,7 +395,7 @@ elif st.session_state.paso_actual == 3:
     mercados_seleccionados = st.multiselect(
         "Mercados",
         mercados_disponibles,
-        default=st.session_state.datos_cliente.get('mercados', ['España', 'Portugal'] if 'España' in mercados_disponibles else mercados_disponibles[:2] if len(mercados_disponibles) > 0 else []),
+        default=st.session_state.datos_cliente.get('mercados', mercados_disponibles[:2] if len(mercados_disponibles) >= 2 else mercados_disponibles),
         key="multiselect_mercados",
         label_visibility="collapsed"
     )
