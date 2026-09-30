@@ -1,5 +1,6 @@
 """
-SIMULADOR DE CARTERA INMOBILIARIA REENTAL
+SIMULADOR DE CARTERA INMOBILIARIA REENTAL - FASE 3 COMPLETA
+Streamlit App - Versión FASE 3 con Precios OTC Reales
 
 Pasos:
 1. Datos cliente (nombre, email, capital, divisa)
@@ -247,58 +248,100 @@ if st.session_state.paso_actual == 1:
 
 # ========== PASO 2: ESTATUS ==========
 elif st.session_state.paso_actual == 2:
-    st.markdown("## Paso 2: Elige tu tipo de inversor")
-    st.markdown("Cada estatus ofrece diferentes rentabilidades y tasas de reinversión")
+    st.markdown("## Paso 2: ¿Qué estatus RNT quieres considerar?")
     st.markdown("")
     
     col1, col2, col3 = st.columns(3)
     
-    estatus_options = {
-        "Reentel": {
-            "icon": "🏠",
-            "rentabilidad": "11-28%",
-            "reinversion": "11%",
-            "descripcion": "Acceso a todos los proyectos"
-        },
-        "ReentelPro": {
-            "icon": "🏢",
-            "rentabilidad": "12-32%",
-            "reinversion": "13%",
-            "descripcion": "Proyectos premium + acceso a ofertas OTC"
-        },
-        "SuperReentel": {
-            "icon": "🏛️",
-            "rentabilidad": "15-35%",
-            "reinversion": "16%",
-            "descripcion": "Máximas rentabilidades + todas las ofertas"
-        }
-    }
-    
     estatus_seleccionado = st.session_state.datos_cliente.get('estatus', 'Reentel')
     
+    # ========== SUPERREENTEL ==========
     with col1:
-        if st.button(f"{estatus_options['Reentel']['icon']} REENTEL\n\n{estatus_options['Reentel']['descripcion']}\n\nRentabilidad: {estatus_options['Reentel']['rentabilidad']}", 
-                    use_container_width=True, key="btn_reentel"):
-            st.session_state.datos_cliente['estatus'] = 'Reentel'
-            estatus_seleccionado = 'Reentel'
-    
-    with col2:
-        if st.button(f"{estatus_options['ReentelPro']['icon']} REENTELPRO\n\n{estatus_options['ReentelPro']['descripcion']}\n\nRentabilidad: {estatus_options['ReentelPro']['rentabilidad']}", 
-                    use_container_width=True, key="btn_reentelpro"):
-            st.session_state.datos_cliente['estatus'] = 'ReentelPro'
-            estatus_seleccionado = 'ReentelPro'
-    
-    with col3:
-        if st.button(f"{estatus_options['SuperReentel']['icon']} SUPERREENTEL\n\n{estatus_options['SuperReentel']['descripcion']}\n\nRentabilidad: {estatus_options['SuperReentel']['rentabilidad']}", 
-                    use_container_width=True, key="btn_superreentel"):
+        if estatus_seleccionado == 'SuperReentel':
+            bg_color = "#f0f9f3"
+            border_color = "#16a34a"
+            border_width = "3px"
+        else:
+            bg_color = "#ffffff"
+            border_color = "#cccccc"
+            border_width = "2px"
+        
+        st.markdown(f"""
+        <div style="border: {border_width} solid {border_color}; border-radius: 12px; padding: 20px; background-color: {bg_color}; min-height: 180px; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer;">
+            <div style="color: #16a34a; font-weight: 700; font-size: 16px; margin-bottom: 15px;">
+                🏛️ SUPERREENTEL
+            </div>
+            <div style="color: #000000; font-size: 15px; line-height: 1.6; flex-grow: 1;">
+                quiero conseguir hasta un <b>50% más de rentabilidad</b> en mis inversiones inmobiliarias y <b>acceso prioritario</b> a los proyectos.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Seleccionar SuperReentel", key="btn_super", use_container_width=True):
             st.session_state.datos_cliente['estatus'] = 'SuperReentel'
-            estatus_seleccionado = 'SuperReentel'
+            st.rerun()
     
-    st.markdown("")
-    st.info(f"✓ Has seleccionado: **{estatus_seleccionado}**")
-    st.markdown("")
-    st.markdown("---")
-    st.markdown("")
+    # ========== REENTELPRO ==========
+    with col2:
+        if estatus_seleccionado == 'ReentelPro':
+            bg_color = "#faf5ff"
+            border_color = "#a855f7"
+            border_width = "3px"
+        else:
+            bg_color = "#ffffff"
+            border_color = "#cccccc"
+            border_width = "2px"
+        
+        st.markdown(f"""
+        <div style="border: {border_width} solid {border_color}; border-radius: 12px; padding: 20px; background-color: {bg_color}; min-height: 180px; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer;">
+            <div style="color: #a855f7; font-weight: 700; font-size: 16px; margin-bottom: 15px;">
+                🏢 REENTELPRO
+            </div>
+            <div style="color: #000000; font-size: 15px; line-height: 1.6; flex-grow: 1;">
+                quiero conseguir hasta un <b>25% más de rentabilidad</b> en mis inversiones inmobiliarias y acceder a los proyectos tras los SuperReentel.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Seleccionar ReentelPro", key="btn_pro", use_container_width=True):
+            st.session_state.datos_cliente['estatus'] = 'ReentelPro'
+            st.rerun()
+    
+    # ========== REENTEL ==========
+    with col3:
+        if estatus_seleccionado == 'Reentel':
+            bg_color = "#feedcf"
+            border_color = "#ca820e"
+            border_width = "3px"
+        else:
+            bg_color = "#ffffff"
+            border_color = "#cccccc"
+            border_width = "2px"
+        
+        st.markdown(f"""
+        <div style="border: {border_width} solid {border_color}; border-radius: 12px; padding: 20px; background-color: {bg_color}; min-height: 180px; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer;">
+            <div style="color: #ca820e; font-weight: 700; font-size: 16px; margin-bottom: 15px;">
+                🏠 REENTEL
+            </div>
+            <div style="color: #000000; font-size: 15px; line-height: 1.6; flex-grow: 1;">
+                por ahora no quiero estatus.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Seleccionar Reentel", key="btn_reen", use_container_width=True):
+            st.session_state.datos_cliente['estatus'] = 'Reentel'
+            st.rerun()
+    
+    st.markdown('<div style="margin-bottom: 20px;"></div>', unsafe_allow_html=True)
+    
+    # ========== BOTÓN "¿QUIERES MÁS INFO?" ==========
+    st.markdown("""
+    <a href="https://api.leadconnectorhq.com/widget/booking/kAzM5NH9hFxtc88sTQKy" target="_blank" style="text-decoration: none; color: inherit;">
+        <div style="background-color: #fff3e0; border: 2px solid #ff8c00; color: #000000; border-radius: 8px; padding: 15px; font-size: 15px; cursor: pointer; text-align: center;">
+            💡 ¿Quieres más información sobre qué es el estatus RNT y cómo puede ayudarte a maximizar tu rentabilidad inmobiliaria? Agenda con nuestro equipo de Onboarding <b style="color: #ff8c00;">aquí</b>.
+        </div>
+    </a>
+    """, unsafe_allow_html=True)
+    
+    st.markdown('<div style="margin-bottom: 30px;"></div>', unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 1, 1])
     with col1:
@@ -306,10 +349,9 @@ elif st.session_state.paso_actual == 2:
             st.session_state.paso_actual = 1
             st.rerun()
     with col3:
-        if estatus_seleccionado:
-            if st.button("Siguiente >", use_container_width=True, key="btn_paso2_next"):
-                st.session_state.paso_actual = 3
-                st.rerun()
+        if st.button("Siguiente >", use_container_width=True, key="btn_paso2_next"):
+            st.session_state.paso_actual = 3
+            st.rerun()
 
 # ========== PASO 3: PARÁMETROS ==========
 elif st.session_state.paso_actual == 3:
