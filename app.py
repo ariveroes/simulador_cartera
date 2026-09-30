@@ -165,7 +165,6 @@ if 'precios_compra' not in st.session_state:
     st.session_state.precios_compra = {}
 
 # ========== FUNCIONES AUXILIARES OTC ==========
-@st.cache_data(ttl=600, show_spinner=False)
 def cargar_ofertas_otc():
     """Carga ofertas OTC del Google Sheets del compañero"""
     try:
@@ -176,7 +175,6 @@ def cargar_ofertas_otc():
         st.warning(f"⚠️ No se pudo cargar ofertas OTC: {str(e)}")
         return []
 
-@st.cache_data(ttl=600, show_spinner=False)
 def cargar_ofertas_p2p():
     """Carga operaciones P2P cerradas (como ofertas del mercado secundario)"""
     try:
@@ -218,7 +216,6 @@ def cargar_ofertas_p2p():
         traceback.print_exc()
         return []
 
-@st.cache_data(ttl=600, show_spinner=False)
 def cargar_todas_ofertas_secundario():
     """Carga TODAS las ofertas del mercado secundario: OTC + P2P"""
     ofertas_otc = cargar_ofertas_otc()
