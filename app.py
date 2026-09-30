@@ -180,34 +180,38 @@ def cargar_ofertas_otc():
 def cargar_ofertas_p2p():
     """Carga operaciones P2P cerradas (como ofertas del mercado secundario)"""
     try:
-        from modules import p2p_mercado
-        df_p2p = p2p_mercado.cargar()
+        # ⚠️ P2P desactivado: necesita módulo p2p_mercado.py
+        # Descomenta cuando tengas el archivo en /modules/p2p_mercado.py
+        # from modules import p2p_mercado
+        # df_p2p = p2p_mercado.cargar()
         
-        if df_p2p.empty:
-            return []
+        return []  # Por ahora, devuelve vacío
         
-        # Convertir a lista de dicts compatible con OTC
-        # P2P contiene operaciones CERRADAS, las mostramos como "ofertas histónicas"
-        ofertas_p2p = []
-        for idx, row in df_p2p.iterrows():
-            oferta = {
-                'id': row.get('hash', f"P2P-{idx}"),
-                'proyecto_id': row.get('proyecto', '').lower() if pd.notna(row.get('proyecto')) else '',
-                'token_address': row.get('token_address', '').lower() if pd.notna(row.get('token_address')) else '',
-                'proyecto_nombre': row.get('proyecto', ''),
-                'n_tokens': row.get('tokens', 0),
-                'precio_venta': row.get('precio_unitario', 0),
-                'divisa': 'USD',
-                'inversor': row.get('vendedor', 'Desconocido'),
-                'estado': 'cerrada',  # P2P son operaciones ya cerradas
-                'canal': 'P2P',
-                'fecha': row.get('fecha', '')
-            }
-            ofertas_p2p.append(oferta)
-        
-        return ofertas_p2p
+        # if df_p2p.empty:
+        #     return []
+        # 
+        # # Convertir a lista de dicts compatible con OTC
+        # # P2P contiene operaciones CERRADAS, las mostramos como "ofertas histónicas"
+        # ofertas_p2p = []
+        # for idx, row in df_p2p.iterrows():
+        #     oferta = {
+        #         'id': row.get('hash', f"P2P-{idx}"),
+        #         'proyecto_id': row.get('proyecto', '').lower() if pd.notna(row.get('proyecto')) else '',
+        #         'token_address': row.get('token_address', '').lower() if pd.notna(row.get('token_address')) else '',
+        #         'proyecto_nombre': row.get('proyecto', ''),
+        #         'n_tokens': row.get('tokens', 0),
+        #         'precio_venta': row.get('precio_unitario', 0),
+        #         'divisa': 'USD',
+        #         'inversor': row.get('vendedor', 'Desconocido'),
+        #         'estado': 'cerrada',  # P2P son operaciones ya cerradas
+        #         'canal': 'P2P',
+        #         'fecha': row.get('fecha', '')
+        #     }
+        #     ofertas_p2p.append(oferta)
+        # 
+        # return ofertas_p2p
     except Exception as e:
-        st.warning(f"⚠️ No se pudo cargar ofertas P2P: {str(e)}")
+        st.warning(f"⚠️ P2P no disponible: {str(e)}")
         return []
 
 @st.cache_data(ttl=600, show_spinner=False)
