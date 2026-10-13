@@ -356,17 +356,17 @@ if st.session_state.paso_actual == 1:
     
     with col1:
         nombre = st.text_input(
-            "Nombre completo *",
+            "Indica tu nombre completo *",
             value=st.session_state.datos_cliente.get('nombre', ''),
             key="input_nombre"
         )
         email = st.text_input(
-            "Email *",
+            "Indica tu email *",
             value=st.session_state.datos_cliente.get('email', ''),
             key="input_email"
         )
         divisa = st.selectbox(
-            "Divisa *",
+            "¿Cuál es la divisa que vas a usar de forma más frecuente? *",
             ["EUR", "USD"],
             index=None,
             placeholder="Selecciona una divisa",
@@ -382,7 +382,7 @@ if st.session_state.paso_actual == 1:
             key="select_inversor"
         )
         capital = st.selectbox(
-            "Capital a invertir *",
+            "Indica cuánto capital quieres invertir *",
             ["Menos de 5.000", "Entre 5.000 y 10.000", "Entre 10.000 y 50.000", "Más de 50.000"],
             index=None,
             placeholder="Selecciona tu rango de capital",
