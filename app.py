@@ -639,7 +639,7 @@ if st.session_state.paso_actual == 1:
         inmobiliaria <b>adaptada a tu perfil</b>: tu capital, tu objetivo de inversión y los mercados
         que prefieras.</p>
     <p style="color: {COLOR_NAVY}; font-size: 15px; line-height: 1.55; margin: 0;">
-        En cinco pasos verás qué proyectos encajan contigo, cómo repartir tu inversión entre
+        En cinco pasos verás <b>qué proyectos encajan contigo</>, cómo repartir tu inversión entre
         ellos y la rentabilidad estimada de tu cartera. Al final podrás descargar un resumen
         en PDF.</p>
 </div>
