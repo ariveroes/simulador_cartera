@@ -2033,7 +2033,7 @@ st.markdown("---")
 st.markdown(f"""
 <div style='text-align: center; color: {COLOR_GRIS}; font-size: 0.9em; margin-top: 30px;'>
     <p><b>© {datetime.now().year} Reental Wealth Services</b> | Simulador de Cartera</p>
-    <p>Para más información: <a href='https://reental.com' target='_blank' style='color: {COLOR_AMBAR_OSCURO};'>www.reental.com</a></p>
+    <p>Para más información: <a href='https://reental.co' target='_blank' style='color: {COLOR_AMBAR_OSCURO};'>www.reental.co</a></p>
     <p style='font-size: 0.85em; margin-top: 15px;'>
         <i>Este simulador es una herramienta educativa. Las proyecciones mostradas son estimaciones basadas en datos históricos 
         y parámetros actuales. La rentabilidad pasada no garantiza resultados futuros.</i>
