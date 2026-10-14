@@ -1157,7 +1157,7 @@ elif st.session_state.paso_actual == 4:
                 with zona_ajuste_capital.container():
                     st.button(
                         f"Ajustar mi capital a {capital_nuevo:,.0f} {simbolo_cliente_p4} "
-                        f"para invertir exactamente lo que has elegido",
+                        f"para invertir exactamente lo que he elegido",
                         key="btn_ajustar_capital",
                         on_click=ajustar_capital,
                         args=(list(ids_validos), importe_total_p4, suma_porcentajes),
