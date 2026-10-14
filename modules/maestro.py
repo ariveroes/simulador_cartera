@@ -62,6 +62,15 @@ COLUMNAS = {
     "real_anual_rnt":        ("Real Rentab. Total Anualizada Reentel", 61),
     "real_total_sr":         ("Real Rentab. Total SR", 69),
     "real_anual_sr":         ("Real Rentab. Total Anualizada SR", 71),
+    # Renta recurrente REAL anualizada (la que ya está pagando el proyecto) y
+    # plusvalía REAL (solo cerrados). Las usa rentabilidad_compra.py, igual que
+    # la plantilla de propuestas: si hay dato real manda, si no, el estimado.
+    "real_recurr_rnt":       ("Real Rentab. por Rendimientos recurrentes Anualizados Reentel", 53),
+    "real_recurr_rp":        ("Real Rentab. por Rendimientos recurrentes Anualizados RP", 83),
+    "real_recurr_sr":        ("Real Rentab. por Rendimientos recurrentes Anualizados SR", 87),
+    "real_plusvalia_rnt":    ("Real Rentab. Plusvalía Reentel", 60),
+    "real_plusvalia_rp":     ("Real Rentab. Plusvalía RP", 65),
+    "real_plusvalia_sr":     ("Real Rentab. Plusvalía SR", 70),
     "descripcion":           ("Descripción", 74),
     "link_web":              ("Link a inmueble en la web publica", 75),
     "motivo_cierre":         ("Motivos de cierre Estimado vs Real", 80),
