@@ -627,6 +627,24 @@ st.markdown(f"""
 
 st.markdown("---")
 
+# ========== INSTRUCCIONES (solo al empezar, antes del Paso 1) ==========
+if st.session_state.paso_actual == 1:
+    st.markdown(f"""
+<div style="background: {COLOR_AMBAR_CLARO}; border-left: 4px solid {COLOR_AMBAR};
+            border-radius: 8px; padding: 18px 22px; margin: 4px 0 22px 0;">
+    <div style="font-size: 20px; font-weight: 700; color: {COLOR_NAVY}; margin-bottom: 8px;">
+        Bienvenido al Simulador de cartera inmobiliaria</div>
+    <p style="color: {COLOR_NAVY}; font-size: 15px; line-height: 1.55; margin: 0 0 8px 0;">
+        Herramienta desarrollada por Reental Wealth que permite simular una cartera de inversión
+        inmobiliaria adaptada a tu perfil: tu capital, tu objetivo de inversión y los mercados
+        que prefieras.</p>
+    <p style="color: {COLOR_NAVY}; font-size: 15px; line-height: 1.55; margin: 0;">
+        En cinco pasos verás qué proyectos encajan contigo, cómo repartir tu inversión entre
+        ellos y la rentabilidad estimada de tu cartera. Al final podrás descargar un resumen
+        en PDF.</p>
+</div>
+""", unsafe_allow_html=True)
+
 # ========== PROGRESS BAR ==========
 progress_value = (st.session_state.paso_actual - 1) / 4
 col1, col2 = st.columns([3, 1])
