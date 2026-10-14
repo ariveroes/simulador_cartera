@@ -1082,7 +1082,8 @@ elif st.session_state.paso_actual == 4:
                     )
                     if pct_maximo is not None:
                         st.button(
-                            f"Usar la máxima cantidad de tokens disponibles ({pct_maximo:.1f}%)",
+                            f"Usar todos los tokens disponibles: {tokens_oferta:,.2f} tokens "
+                            f"(≈ {importe_total_p4 * pct_maximo / 100:,.0f} {simbolo_cliente_p4}, {pct_maximo:.1f}% de tu capital)",
                             key=f"max_{proyecto_id}",
                             on_click=lambda k=clave_pct, v=pct_maximo: st.session_state.update({k: v}),
                         )
@@ -1098,7 +1099,7 @@ elif st.session_state.paso_actual == 4:
                     proyectos_sin_tokens.append(proyecto_nombre)
                     solucion = ("elige otra oferta, quita algún proyecto o cambia en el Paso 3 a "
                                 "«Elegir cuánto invertir en cada uno»" if reparto_igual
-                                else "elige otra oferta o pulsa «Usar la máxima cantidad de tokens disponibles»")
+                                else "elige otra oferta o pulsa «Usar todos los tokens disponibles»")
                     st.warning(
                         f"⚠️ Con un {porcentaje:.1f}% ({importe_proy:,.0f} {simbolo_cliente_p4}) necesitarías "
                         f"{tokens_necesarios:,.2f} tokens, pero esta oferta solo tiene {tokens_oferta:,.2f} "
