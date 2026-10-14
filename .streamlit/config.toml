@@ -1,17 +1,9 @@
-   [theme]
-   primaryColor = "#1f77b4"
-   backgroundColor = "#ffffff"
-   secondaryBackgroundColor = "#f0f2f6"
-   textColor = "#262730"
-   font = "sans serif"
-
-   [client]
-   showErrorDetails = true
-
-   [logger]
-   level = "info"
-
-   [server]
-   headless = true
-   port = 8501
-   runOnSave = true
+# Tema de la app con la paleta del informe mensual de Reental Wealth.
+# Este archivo va en la carpeta .streamlit/ de la raíz del repositorio.
+[theme]
+base = "light"
+primaryColor = "#fca311"
+backgroundColor = "#f9fafb"
+secondaryBackgroundColor = "#f1f3f5"
+textColor = "#1f2937"
+font = "sans serif"
