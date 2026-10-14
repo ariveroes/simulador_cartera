@@ -499,6 +499,11 @@ CAPITAL_SIMULADO = {
     "Más de 50.000": 100000,
 }
 
+def _indice(opciones, valor):
+    """Posición de `valor` en `opciones` (para recordar lo elegido al volver atrás)."""
+    return opciones.index(valor) if valor in opciones else None
+
+
 def importe_simulado(capital_texto):
     return CAPITAL_SIMULADO.get(capital_texto, 30000)
 
@@ -530,6 +535,32 @@ def es(valor, decimales=2):
     except (TypeError, ValueError):
         return str(valor)
     return texto.replace(",", "@").replace(".", ",").replace("@", ".")
+
+
+OBJETIVOS = [
+    "Maximizar rentabilidad - quiero invertir en los proyectos con mayor rentabilidad anualizada",
+    "Ingresos pasivos regulares - quiero invertir en proyectos que me den rentas periódicas",
+]
+
+
+def priorizar_rentas(df):
+    """Para el objetivo de ingresos pasivos: primero los proyectos con rendimientos
+    mensuales, luego trimestrales y al final los que solo pagan al terminar.
+    Dentro de cada grupo se respeta el orden que ya tenían."""
+    if df is None or len(df) == 0:
+        return df
+    try:
+        from modules.formateo_datos import _buscar_columna_tipologia
+        col = _buscar_columna_tipologia(df)
+    except Exception:
+        col = None
+    if not col:
+        return df
+    def _grupo(t):
+        t = str(t or "").lower()
+        return 0 if "mensual" in t else 1 if "trimestral" in t else 2
+    orden = df[col].map(_grupo)
+    return df.assign(_orden=orden).sort_values("_orden", kind="stable").drop(columns="_orden")
 
 
 def tabla_seleccionable(df_display, key):
@@ -606,7 +637,7 @@ if st.session_state.paso_actual == 1:
         divisa = st.selectbox(
             "¿En qué divisa prefieres invertir? *",
             ["EUR", "USD"],
-            index=None,
+            index=_indice(["EUR", "USD"], st.session_state.datos_cliente.get('divisa')),
             placeholder="Selecciona una divisa",
             key="select_divisa"
         )
@@ -615,14 +646,14 @@ if st.session_state.paso_actual == 1:
         ya_inversor = st.selectbox(
             "¿Eres ya inversor en Reental? *",
             ["No", "Sí"],
-            index=None,
+            index=_indice(["No", "Sí"], st.session_state.datos_cliente.get('ya_inversor')),
             placeholder="Selecciona una opción",
             key="select_inversor"
         )
         capital = st.selectbox(
             "¿Cuánto capital tienes disponible para invertir? *",
-            ["Menos de 5.000", "Entre 5.000 y 10.000", "Entre 10.000 y 50.000", "Más de 50.000"],
-            index=None,
+            list(CAPITAL_SIMULADO.keys()),
+            index=_indice(list(CAPITAL_SIMULADO.keys()), st.session_state.datos_cliente.get('capital')),
             placeholder="Selecciona tu rango de capital",
             key="select_capital"
         )
@@ -649,7 +680,8 @@ if st.session_state.paso_actual == 1:
             elif not telefono_valido:
                 st.error("Revisa el teléfono: escribe solo números (puedes empezar por + y el prefijo del país).")
             else:
-                st.session_state.datos_cliente = {
+                anteriores = st.session_state.datos_cliente
+                nuevos = {
                     'nombre': nombre.strip(),
                     'email': email.strip(),
                     'telefono': telefono.strip(),
@@ -657,6 +689,11 @@ if st.session_state.paso_actual == 1:
                     'ya_inversor': ya_inversor,
                     'capital': capital,
                 }
+                # Se conservan las respuestas de los pasos siguientes; el capital
+                # ajustado solo vale mientras no se cambie el rango ni la divisa.
+                if anteriores.get('capital') != capital or anteriores.get('divisa') != divisa:
+                    anteriores.pop('capital_ajustado', None)
+                st.session_state.datos_cliente = {**anteriores, **nuevos}
                 # Guardar el lead (si falla, la app sigue igual)
                 if 'lead_id' not in st.session_state:
                     st.session_state.lead_id = uuid.uuid4().hex[:10]
@@ -685,7 +722,7 @@ elif st.session_state.paso_actual == 2:
             border_width = "2px"
         
         st.markdown(f"""
-        <div style="border: {border_width} solid {border_color}; border-radius: 12px; padding: 20px; background-color: {bg_color}; min-height: 180px; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer;">
+        <div style="border: {border_width} solid {border_color}; border-radius: 12px; padding: 20px; background-color: {bg_color}; min-height: 180px; display: flex; flex-direction: column; justify-content: space-between;">
             <div style="color: #16a34a; font-weight: 700; font-size: 16px; margin-bottom: 15px;">
                 🏛️ SUPERREENTEL
             </div>
@@ -710,7 +747,7 @@ elif st.session_state.paso_actual == 2:
             border_width = "2px"
         
         st.markdown(f"""
-        <div style="border: {border_width} solid {border_color}; border-radius: 12px; padding: 20px; background-color: {bg_color}; min-height: 180px; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer;">
+        <div style="border: {border_width} solid {border_color}; border-radius: 12px; padding: 20px; background-color: {bg_color}; min-height: 180px; display: flex; flex-direction: column; justify-content: space-between;">
             <div style="color: #a855f7; font-weight: 700; font-size: 16px; margin-bottom: 15px;">
                 🏢 REENTELPRO
             </div>
@@ -735,7 +772,7 @@ elif st.session_state.paso_actual == 2:
             border_width = "2px"
         
         st.markdown(f"""
-        <div style="border: {border_width} solid {border_color}; border-radius: 12px; padding: 20px; background-color: {bg_color}; min-height: 180px; display: flex; flex-direction: column; justify-content: space-between; cursor: pointer;">
+        <div style="border: {border_width} solid {border_color}; border-radius: 12px; padding: 20px; background-color: {bg_color}; min-height: 180px; display: flex; flex-direction: column; justify-content: space-between;">
             <div style="color: #ca820e; font-weight: 700; font-size: 16px; margin-bottom: 15px;">
                 🏠 REENTEL
             </div>
@@ -785,21 +822,13 @@ elif st.session_state.paso_actual == 3:
     with col1:
         objetivo = st.selectbox(
             "Objetivo de inversión *",
-            ["Maximizar rentabilidad - quiero invertir en los proyectos con mayor rentabilidad anualizada", "Ingresos pasivos regulares - quiero invertir en proyectos que me den rentas periódicas"],
-            index=None,
+            OBJETIVOS,
+            index=_indice(OBJETIVOS, st.session_state.datos_cliente.get('objetivo')),
             placeholder="Selecciona tu objetivo",
             key="select_objetivo"
         )
     
-    with col2:
-        distribucion = st.selectbox(
-            "Distribución de capital *",
-            ["Distribuir en partes iguales", "Elegir cuánto invertir en cada uno"],
-            index=None,
-            placeholder="Selecciona tu estrategia",
-            key="select_distribucion"
-        )
-    
+
     st.markdown("")
     st.markdown("**Selecciona los mercados de interés:** *")
     
@@ -836,11 +865,10 @@ elif st.session_state.paso_actual == 3:
         estatus_seleccionado = st.session_state.datos_cliente.get('estatus')
         
         # Validar que TODOS los campos estén completos (no None)
-        if objetivo is not None and mercados_seleccionados and distribucion is not None and estatus_seleccionado is not None:
+        if objetivo is not None and mercados_seleccionados and estatus_seleccionado is not None:
             if st.button("Siguiente >", use_container_width=True, key="btn_paso3_next"):
                 st.session_state.datos_cliente['objetivo'] = objetivo
                 st.session_state.datos_cliente['mercados'] = mercados_seleccionados
-                st.session_state.datos_cliente['distribucion'] = distribucion
                 
                 # Cargar TODOS los proyectos (incluidos cerrados con OTC)
                 try:
@@ -853,6 +881,10 @@ elif st.session_state.paso_actual == 3:
                     st.error("No hemos podido cargar los proyectos. Inténtalo de nuevo en unos minutos.")
         else:
             st.button("Siguiente >", use_container_width=True, disabled=True, key="btn_paso3_next_disabled")
+            faltan = [n for n, ok in (("el objetivo de inversión", objetivo is not None),
+                                      ("al menos un mercado", bool(mercados_seleccionados))) if not ok]
+            if faltan:
+                st.caption("Para continuar, elige " + " y ".join(faltan) + ".")
 
 # ========== PASO 4: PROYECTOS Y PRECIOS ==========
 elif st.session_state.paso_actual == 4:
@@ -873,7 +905,6 @@ elif st.session_state.paso_actual == 4:
         mercados_seleccionados = st.session_state.datos_cliente.get('mercados', [])
         objetivo = st.session_state.datos_cliente.get('objetivo', '')
         estatus = st.session_state.datos_cliente.get('estatus', None)
-        distribucion_type = st.session_state.datos_cliente.get('distribucion', 'Distribuir en partes iguales')
         
         criterios = {
             'ubicaciones': mercados_seleccionados,
@@ -895,13 +926,21 @@ elif st.session_state.paso_actual == 4:
             except:
                 pass
         
+        ingresos_pasivos = 'ingresos' in (objetivo or '').lower()
+        if ingresos_pasivos:
+            df_matchean = priorizar_rentas(df_matchean)
+            df_no_matchean = priorizar_rentas(df_no_matchean)
+        
         # IDs marcados en cualquiera de las tablas
         ids_seleccionados = []
         
         # ========== TABLAS PRIMERA EMISIÓN ==========
         st.markdown("### 📊 Proyectos disponibles en primera emisión (Reental)")
         
-        if len(df_matchean) > 0:
+        if len(df_matchean) == 0:
+            st.info("No hay proyectos en primera emisión en los mercados que has elegido"
+                    + (". Debajo tienes otros proyectos que podrían interesarte." if len(df_no_matchean) > 0 else "."))
+        else:
             df_display_matchean = preparar_proyectos_para_paso4(df_matchean, estatus)
             df_display_matchean = aplicar_rentabilidad_ajustada(df_display_matchean, df_matchean, estatus)
             ids_seleccionados += tabla_seleccionable(df_display_matchean, "tabla_primera_emision")
@@ -942,13 +981,23 @@ elif st.session_state.paso_actual == 4:
             if proyectos_con_otc:
                 df_con_otc = pd.DataFrame(proyectos_con_otc)
         
+        # Solo los mercados elegidos en el Paso 3
+        otc_fuera_de_mercado = 0
+        if len(df_con_otc) > 0 and mercados_seleccionados:
+            en_mercado = df_con_otc['Ubicación'].isin(mercados_seleccionados)
+            otc_fuera_de_mercado = int((~en_mercado).sum())
+            df_con_otc = df_con_otc[en_mercado]
+        
         if len(df_con_otc) > 0:
-            st.success(f"✅ {len(df_con_otc)} proyecto(s) con ofertas OTC/P2P disponibles")
+            n_otc = len(df_con_otc)
+            st.success(f"✅ {n_otc} proyecto{'s' if n_otc != 1 else ''} con tokens disponibles en el mercado secundario")
             
             try:
                 df_con_otc = rankear_proyectos(df_con_otc, criterios, estatus)
             except:
                 pass
+            if ingresos_pasivos:
+                df_con_otc = priorizar_rentas(df_con_otc)
             
             # Precio OTC más bajo por proyecto, en la divisa del proyecto
             precio_min_por_id = {}
@@ -983,10 +1032,13 @@ elif st.session_state.paso_actual == 4:
                              if pid in precio_min_por_id else "-")
             )
             ids_seleccionados += tabla_seleccionable(df_display_otc, "tabla_otc")
-        elif ofertas_por_proy:
-            st.info("📭 Hay ofertas OTC, pero ninguna coincide con un proyecto del Master")
+        elif otc_fuera_de_mercado:
+            st.info("📭 Ahora mismo no hay tokens disponibles en el mercado secundario en los mercados que has elegido.")
         else:
-            st.info("📭 No hay ofertas OTC disponibles en este momento")
+            st.info("📭 Ahora mismo no hay tokens disponibles en el mercado secundario.")
+        if otc_fuera_de_mercado:
+            st.caption(f"Hay {otc_fuera_de_mercado} proyecto{'s' if otc_fuera_de_mercado != 1 else ''} más con tokens "
+                       "disponibles en otros mercados. Puedes añadir esos mercados en el Paso 3.")
         
         # ========== GUARDAR SELECCIÓN ==========
         ids_seleccionados = list(dict.fromkeys(ids_seleccionados))  # sin duplicados, en orden
@@ -1004,7 +1056,7 @@ elif st.session_state.paso_actual == 4:
         st.markdown("### Construye tu cartera")
         
         proyectos_seleccionados = []
-        reparto_igual = distribucion_type == 'Distribuir en partes iguales'
+        reparto_igual = True   # la tabla arranca repartida por igual hasta que se toque a mano
         divisa_cliente_p4 = (st.session_state.datos_cliente.get('divisa') or 'EUR').upper()
         importe_total_p4 = importe_cliente(st.session_state.datos_cliente)
         simbolo_cliente_p4 = '€' if divisa_cliente_p4 == 'EUR' else '$'
@@ -1268,7 +1320,6 @@ elif st.session_state.paso_actual == 5:
         with col2:
             st.write(f"**Capital a invertir:** {capital_mostrado(datos, simbolo)}")
             st.write(f"**Objetivo:** {datos.get('objetivo', 'N/A')}")
-            st.write(f"**Distribución de la cartera:** {datos.get('distribucion', 'N/A')}")
         
         st.markdown("---")
         
@@ -1384,6 +1435,7 @@ elif st.session_state.paso_actual == 5:
                 'Ubicación': row.get('Ubicación', ''),
                 'Precio de compra': f"{fmt(precio_conv)} ({tipo_precio})",
                 'Tipo de dividendo': tipologia or '-',
+                'Tokens': round(_num(st.session_state.tokens_compra.get(proyecto_id), 0.0), 2),
                 'Rentabilidad anualizada': rent_anual,
                 'Rentabilidad total': rent_total,
                 '% cartera': peso,
@@ -1399,6 +1451,7 @@ elif st.session_state.paso_actual == 5:
                 'tipo_precio': tipo_precio,
                 'pct': peso,
                 'importe': importe_inmuebles * peso / 100,
+                'tokens': _num(st.session_state.tokens_compra.get(proyecto_id), 0.0),
                 'rent_anu_rnt': r_rnt['anual'] or 0.0,
                 'rent_tot_rnt': r_rnt['total'],
                 'rent_anu_est': rent_anual,
@@ -1440,6 +1493,7 @@ elif st.session_state.paso_actual == 5:
                     'Rentabilidad anualizada': st.column_config.NumberColumn(format='%.2f%%'),
                     'Rentabilidad total': st.column_config.NumberColumn(format='%.2f%%'),
                     '% cartera': st.column_config.NumberColumn(format='%.1f%%'),
+                    'Tokens': st.column_config.NumberColumn(format='%.2f'),
                 }
             )
         
@@ -1678,9 +1732,9 @@ elif st.session_state.paso_actual == 5:
 
 # ========== FOOTER ==========
 st.markdown("---")
-st.markdown("""
+st.markdown(f"""
 <div style='text-align: center; color: #666666; font-size: 0.9em; margin-top: 30px;'>
-    <p><b>© 2024 Reental Wealth Services</b> | Simulador de Cartera v3.0</p>
+    <p><b>© {datetime.now().year} Reental Wealth Services</b> | Simulador de Cartera</p>
     <p>Para más información: <a href='https://reental.com' target='_blank'>www.reental.com</a></p>
     <p style='font-size: 0.85em; margin-top: 15px;'>
         <i>Este simulador es una herramienta educativa. Las proyecciones mostradas son estimaciones basadas en datos históricos 
