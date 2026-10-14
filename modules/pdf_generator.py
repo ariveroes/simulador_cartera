@@ -32,6 +32,31 @@ from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.pdfgen import canvas as rl_canvas
 from reportlab.platypus import Paragraph, Table, TableStyle
 
+# ─── Tipografía ──────────────────────────────────────────────────────────────
+# Fustat, la misma que el informe mensual de Reental Wealth. Los archivos van en
+# modules/fonts/. Si no están, el PDF se genera igual con Helvetica.
+import os as _os
+from reportlab.lib.fonts import addMapping
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
+FUENTE, FUENTE_BOLD = "Helvetica", "Helvetica-Bold"
+_DIR_FUENTES = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "fonts")
+try:
+    pdfmetrics.registerFont(TTFont("Fustat", _os.path.join(_DIR_FUENTES, "Fustat-Regular.ttf")))
+    pdfmetrics.registerFont(TTFont("Fustat-Bold", _os.path.join(_DIR_FUENTES, "Fustat-Bold.ttf")))
+    addMapping("Fustat", 0, 0, "Fustat")
+    addMapping("Fustat", 1, 0, "Fustat-Bold")
+    addMapping("Fustat", 0, 1, "Fustat")
+    addMapping("Fustat", 1, 1, "Fustat-Bold")
+    FUENTE, FUENTE_BOLD = "Fustat", "Fustat-Bold"
+except Exception:
+    pass
+
+# Fustat no tiene el símbolo ★: el estatus propuesto se distingue ya por el
+# color dorado, así que no se añade ningún símbolo.
+ESTRELLA = ""
+
 # ─── Página y colores ────────────────────────────────────────────────────────
 
 W, H = 960, 540          # formato presentación 16:9
@@ -121,7 +146,7 @@ def _fondo(c, color):
 
 
 def _texto(c, x, y, s, size=10, color=TXT, bold=False, anchor="l"):
-    fuente = "Helvetica-Bold" if bold else "Helvetica"
+    fuente = FUENTE_BOLD if bold else FUENTE
     c.setFont(fuente, size)
     c.setFillColor(color)
     if anchor == "c":
@@ -142,7 +167,7 @@ def _caja(c, x, y, w, h, fill=CARD, stroke=BORDE, r=8):
 
 
 def _parrafo(c, x, y_top, w, html, size=9, color=TXT, leading=None, align=TA_LEFT, bold=False):
-    est = ParagraphStyle("p", fontName="Helvetica-Bold" if bold else "Helvetica", fontSize=size,
+    est = ParagraphStyle("p", fontName=FUENTE_BOLD if bold else FUENTE, fontSize=size,
                          leading=leading or size * 1.35, textColor=color, alignment=align)
     p = Paragraph(html, est)
     _, h = p.wrap(w, 1000)
@@ -165,14 +190,14 @@ def _numero_pagina(c, n):
 def _etiqueta_estado(c, x, y, estado, size=6.5):
     nombre = _norm_estado(estado)
     fondo, color = ESTADO_COLORES.get(nombre, ("#26374f", "#d3d9e2"))
-    ancho = stringWidth(nombre, "Helvetica-Bold", size) + 12
+    ancho = stringWidth(nombre, FUENTE_BOLD, size) + 12
     _caja(c, x, y, ancho, size + 7, fill=C(fondo), stroke=None, r=(size + 7) / 2)
     _texto(c, x + 6, y + 3.6, nombre, size, C(color), bold=True)
     return ancho
 
 
 def _pastilla(c, x, y, texto, fondo, color, size=8):
-    ancho = stringWidth(texto, "Helvetica-Bold", size) + 16
+    ancho = stringWidth(texto, FUENTE_BOLD, size) + 16
     _caja(c, x, y, ancho, size + 9, fill=fondo, stroke=None, r=(size + 9) / 2)
     _texto(c, x + 8, y + 4.5, texto, size, color, bold=True)
     return ancho
@@ -180,10 +205,10 @@ def _pastilla(c, x, y, texto, fondo, color, size=8):
 
 def _tabla(c, x, y_top, filas, anchos, cabecera=True, size=8):
     """Tabla oscura. `filas` puede llevar HTML de Paragraph. Devuelve su alto."""
-    est = ParagraphStyle("cel", fontName="Helvetica", fontSize=size, leading=size * 1.3,
+    est = ParagraphStyle("cel", fontName=FUENTE, fontSize=size, leading=size * 1.3,
                          textColor=TXT, alignment=TA_CENTER)
     est_l = ParagraphStyle("celL", parent=est, alignment=TA_LEFT)
-    est_cab = ParagraphStyle("cab", parent=est, fontName="Helvetica-Bold", textColor=MUTED)
+    est_cab = ParagraphStyle("cab", parent=est, fontName=FUENTE_BOLD, textColor=MUTED)
     est_cab_l = ParagraphStyle("cabL", parent=est_cab, alignment=TA_LEFT)
     data = []
     for i, fila in enumerate(filas):
@@ -404,7 +429,7 @@ def _reinversion(c, R):
     alto_graf = 205
     y -= alto_graf + 34
     _caja(c, M, y, ancho, alto_graf + 34)
-    _texto(c, M + 16, y + alto_graf + 14, f"★ Ganancia total — Reentel vs {ep}", 10, ORO, bold=True)
+    _texto(c, M + 16, y + alto_graf + 14, f"Ganancia total — Reentel vs {ep}", 10, ORO, bold=True)
 
     d = Drawing(ancho - 40, alto_graf - 30)
     bc = VerticalBarChart()
@@ -415,7 +440,7 @@ def _reinversion(c, R):
     for eje in (bc.categoryAxis, bc.valueAxis):
         eje.strokeColor = BORDE
         eje.labels.fillColor = MUTED
-        eje.labels.fontName = "Helvetica"
+        eje.labels.fontName = FUENTE
         eje.labels.fontSize = 8
     bc.valueAxis.valueMin = 0
     bc.valueAxis.visibleGrid = 1
@@ -424,7 +449,7 @@ def _reinversion(c, R):
     bc.groupSpacing = 14
     bc.barSpacing = 2
     bc.barLabelFormat = lambda v: _n(v, 0)
-    bc.barLabels.fontName = "Helvetica-Bold"
+    bc.barLabels.fontName = FUENTE_BOLD
     bc.barLabels.fontSize = 6.5
     bc.barLabels.fillColor = TXT
     bc.barLabels.nudge = 6
@@ -445,13 +470,13 @@ def _reinversion(c, R):
     filas = [["Escenario"] + [f"{e['meses']} meses" for e in esc],
              ["<b>Ganancia Reentel</b>"] + [_dinero(e["g_rnt"], divisa) for e in esc]]
     if ep != "Reentel":
-        filas += [[f"<font color='{oro}'><b>Ganancia {ep} ★</b></font>"] +
+        filas += [[f"<font color='{oro}'><b>Ganancia {ep} </b></font>"] +
                   [f"<font color='{oro}'><b>{_dinero(e['g_est'], divisa)}</b></font>" for e in esc],
-                  [f"<font color='{verde}'><b>Ganancia {ep} (incl. staking) ★</b></font>"] +
+                  [f"<font color='{verde}'><b>Ganancia {ep} (incl. staking) </b></font>"] +
                   [f"<font color='{verde}'><b>{_dinero(e['g_est_staking'], divisa)}</b></font>" for e in esc]]
     filas += [["Rent. acumulada Reentel"] + [_pct(e["rent_rnt"]) for e in esc]]
     if ep != "Reentel":
-        filas += [[f"<font color='{oro}'>Rent. acumulada {ep} ★</font>"] +
+        filas += [[f"<font color='{oro}'>Rent. acumulada {ep} </font>"] +
                   [f"<font color='{oro}'><b>{_pct(e['rent_est'])}</b></font>" for e in esc]]
     n = len(esc)
     y -= 10
@@ -542,8 +567,8 @@ def _activos(c, R, proyectos, con_barras):
     ancho = W - 2 * M
     oro = "#f5a623"
 
-    filas = [["Nombre", "Estado", "Ubicación", "Inversión", "Tokens", "Rent. total Reentel", f"Rent. total {ep} ★",
-              "Rent. anual Reentel", f"Rent. anual {ep} ★", "Fin est."]]
+    filas = [["Nombre", "Estado", "Ubicación", "Inversión", "Tokens", "Rent. total Reentel", f"Rent. total {ep}",
+              "Rent. anual Reentel", f"Rent. anual {ep}", "Fin est."]]
     for p in proyectos:
         estado = _norm_estado(p.get("estado"))
         fondo, color = ESTADO_COLORES.get(estado, ("#26374f", "#d3d9e2"))
@@ -640,7 +665,7 @@ def _ficha(c, R, p, x, y, w, h):
 def _beneficios_wealth(c):
     _fondo(c, BG_BENEF)
     _texto(c, M, H - M - 36, "Beneficios de ser", 32, BLANCO, bold=True)
-    _texto(c, M + stringWidth("Beneficios de ser ", "Helvetica-Bold", 32), H - M - 36, "Wealth", 32, BLANCO)
+    _texto(c, M + stringWidth("Beneficios de ser ", FUENTE_BOLD, 32), H - M - 36, "Wealth", 32, BLANCO)
     columnas = [
         ["Acceso a oportunidades exclusivas con antelación.",
          "Atención personalizada con un equipo dedicado. Optimización de estrategias.",
@@ -674,7 +699,7 @@ def _beneficios_superreentel(c, R):
     _fondo(c, BG_BENEF)
     ep = R.get("estatus", "SuperReentel")
     _texto(c, M, H - M - 36, "Beneficios de ser", 32, BLANCO, bold=True)
-    _texto(c, M + stringWidth("Beneficios de ser ", "Helvetica-Bold", 32), H - M - 36, ep, 32, BLANCO)
+    _texto(c, M + stringWidth("Beneficios de ser ", FUENTE_BOLD, 32), H - M - 36, ep, 32, BLANCO)
     columnas = [
         ("Ventajas en proyectos Real Estate:",
          ["Acceso prioritario a proyectos antes de ser comunicados al resto de la comunidad.",
@@ -701,7 +726,9 @@ def _beneficios_superreentel(c, R):
         _texto(c, x + 18, y + alto - 28, titulo, 10.5, ORO, bold=True)
         yy = y + alto - 50
         for item in items:
-            _texto(c, x + 18, yy - 9, "✓", 11, ORO, bold=True)
+            c.setFont("ZapfDingbats", 10)
+            c.setFillColor(ORO)
+            c.drawString(x + 18, yy - 9, "4")     # ✓ en ZapfDingbats
             h = _parrafo(c, x + 34, yy, tercio - 52, item, 9.5, TXT, leading=13)
             yy -= h + 12
     y -= 14 + 58
