@@ -364,6 +364,11 @@ def cargar_todas_ofertas_secundario(df_proyectos=None):
     
     return todas_ofertas
 
+# Mínimo de tokens disponibles para que una oferta OTC (o el stock de Reental)
+# aparezca en el simulador. Las que tengan esta cantidad o menos no se muestran.
+MIN_TOKENS_OTC = 10
+
+
 def agrupar_ofertas_por_proyecto(ofertas):
     """Agrupa por proyecto_id o token_address las ofertas ACTIVAS
     (mismo criterio que otc_inventario.catalogo de la herramienta OTC)."""
@@ -372,6 +377,9 @@ def agrupar_ofertas_por_proyecto(ofertas):
     for oferta in ofertas:
         # Solo ofertas vivas: las eliminadas, vendidas, etc. no son comprables
         if str(oferta.get('estado', '')).strip().lower() != 'activa':
+            continue
+        # Solo ofertas con un mínimo de tokens disponibles
+        if _num(oferta.get('n_tokens'), 0.0) <= MIN_TOKENS_OTC:
             continue
 
         # Usar proyecto_id o token_address como clave
@@ -1745,8 +1753,7 @@ st.markdown(f"""
     <p>Para más información: <a href='https://reental.com' target='_blank'>www.reental.com</a></p>
     <p style='font-size: 0.85em; margin-top: 15px;'>
         <i>Este simulador es una herramienta educativa. Las proyecciones mostradas son estimaciones basadas en datos históricos 
-        y parámetros actuales. La rentabilidad pasada no garantiza resultados futuros. 
-        Consulte con un asesor financiero independiente antes de invertir.</i>
+        y parámetros actuales. La rentabilidad pasada no garantiza resultados futuros.</i>
     </p>
 </div>
 """, unsafe_allow_html=True)
