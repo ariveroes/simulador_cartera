@@ -512,7 +512,7 @@ def importe_cliente(datos):
 def capital_mostrado(datos, simbolo):
     """Texto del capital para la pantalla y el PDF."""
     if datos.get('capital_ajustado'):
-        return f"{datos['capital_ajustado']:,.0f} {simbolo} (ajustado)"
+        return f"{es(datos['capital_ajustado'], 0)} {simbolo} (ajustado)"
     return f"{datos.get('capital', 'N/A')} ({'EUR' if simbolo == '€' else 'USD'})"
 
 
@@ -521,6 +521,15 @@ def ajustar_capital(importe_repartido):
     exactamente el 100 %. Los tokens de cada proyecto no cambian."""
     if importe_repartido and importe_repartido > 0:
         st.session_state.datos_cliente['capital_ajustado'] = importe_repartido
+
+
+def es(valor, decimales=2):
+    """Número en formato español: 257.109,50 (punto para miles, coma para decimales)."""
+    try:
+        texto = f"{float(valor):,.{decimales}f}"
+    except (TypeError, ValueError):
+        return str(valor)
+    return texto.replace(",", "@").replace(".", ",").replace("@", ".")
 
 
 def tabla_seleccionable(df_display, key):
@@ -957,7 +966,7 @@ elif st.session_state.paso_actual == 4:
                                                      for o in ofertas_por_proy.get(clave, [])), 2)
             df_display_otc['Tokens disponibles'] = df_display_otc['ID'].map(tokens_por_id)
             df_display_otc['Precio OTC Más Bajo'] = df_display_otc['ID'].map(
-                lambda pid: (f"{precio_min_por_id[pid]:.2f} {simbolo_por_id.get(pid, '€')}"
+                lambda pid: (f"{es(precio_min_por_id[pid], 2)} {simbolo_por_id.get(pid, '€')}"
                              if pid in precio_min_por_id else "-")
             )
             ids_seleccionados += tabla_seleccionable(df_display_otc, "tabla_otc")
@@ -993,9 +1002,9 @@ elif st.session_state.paso_actual == 4:
             return '$' if str(div).upper() in ('USD', 'USDT', '$') else '€'
         
         def _etiqueta(o):
-            texto = f"{o['precio']:.2f} {_simbolo(o['divisa'])}"
+            texto = f"{es(o['precio'], 2)} {_simbolo(o['divisa'])}"
             if _simbolo(o['divisa']) != simbolo_cliente_p4:
-                texto += f" (aprox. {convertir_divisa(o['precio'], o['divisa'], divisa_cliente_p4):.2f} {simbolo_cliente_p4})"
+                texto += f" (aprox. {es(convertir_divisa(o['precio'], o['divisa'], divisa_cliente_p4), 2)} {simbolo_cliente_p4})"
             return texto
         
         # ----- Opciones de compra de cada proyecto (la más barata primero) -----
@@ -1068,10 +1077,10 @@ elif st.session_state.paso_actual == 4:
             disponibles = o['n_tokens']
             if disponibles is not None:
                 maximos[pid] = round(disponibles, 4)
-            texto_pct = f"{pct:.1f}% · {importe:,.0f} {simbolo_cliente_p4}"
+            texto_pct = f"{es(pct, 1)}% · {es(importe, 0)} {simbolo_cliente_p4}"
             if disponibles is not None and tokens > disponibles + 0.01:
                 proyectos_sin_tokens.append(row['Nombre del proyecto'])
-                texto_pct = f"⚠ faltan {tokens - disponibles:,.2f} tk · {texto_pct}"
+                texto_pct = f"⚠ faltan {es(tokens - disponibles, 2)} tk · {texto_pct}"
             filas_editor.append({
                 'Proyecto': row['Nombre del proyecto'],
                 'Precio de compra': _etiqueta(o),
@@ -1096,18 +1105,18 @@ elif st.session_state.paso_actual == 4:
                 st.info("Indica cuántos tokens quieres comprar de cada proyecto.")
             elif suma_porcentajes != 100:
                 if suma_porcentajes > 100:
-                    st.warning(f"⚠ Has repartido un {suma_porcentajes:.1f}% de tu capital: "
-                               f"te sobra un {suma_porcentajes - 100:.1f}%.")
+                    st.warning(f"⚠ Has repartido un {es(suma_porcentajes, 1)}% de tu capital: "
+                               f"te sobra un {es(suma_porcentajes - 100, 1)}%.")
                 else:
-                    st.warning(f"⚠ Has repartido un {suma_porcentajes:.1f}% de tu capital: "
-                               f"te queda un {100 - suma_porcentajes:.1f}% por asignar.")
+                    st.warning(f"⚠ Has repartido un {es(suma_porcentajes, 1)}% de tu capital: "
+                               f"te queda un {es(100 - suma_porcentajes, 1)}% por asignar.")
                 st.button(
-                    f"Ajustar mi capital a {importe_repartido:,.0f} {simbolo_cliente_p4} "
+                    f"Ajustar mi capital a {es(importe_repartido, 0)} {simbolo_cliente_p4} "
                     f"para invertir exactamente lo que has elegido",
                     key="btn_ajustar_capital", on_click=ajustar_capital, args=(importe_repartido,),
                 )
-                st.caption(f"Tu capital pasará de {importe_total_p4:,.0f} {simbolo_cliente_p4} "
-                           f"a {importe_repartido:,.0f} {simbolo_cliente_p4}.")
+                st.caption(f"Tu capital pasará de {es(importe_total_p4, 0)} {simbolo_cliente_p4} "
+                           f"a {es(importe_repartido, 0)} {simbolo_cliente_p4}.")
         
         # ----- Tabla -----
         if ids_validos:
@@ -1146,8 +1155,8 @@ elif st.session_state.paso_actual == 4:
                     '% de tu cartera': st.column_config.TextColumn(width="medium"),
                 },
             )
-            st.markdown(f"**Total: {suma_porcentajes:.1f}% · {importe_repartido:,.0f} {simbolo_cliente_p4}** "
-                        f"de {importe_total_p4:,.0f} {simbolo_cliente_p4}")
+            st.markdown(f"**Total: {es(suma_porcentajes, 1)}% · {es(importe_repartido, 0)} {simbolo_cliente_p4}** "
+                        f"de {es(importe_total_p4, 0)} {simbolo_cliente_p4}")
             
             # ----- Cambiar de oferta (solo proyectos con varias opciones) -----
             con_varias = [pid for pid in ids_validos if len(opciones_por_id[pid]) > 1]
@@ -1165,7 +1174,7 @@ elif st.session_state.paso_actual == 4:
                     "Oferta", list(range(len(opciones))),
                     index=min(st.session_state.oferta_elegida.get(pid_cambio, 0), len(opciones) - 1),
                     format_func=lambda i, opciones=opciones: (
-                        _etiqueta(opciones[i]) + (f" · {opciones[i]['n_tokens']:,.2f} tk"
+                        _etiqueta(opciones[i]) + (f" · {es(opciones[i]['n_tokens'], 2)} tk"
                                                   if opciones[i]['n_tokens'] is not None else "")),
                     key=f"sel_oferta_{pid_cambio}", on_change=_cambiar_oferta, args=(pid_cambio,))
         
@@ -1216,7 +1225,7 @@ elif st.session_state.paso_actual == 5:
         otro_simbolo = '$' if divisa_cliente == 'EUR' else '€'
         
         def fmt(importe, s=simbolo):
-            return f"{importe:,.2f} {s}"
+            return f"{es(importe, 2)} {s}"
         
         def a_numero(valor):
             try:
@@ -1255,9 +1264,9 @@ elif st.session_state.paso_actual == 5:
         staking_rnt = STAKING_RNT
         
         tarjetas_supuestos = [
-            ("💱 TIPO DE CAMBIO", f"{tipo_cambio:.4f}", "USD por 1 € · referencia BCE"),
-            ("🪙 PRECIO DEL RNT", f"{precio_rnt:.4f} USDT", "pool RNT/USDT · SushiSwap"),
-            ("🔒 STAKING DE RNT", f"{staking_rnt:.2f} %", "rendimiento anual"),
+            ("💱 TIPO DE CAMBIO", f"{es(tipo_cambio, 4)}", "USD por 1 € · referencia BCE"),
+            ("🪙 PRECIO DEL RNT", f"{es(precio_rnt, 4)} USDT", "pool RNT/USDT · SushiSwap"),
+            ("🔒 STAKING DE RNT", f"{es(staking_rnt, 2)} %", "rendimiento anual"),
         ]
         cols = st.columns(3)
         for col, (titulo, valor, sub) in zip(cols, tarjetas_supuestos):
@@ -1385,9 +1394,9 @@ elif st.session_state.paso_actual == 5:
             ("🏠 INMUEBLES", f"{len(filas_tabla)}", "proyectos en cartera"),
             ("💶 EN INMUEBLES", fmt(importe_inmuebles),
              fmt(convertir(importe_inmuebles, divisa_cliente, otra_divisa), otro_simbolo)),
-            ("⭐ COSTE DEL ESTATUS", fmt(coste_estatus), f"{rnt_estatus:,} RNT · {estatus}"),
+            ("⭐ COSTE DEL ESTATUS", fmt(coste_estatus), f"{es(rnt_estatus, 0)} RNT · {estatus}"),
             ("💰 CAPITAL TOTAL", fmt(capital_total), "inmuebles + estatus"),
-            ("📈 RENT. ANUALIZADA", f"{rentabilidad_media:.2f} %", f"media ponderada · {estatus}"),
+            ("📈 RENT. ANUALIZADA", f"{es(rentabilidad_media, 2)} %", f"media ponderada · {estatus}"),
         ]
         cols = st.columns(5)
         for col, (titulo, valor, sub) in zip(cols, tarjetas):
@@ -1477,7 +1486,7 @@ elif st.session_state.paso_actual == 5:
                 st.altair_chart(mapa, use_container_width=True)
             
             leyenda = " · ".join(
-                f"<span style='color:#e08900;'>■</span> {r.ubicacion} — {r.pct:.1f}%"
+                f"<span style='color:#e08900;'>■</span> {r.ubicacion} — {es(r.pct, 1)}%"
                 for r in reparto_pais.sort_values('pct').itertuples()
             )
             st.markdown(f"<div style='font-size:13px; color:#666666;'>{leyenda}</div>", unsafe_allow_html=True)
@@ -1591,7 +1600,7 @@ elif st.session_state.paso_actual == 5:
         
         # Guardar el lead con la cartera simulada (una sola vez por cartera)
         cartera_txt = "; ".join(
-            f"{f['Proyecto']} ({f['% cartera']:.1f}% · {f['Precio de compra']})" for f in filas_tabla)
+            f"{f['Proyecto']} ({es(f['% cartera'], 1)}% · {f['Precio de compra']})" for f in filas_tabla)
         firma_cartera = f"{st.session_state.get('lead_id', '')}|{estatus}|{cartera_txt}"
         if st.session_state.get('lead_cartera_guardada') != firma_cartera:
             if 'lead_id' not in st.session_state:
