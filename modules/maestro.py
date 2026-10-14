@@ -112,9 +112,19 @@ def numero(valor):
 
 
 def porcentaje(valor):
-    """Un porcentaje del maestro: '0.2894' → 28.94 (como %, no fracción)."""
+    """Un porcentaje del maestro, siempre en unidades de % (28.94 = 28,94 %).
+
+    En el maestro conviven dos formas de escribirlo: con símbolo ("28,94%") y
+    como fracción sin símbolo ("0.2894"). Sin el símbolo, un valor de 1 o menos
+    se entiende como fracción y se pasa a %; si no, la rentabilidad salía cien
+    veces más pequeña (p. ej. Rentas 3 aparecía con un 0,10 % en vez de 13,91 %).
+    """
     n = numero(valor)
-    return None if n is None else n
+    if n is None:
+        return None
+    if "%" not in str(valor) and abs(n) <= 1:
+        return n * 100
+    return n
 
 
 def fecha(valor):
