@@ -61,6 +61,9 @@ COLUMNAS = {
     "meses_hasta_fin":       ("Meses hasta el fin", 10**6),
     # Cierre real: solo lo tienen los proyectos CERRADOS
     "fecha_fin_real":        ("Real fecha de fin", 55),
+    # Fecha de fin reestimada para los proyectos que ya han sobrepasado la
+    # original (columna CA). Es la que manda para saber cuándo termina de verdad.
+    "fecha_fin_auxiliar":    ("Fecha fin Estimada Auxiliar para proyectos q la han sobrepasado", 78),
     "real_total_rnt":        ("Real Rentab. Total Reentel", 59),
     "real_anual_rnt":        ("Real Rentab. Total Anualizada Reentel", 61),
     "real_total_sr":         ("Real Rentab. Total SR", 69),
@@ -253,8 +256,12 @@ def proyectos() -> list:
             p[clave] = texto(_valor(row, cabeceras, clave))
         
         for clave in ("lanzamiento", "fecha_financiacion", "fecha_inicio_renta",
-                      "fecha_fin_estimada", "fecha_fin_real"):
+                      "fecha_fin_estimada", "fecha_fin_real", "fecha_fin_auxiliar"):
             p[clave] = fecha(_valor(row, cabeceras, clave))
+        # Fecha en la que termina el proyecto, con la misma prioridad que la
+        # plantilla de propuestas: la auxiliar (CA), la real y, si no, la estimada.
+        p["fecha_fin_calculo"] = (p["fecha_fin_auxiliar"] or p["fecha_fin_real"]
+                                  or p["fecha_fin_estimada"])
         
         for clave in COLUMNAS:
             if clave.startswith(("est_", "real_")):
