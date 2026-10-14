@@ -32,124 +32,83 @@ st.set_page_config(
 )
 
 # ========== CSS PERSONALIZADO ==========
-st.markdown("""
+# Paleta del informe mensual de Reental Wealth: ámbar, navy y fondo gris claro,
+# con la tipografía Fustat.
+COLOR_AMBAR = "#fca311"
+COLOR_AMBAR_OSCURO = "#d97706"      # ámbar legible sobre blanco (textos, avisos)
+COLOR_AMBAR_CLARO = "#feedcf"
+COLOR_NAVY = "#1f2937"
+COLOR_GRIS = "#6d737c"
+COLOR_GRIS_CLARO = "#9ca1aa"
+COLOR_BORDE = "#e5e7eb"
+COLOR_FONDO = "#f9fafb"
+COLOR_VERDE = "#15803d"
+COLOR_ROJO = "#dc2626"
+PALETA_GRAFICOS = ["#fca311", "#1f2937", "#15803d", "#fcd287", "#9ca1aa", "#f5a11f", "#3e4753"]
+
+st.markdown(f"""
 <style>
-    /* Colores Reental */
-    :root {
-        --color-naranja: #ff8c00;
-        --color-gris: #666666;
-        --color-blanco: #f9f9f9;
-    }
-    
-    /* Main */
-    .main {
-        background-color: #ffffff;
-    }
-    
-    /* Headers */
-    h1 {
-        color: #ff8c00;
-        font-size: 2.5em;
-        margin-bottom: 10px;
-        font-weight: 700;
-    }
-    
-    h2 {
-        color: #ff8c00;
-        font-size: 1.8em;
-        margin-top: 20px;
-        margin-bottom: 15px;
-        font-weight: 700;
-        border-bottom: 2px solid #ff8c00;
-        padding-bottom: 10px;
-    }
-    
-    h3 {
-        color: #666666;
-        font-size: 1.3em;
-        margin-top: 15px;
-        margin-bottom: 10px;
-        font-weight: 600;
-    }
-    
-    /* Buttons */
-    .stButton > button {
-        background-color: #ff8c00;
-        color: white;
+    @import url('https://fonts.googleapis.com/css2?family=Fustat:wght@400;500;600;700;800&display=swap');
+
+    html, body, .stApp, .stApp p, .stApp label, .stApp input, .stApp textarea,
+    .stApp button, .stApp li, .stApp h1, .stApp h2, .stApp h3, .stApp h4 {{
+        font-family: 'Fustat', 'Segoe UI', sans-serif;
+    }}
+
+    .stApp {{ background-color: {COLOR_FONDO}; color: {COLOR_NAVY}; }}
+
+    /* Títulos */
+    h1 {{ color: {COLOR_NAVY}; font-weight: 800; }}
+    h2 {{
+        color: {COLOR_NAVY};
+        font-size: 1.7em;
+        font-weight: 800;
+        margin-top: 10px;
+        padding-bottom: 6px;
+        border-bottom: 3px solid {COLOR_AMBAR};
+        display: inline-block;
+    }}
+    h3 {{ color: {COLOR_NAVY}; font-size: 1.25em; font-weight: 700; margin-top: 10px; }}
+    h4 {{ color: {COLOR_GRIS}; font-weight: 600; }}
+
+    /* Botones: ámbar con texto navy (más legible que el blanco sobre ámbar) */
+    .stButton > button, .stDownloadButton > button {{
+        background-color: {COLOR_AMBAR};
+        color: {COLOR_NAVY};
         border: none;
-        border-radius: 5px;
-        padding: 10px 20px;
-        font-size: 1.1em;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        width: 100%;
-    }
-    
-    .stButton > button:hover {
-        background-color: #e67e00;
-        transform: scale(1.02);
-    }
-    
-    .stButton > button:disabled {
-        background-color: #cccccc;
-        cursor: not-allowed;
-    }
-    
-    /* Info Boxes */
-    .stInfo {
-        background-color: #e8f4f8;
-        border-left: 4px solid #ff8c00;
-        padding: 12px;
-    }
-    
-    .stSuccess {
-        background-color: #e8f5e9;
-        border-left: 4px solid #4caf50;
-    }
-    
-    .stWarning {
-        background-color: #fff3e0;
-        border-left: 4px solid #ff9800;
-    }
-    
-    .stError {
-        background-color: #ffebee;
-        border-left: 4px solid #f44336;
-    }
-    
-    /* Tables */
-    .dataframe {
-        border-collapse: collapse;
-        width: 100%;
-    }
-    
-    .dataframe th {
-        background-color: #ff8c00;
-        color: white;
-        padding: 12px;
-        text-align: left;
-        font-weight: 600;
-    }
-    
-    .dataframe td {
-        padding: 10px 12px;
-        border-bottom: 1px solid #ddd;
-    }
-    
-    .dataframe tr:hover {
-        background-color: #f5f5f5;
-    }
-    
-    /* Sidebar */
-    .sidebar .sidebar-content {
-        background-color: #f9f9f9;
-    }
-    
-    /* Progress bar color */
-    .stProgress > div > div > div {
-        background-color: #ff8c00;
-    }
+        border-radius: 8px;
+        font-weight: 700;
+        transition: all 0.2s ease;
+    }}
+    .stButton > button:hover, .stDownloadButton > button:hover {{
+        background-color: #f5a11f;
+        color: {COLOR_NAVY};
+        border: none;
+    }}
+    .stButton > button:focus:not(:active) {{ color: {COLOR_NAVY}; border: none; }}
+    .stButton > button:disabled {{
+        background-color: {COLOR_BORDE};
+        color: {COLOR_GRIS_CLARO};
+    }}
+
+    /* Campos de formulario sobre blanco */
+    div[data-baseweb="input"], div[data-baseweb="select"] > div, div[data-baseweb="textarea"] {{
+        background-color: #ffffff;
+        border-color: {COLOR_BORDE};
+        border-radius: 8px;
+    }}
+
+    /* Barra de progreso */
+    .stProgress > div > div > div > div {{ background-color: {COLOR_AMBAR}; }}
+
+    /* Tablas */
+    div[data-testid="stDataFrame"], div[data-testid="stDataEditor"] {{
+        border: 1px solid {COLOR_BORDE};
+        border-radius: 12px;
+        background-color: #ffffff;
+    }}
+
+    hr {{ border-color: {COLOR_BORDE}; }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -616,10 +575,14 @@ except Exception:
     pass
 
 # ========== HEADER ==========
-col1, col2, col3 = st.columns([1, 3, 1])
-with col2:
-    st.markdown("<h1 style='text-align: center;'>🏠 SIMULADOR DE CARTERA</h1>", unsafe_allow_html=True)
-    st.markdown("<h3 style='text-align: center; color: #666666;'>Inversión Inmobiliaria Reental</h3>", unsafe_allow_html=True)
+st.markdown(f"""
+<div style="padding: 4px 0 10px 0;">
+    <div style="font-size: 22px; font-weight: 800; color: {COLOR_AMBAR};">Reental
+        <span style="color: {COLOR_NAVY}; font-weight: 500;">Wealth</span></div>
+    <div style="font-size: 38px; font-weight: 800; color: {COLOR_NAVY}; line-height: 1.15; margin-top: 10px;">
+        Simulador de <span style="color: {COLOR_AMBAR};">cartera inmobiliaria</span></div>
+</div>
+""", unsafe_allow_html=True)
 
 st.markdown("---")
 
@@ -735,20 +698,20 @@ elif st.session_state.paso_actual == 2:
     # ========== SUPERREENTEL ==========
     with col1:
         if estatus_seleccionado == 'SuperReentel':
-            bg_color = "#f0f9f3"
-            border_color = "#16a34a"
+            bg_color = COLOR_AMBAR_CLARO
+            border_color = COLOR_AMBAR
             border_width = "3px"
         else:
             bg_color = "#ffffff"
-            border_color = "#cccccc"
+            border_color = COLOR_BORDE
             border_width = "2px"
         
         st.markdown(f"""
-        <div style="border: {border_width} solid {border_color}; border-radius: 12px; padding: 20px; background-color: {bg_color}; min-height: 180px; display: flex; flex-direction: column; justify-content: space-between;">
-            <div style="color: #16a34a; font-weight: 700; font-size: 16px; margin-bottom: 15px;">
+        <div style="border: {border_width} solid {border_color}; border-radius: 14px; padding: 20px; background-color: {bg_color}; min-height: 180px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div style="color: {COLOR_NAVY}; font-weight: 800; font-size: 16px; margin-bottom: 15px;">
                 🏛️ SUPERREENTEL
             </div>
-            <div style="color: #000000; font-size: 15px; line-height: 1.6; flex-grow: 1;">
+            <div style="color: {COLOR_NAVY}; font-size: 15px; line-height: 1.6; flex-grow: 1;">
                 quiero conseguir hasta un <b>50% más de rentabilidad</b> en mis inversiones inmobiliarias y <b>acceso prioritario</b> a los proyectos.
             </div>
         </div>
@@ -760,20 +723,20 @@ elif st.session_state.paso_actual == 2:
     # ========== REENTELPRO ==========
     with col2:
         if estatus_seleccionado == 'ReentelPro':
-            bg_color = "#faf5ff"
-            border_color = "#a855f7"
+            bg_color = COLOR_AMBAR_CLARO
+            border_color = COLOR_AMBAR
             border_width = "3px"
         else:
             bg_color = "#ffffff"
-            border_color = "#cccccc"
+            border_color = COLOR_BORDE
             border_width = "2px"
         
         st.markdown(f"""
-        <div style="border: {border_width} solid {border_color}; border-radius: 12px; padding: 20px; background-color: {bg_color}; min-height: 180px; display: flex; flex-direction: column; justify-content: space-between;">
-            <div style="color: #a855f7; font-weight: 700; font-size: 16px; margin-bottom: 15px;">
+        <div style="border: {border_width} solid {border_color}; border-radius: 14px; padding: 20px; background-color: {bg_color}; min-height: 180px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div style="color: {COLOR_NAVY}; font-weight: 800; font-size: 16px; margin-bottom: 15px;">
                 🏢 REENTELPRO
             </div>
-            <div style="color: #000000; font-size: 15px; line-height: 1.6; flex-grow: 1;">
+            <div style="color: {COLOR_NAVY}; font-size: 15px; line-height: 1.6; flex-grow: 1;">
                 quiero conseguir hasta un <b>25% más de rentabilidad</b> en mis inversiones inmobiliarias y acceder a los proyectos tras los SuperReentel.
             </div>
         </div>
@@ -785,20 +748,20 @@ elif st.session_state.paso_actual == 2:
     # ========== REENTEL ==========
     with col3:
         if estatus_seleccionado == 'Reentel':
-            bg_color = "#feedcf"
-            border_color = "#ca820e"
+            bg_color = COLOR_AMBAR_CLARO
+            border_color = COLOR_AMBAR
             border_width = "3px"
         else:
             bg_color = "#ffffff"
-            border_color = "#cccccc"
+            border_color = COLOR_BORDE
             border_width = "2px"
         
         st.markdown(f"""
-        <div style="border: {border_width} solid {border_color}; border-radius: 12px; padding: 20px; background-color: {bg_color}; min-height: 180px; display: flex; flex-direction: column; justify-content: space-between;">
-            <div style="color: #ca820e; font-weight: 700; font-size: 16px; margin-bottom: 15px;">
+        <div style="border: {border_width} solid {border_color}; border-radius: 14px; padding: 20px; background-color: {bg_color}; min-height: 180px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div style="color: {COLOR_NAVY}; font-weight: 800; font-size: 16px; margin-bottom: 15px;">
                 🏠 REENTEL
             </div>
-            <div style="color: #000000; font-size: 15px; line-height: 1.6; flex-grow: 1;">
+            <div style="color: {COLOR_NAVY}; font-size: 15px; line-height: 1.6; flex-grow: 1;">
                 por ahora no quiero estatus.
             </div>
         </div>
@@ -810,10 +773,10 @@ elif st.session_state.paso_actual == 2:
     st.markdown('<div style="margin-bottom: 20px;"></div>', unsafe_allow_html=True)
     
     # ========== BOTÓN "¿QUIERES MÁS INFO?" ==========
-    st.markdown("""
+    st.markdown(f"""
     <a href="https://api.leadconnectorhq.com/widget/booking/kAzM5NH9hFxtc88sTQKy" target="_blank" style="text-decoration: none; color: inherit;">
-        <div style="background-color: #fff3e0; border: 2px solid #ff8c00; color: #000000; border-radius: 8px; padding: 15px; font-size: 15px; cursor: pointer; text-align: center;">
-            💡 ¿Quieres más información sobre <b> qué es el estatus RNT</b> y cómo puede ayudarte a <b>maximizar tu rentabilidad inmobiliaria</b>? Agenda con nuestro equipo de Onboarding <b style="color: #ff8c00;">aquí</b>.
+        <div style="background-color: {COLOR_AMBAR_CLARO}; border: 2px solid {COLOR_AMBAR}; color: {COLOR_NAVY}; border-radius: 12px; padding: 15px; font-size: 15px; cursor: pointer; text-align: center;">
+            💡 ¿Quieres más información sobre <b> qué es el estatus RNT</b> y cómo puede ayudarte a <b>maximizar tu rentabilidad inmobiliaria</b>? Agenda con nuestro equipo de Onboarding <b style="color: {COLOR_AMBAR_OSCURO};">aquí</b>.
         </div>
     </a>
     """, unsafe_allow_html=True)
@@ -1213,23 +1176,23 @@ elif st.session_state.paso_actual == 4:
             st.info("Marca en las tablas de arriba los proyectos que quieras incluir")
         else:
             def _tarjeta_importe(titulo, valor, color):
-                return (f"<div style='border:1px solid #e5e7eb;border-radius:10px;padding:10px 14px;'>"
-                        f"<div style='font-size:12px;font-weight:700;color:#666;'>{titulo}</div>"
+                return (f"<div style='border:1px solid {COLOR_BORDE};border-radius:12px;padding:10px 14px;background:#ffffff;'>"
+                        f"<div style='font-size:12px;font-weight:700;color:{COLOR_GRIS};letter-spacing:0.5px;'>{titulo}</div>"
                         f"<div style='font-size:22px;font-weight:700;color:{color};'>{html_seguro(valor)}</div></div>")
             c_rep, c_pend, c_atajo = st.columns([1, 1, 1.4])
             c_rep.markdown(_tarjeta_importe("IMPORTE REPARTIDO",
-                                            f"{es(importe_repartido, 0)} {simbolo_cliente_p4}", "#1f2937"),
+                                            f"{es(importe_repartido, 0)} {simbolo_cliente_p4}", COLOR_NAVY),
                            unsafe_allow_html=True)
             if abs(pendiente) <= tolerancia:
-                c_pend.markdown(_tarjeta_importe("PENDIENTE DE REPARTIR", "✓ Todo repartido", "#16a34a"),
+                c_pend.markdown(_tarjeta_importe("PENDIENTE DE REPARTIR", "✓ Todo repartido", COLOR_VERDE),
                                 unsafe_allow_html=True)
             elif pendiente > 0:
                 c_pend.markdown(_tarjeta_importe("PENDIENTE DE REPARTIR",
-                                                 f"{es(pendiente, 0)} {simbolo_cliente_p4}", "#e08900"),
+                                                 f"{es(pendiente, 0)} {simbolo_cliente_p4}", COLOR_AMBAR_OSCURO),
                                 unsafe_allow_html=True)
             else:
                 c_pend.markdown(_tarjeta_importe("TE HAS PASADO EN",
-                                                 f"{es(-pendiente, 0)} {simbolo_cliente_p4}", "#dc2626"),
+                                                 f"{es(-pendiente, 0)} {simbolo_cliente_p4}", COLOR_ROJO),
                                 unsafe_allow_html=True)
             if abs(pendiente) > tolerancia and importe_repartido > 0:
                 def _usar_repartido(valor):
@@ -1472,10 +1435,10 @@ elif st.session_state.paso_actual == 5:
         def tarjeta(titulo, valor, sub):
             valor, sub = html_seguro(valor), html_seguro(sub)
             return f"""
-            <div style="border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; background: #ffffff; min-height: 105px;">
-                <div style="font-size: 12px; font-weight: 700; color: #666666; letter-spacing: 0.5px;">{titulo}</div>
-                <div style="font-size: 26px; font-weight: 700; color: #1f2937; margin: 4px 0;">{valor}</div>
-                <div style="font-size: 12px; color: #9ca3af;">{sub}</div>
+            <div style="border: 1px solid {COLOR_BORDE}; border-radius: 12px; padding: 14px 16px; background: #ffffff; min-height: 105px;">
+                <div style="font-size: 12px; font-weight: 700; color: {COLOR_GRIS}; letter-spacing: 0.5px;">{titulo}</div>
+                <div style="font-size: 26px; font-weight: 800; color: {COLOR_NAVY}; margin: 4px 0;">{valor}</div>
+                <div style="font-size: 12px; color: {COLOR_GRIS_CLARO};">{sub}</div>
             </div>
             """
         
@@ -1646,7 +1609,7 @@ elif st.session_state.paso_actual == 5:
         # ----- Gráficos -----
         if filas_graficos:
             df_graf = pd.DataFrame(filas_graficos)
-            colores = ['#f5a623', '#3b82f6', '#16a34a', '#a855f7', '#ef4444', '#14b8a6', '#6b7280']
+            colores = PALETA_GRAFICOS
             
             def donut(campo, titulo):
                 datos_g = df_graf.groupby(campo, as_index=False)['peso'].sum()
@@ -1689,7 +1652,7 @@ elif st.session_state.paso_actual == 5:
                     'https://cdn.jsdelivr.net/npm/vega-datasets@v1.29.0/data/world-110m.json', 'countries')
                 
                 fondo = alt.Chart(paises).mark_geoshape(
-                    fill='#eceef1', stroke='#ffffff', strokeWidth=0.5
+                    fill=COLOR_BORDE, stroke='#ffffff', strokeWidth=0.5
                 ).transform_filter('datum.id != 10')   # sin la Antártida
                 
                 invertidos = alt.Chart(paises).mark_geoshape(
@@ -1700,7 +1663,7 @@ elif st.session_state.paso_actual == 5:
                 ).transform_filter(
                     'isValid(datum.pct)'
                 ).encode(
-                    color=alt.Color('pct:Q', scale=alt.Scale(range=['#f7c77a', '#e08900']), legend=None),
+                    color=alt.Color('pct:Q', scale=alt.Scale(range=['#fcd287', '#f5a11f']), legend=None),
                     tooltip=[alt.Tooltip('ubicacion:N', title='País'),
                              alt.Tooltip('pct:Q', format='.1f', title='% de la inversión')]
                 )
@@ -1711,10 +1674,10 @@ elif st.session_state.paso_actual == 5:
                 st.altair_chart(mapa, use_container_width=True)
             
             leyenda = " · ".join(
-                f"<span style='color:#e08900;'>■</span> {r.ubicacion} — {es(r.pct, 1)}%"
+                f"<span style='color:{COLOR_AMBAR};'>■</span> {r.ubicacion} — {es(r.pct, 1)}%"
                 for r in reparto_pais.sort_values('pct').itertuples()
             )
-            st.markdown(f"<div style='font-size:13px; color:#666666;'>{leyenda}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:13px; color:{COLOR_GRIS};'>{leyenda}</div>", unsafe_allow_html=True)
         
         st.markdown("---")
         
@@ -1881,9 +1844,9 @@ elif st.session_state.paso_actual == 5:
 # ========== FOOTER ==========
 st.markdown("---")
 st.markdown(f"""
-<div style='text-align: center; color: #666666; font-size: 0.9em; margin-top: 30px;'>
+<div style='text-align: center; color: {COLOR_GRIS}; font-size: 0.9em; margin-top: 30px;'>
     <p><b>© {datetime.now().year} Reental Wealth Services</b> | Simulador de Cartera</p>
-    <p>Para más información: <a href='https://reental.com' target='_blank'>www.reental.com</a></p>
+    <p>Para más información: <a href='https://reental.com' target='_blank' style='color: {COLOR_AMBAR_OSCURO};'>www.reental.com</a></p>
     <p style='font-size: 0.85em; margin-top: 15px;'>
         <i>Este simulador es una herramienta educativa. Las proyecciones mostradas son estimaciones basadas en datos históricos 
         y parámetros actuales. La rentabilidad pasada no garantiza resultados futuros.</i>
