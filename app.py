@@ -510,12 +510,24 @@ def ajustar_capital(importe_repartido):
         st.session_state.datos_cliente['capital_ajustado'] = importe_repartido
 
 
+def _formato_euro():
+    """True si el cliente invierte en euros (o aún no lo ha elegido)."""
+    try:
+        return (st.session_state.get('datos_cliente') or {}).get('divisa', 'EUR') != 'USD'
+    except Exception:
+        return True
+
+
 def es(valor, decimales=2):
-    """Número en formato español: 257.109,50 (punto para miles, coma para decimales)."""
+    """Número según la divisa del cliente:
+    en euros  → 257.109,50 (punto para miles, coma para decimales)
+    en dólares → 257,109.50 (coma para miles, punto para decimales)"""
     try:
         texto = f"{float(valor):,.{decimales}f}"
     except (TypeError, ValueError):
         return str(valor)
+    if not _formato_euro():
+        return texto
     return texto.replace(",", "@").replace(".", ",").replace("@", ".")
 
 
