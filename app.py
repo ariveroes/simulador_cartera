@@ -636,7 +636,7 @@ if st.session_state.paso_actual == 1:
         Bienvenido al Simulador de cartera inmobiliaria</div>
     <p style="color: {COLOR_NAVY}; font-size: 15px; line-height: 1.55; margin: 0 0 8px 0;">
         Herramienta desarrollada por Reental Wealth que permite simular una cartera de inversión
-        inmobiliaria adaptada a tu perfil: tu capital, tu objetivo de inversión y los mercados
+        inmobiliaria <b>adaptada a tu perfil</b>: tu capital, tu objetivo de inversión y los mercados
         que prefieras.</p>
     <p style="color: {COLOR_NAVY}; font-size: 15px; line-height: 1.55; margin: 0;">
         En cinco pasos verás qué proyectos encajan contigo, cómo repartir tu inversión entre
