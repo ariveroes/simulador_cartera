@@ -368,9 +368,9 @@ def agrupar_ofertas_por_proyecto(ofertas):
 # width admite "small", "medium", "large" o un número de píxeles (ej. 90).
 CONFIG_COLUMNAS_PASO4 = {
     'ID': st.column_config.Column(width="small"),
-    'Nombre del proyecto': st.column_config.Column(width="large"),
+    'Nombre del proyecto': st.column_config.Column(width=170),
     'Tipología de dividendo': st.column_config.Column(width="medium"),
-    'ESTADO': st.column_config.Column(width="small"),
+    'ESTADO': st.column_config.Column('Estado', width=145),
     'Fecha Inicio Estimada': st.column_config.Column(width="small"),
     'Fecha Fin Estimada': st.column_config.Column(width="small"),
     'Ubicación': st.column_config.Column(width="small"),
