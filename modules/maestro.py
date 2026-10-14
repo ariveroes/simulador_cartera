@@ -56,6 +56,9 @@ COLUMNAS = {
     "est_anual_sr":          (None, 33),
     "meses_pendientes":      ("Estimación Nº Meses pendientes de renta hasta Estimación fin", 44),
     "meses_en_curso":        ("Real Nº Meses en curso en rentabilidad", 43),
+    # Meses hasta el cierre del proyecto (columna DB). Solo por nombre: si la
+    # cabecera no existe, se deja vacío en vez de leer otra columna por posición.
+    "meses_hasta_fin":       ("Meses hasta el fin", 10**6),
     # Cierre real: solo lo tienen los proyectos CERRADOS
     "fecha_fin_real":        ("Real fecha de fin", 55),
     "real_total_rnt":        ("Real Rentab. Total Reentel", 59),
@@ -231,6 +234,7 @@ def proyectos() -> list:
             "tokens_emitidos": numero(_valor(row, cabeceras, "tokens_emitidos")),
             "meses_pendientes": numero(_valor(row, cabeceras, "meses_pendientes")),
             "meses_en_curso": numero(_valor(row, cabeceras, "meses_en_curso")),
+            "meses_hasta_fin": numero(_valor(row, cabeceras, "meses_hasta_fin")),
         }
         
         for clave in ("id", "nombre", "estado", "ubicacion", "tipologia_explotacion",
