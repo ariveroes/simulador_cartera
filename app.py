@@ -597,6 +597,12 @@ if st.session_state.paso_actual == 1:
             value=st.session_state.datos_cliente.get('email', ''),
             key="input_email"
         )
+        telefono = st.text_input(
+            "¿Cuál es tu número de teléfono? *",
+            value=st.session_state.datos_cliente.get('telefono', ''),
+            placeholder="Ej.: +34 600 123 456",
+            key="input_telefono"
+        )
         divisa = st.selectbox(
             "¿En qué divisa prefieres invertir? *",
             ["EUR", "USD"],
@@ -632,14 +638,21 @@ if st.session_state.paso_actual == 1:
     with col3:
         if st.button("Siguiente >", use_container_width=True, key="btn_paso1_next"):
             email_valido = bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", (email or "").strip()))
-            if not (nombre and email and divisa is not None and capital is not None and ya_inversor is not None):
+            digitos_tel = re.sub(r"\D", "", telefono or "")
+            telefono_valido = (bool(re.match(r"^[\d\s().+-]+$", (telefono or "").strip()))
+                               and 6 <= len(digitos_tel) <= 15)
+            if not (nombre and email and telefono and divisa is not None and capital is not None
+                    and ya_inversor is not None):
                 st.error("Por favor completa todos los campos marcados con *")
             elif not email_valido:
                 st.error("Revisa el email: no parece una dirección válida.")
+            elif not telefono_valido:
+                st.error("Revisa el teléfono: escribe solo números (puedes empezar por + y el prefijo del país).")
             else:
                 st.session_state.datos_cliente = {
                     'nombre': nombre.strip(),
                     'email': email.strip(),
+                    'telefono': telefono.strip(),
                     'divisa': divisa,
                     'ya_inversor': ya_inversor,
                     'capital': capital,
@@ -1250,6 +1263,7 @@ elif st.session_state.paso_actual == 5:
         with col1:
             st.write(f"**Titular:** {datos.get('nombre', 'N/A')}")
             st.write(f"**Email:** {datos.get('email', 'N/A')}")
+            st.write(f"**Teléfono:** {datos.get('telefono', 'N/A')}")
             st.write(f"**Estatus elegido:** {estatus}")
         with col2:
             st.write(f"**Capital a invertir:** {capital_mostrado(datos, simbolo)}")
