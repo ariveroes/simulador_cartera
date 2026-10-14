@@ -9,7 +9,8 @@ columnas U a AL):
   renta ajustada     = renta × (precio emisión / precio compra)
   plusvalía ajustada = (precio emisión × (1 + plusvalía) − precio compra) / precio compra
   total              = renta ajustada / 12 × meses de renta pendientes + plusvalía ajustada
-  anualizada         = total × 12 / meses de renta pendientes
+  anualizada         = total × 12 / meses hasta el fin (o de renta pendientes,
+                       si el Master no tiene los meses hasta el fin)
 
 El momento de compra entra por los "meses de renta pendientes" (desde hoy hasta
 el fin): quien compra un proyecto ya en marcha solo cobra las rentas que quedan.
@@ -61,10 +62,15 @@ def rentabilidad_ajustada(row, estatus: str, precio_compra=None) -> dict:
     emision = _num(row.get("Precio Emisión")) or 100.0
     compra = _num(precio_compra) or emision
     meses = _num(row.get("Meses Pendientes")) or 0.0
+    # Para anualizar se usan los meses hasta el CIERRE si el Master los tiene y
+    # son más que los de renta: el dinero sigue invertido hasta que el proyecto
+    # termina, aunque la renta se acabe antes (p. ej. proyectos en prórroga).
+    meses_fin = _num(row.get("meses_hasta_fin")) or 0.0
+    meses_anualizar = max(meses, meses_fin)
 
     renta_aj = renta * emision / compra
     plusv_aj = (emision * (1 + plusvalia / 100) - compra) / compra * 100
     total = renta_aj / 12 * meses + plusv_aj
-    anual = total * 12 / meses if meses > 0 else None
+    anual = total * 12 / meses_anualizar if meses_anualizar > 0 else None
     return {"renta": renta_aj, "plusvalia": plusv_aj, "total": total,
-            "anual": anual, "meses": meses}
+            "anual": anual, "meses": meses_anualizar}
