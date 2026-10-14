@@ -591,6 +591,13 @@ def tabla_seleccionable(df_display, key):
     return marcados
 
 
+# ========== DIAGNÓSTICO DE LEADS (solo con ?diagnostico=leads en la URL) ==========
+try:
+    if st.query_params.get("diagnostico") == "leads":
+        st.info(leads.diagnostico())
+except Exception:
+    pass
+
 # ========== HEADER ==========
 col1, col2, col3 = st.columns([1, 3, 1])
 with col2:
