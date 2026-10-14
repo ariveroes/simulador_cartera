@@ -13,6 +13,7 @@ Pasos:
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import math
 import re
 import traceback
 import uuid
@@ -397,6 +398,7 @@ CONFIG_COLUMNAS_PASO4 = {
     'Rentabilidad Total': st.column_config.NumberColumn('Rentabilidad total', format='%.2f%%', width=90),
     'Rentabilidad Anualizada': st.column_config.NumberColumn('Rentabilidad anualizada', format='%.2f%%', width=90),
     'Precio OTC Más Bajo': st.column_config.TextColumn('Precio OTC', width=90),
+    'Tokens disponibles': st.column_config.NumberColumn('Tokens disponibles', format='%.2f', width=110),
 }
 
 # ========== SUPUESTOS DE MERCADO POR DEFECTO (Paso 5) ==========
@@ -921,6 +923,13 @@ elif st.session_state.paso_actual == 4:
             df_display_otc = preparar_proyectos_para_paso4(df_con_otc, estatus)
             # Rentabilidad comprando a la oferta más barata
             df_display_otc = aplicar_rentabilidad_ajustada(df_display_otc, df_con_otc, estatus, precio_min_por_id)
+            # Tokens disponibles: stock de Reental + todas las ofertas de terceros del proyecto
+            tokens_por_id = {}
+            for _, row in df_con_otc.iterrows():
+                clave = str(row.get('ID', '')).lower() or str(row.get('Token Address', '')).lower()
+                tokens_por_id[row['ID']] = round(sum(_num(o.get('n_tokens'), 0.0)
+                                                     for o in ofertas_por_proy.get(clave, [])), 2)
+            df_display_otc['Tokens disponibles'] = df_display_otc['ID'].map(tokens_por_id)
             df_display_otc['Precio OTC Más Bajo'] = df_display_otc['ID'].map(
                 lambda pid: (f"{precio_min_por_id[pid]:.2f} {simbolo_por_id.get(pid, '€')}"
                              if pid in precio_min_por_id else "-")
@@ -1040,7 +1049,17 @@ elif st.session_state.paso_actual == 4:
                         'tipo': 'Emisión'
                     }
             
+            # Máximo % que permite la oferta OTC elegida (None si no es OTC)
+            compra = st.session_state.precios_compra.get(proyecto_id, {})
+            pct_maximo = None
+            if compra.get('tipo') == 'OTC' and compra.get('precio') and importe_total_p4:
+                tokens_oferta = _num(compra.get('n_tokens'), 0.0)
+                valor_oferta = convertir_divisa(tokens_oferta * compra['precio'], compra['divisa'], divisa_cliente_p4)
+                # Redondeado hacia abajo a 0,1 % para no pasarse nunca de los tokens disponibles
+                pct_maximo = min(100.0, math.floor(valor_oferta / importe_total_p4 * 100 * 10) / 10)
+            
             with col_pct:
+                clave_pct = f"input_{proyecto_id}"
                 if reparto_igual:
                     porcentaje = porcentaje_igual
                     st.text_input(
@@ -1050,30 +1069,36 @@ elif st.session_state.paso_actual == 4:
                         label_visibility="collapsed"
                     )
                 else:
+                    if clave_pct not in st.session_state:
+                        st.session_state[clave_pct] = round(float(
+                            st.session_state.cartera_selecciones[proyecto_id].get('porcentaje', 0.0)), 1)
                     porcentaje = st.number_input(
                         f"{proyecto_nombre} (%)",
                         min_value=0.0,
                         max_value=100.0,
-                        value=round(float(st.session_state.cartera_selecciones[proyecto_id].get('porcentaje', 0.0)), 1),
                         step=0.1,
-                        key=f"input_{proyecto_id}",
+                        key=clave_pct,
                         label_visibility="collapsed"
                     )
+                    if pct_maximo is not None:
+                        st.button(
+                            f"Usar la máxima cantidad de tokens disponibles ({pct_maximo:.1f}%)",
+                            key=f"max_{proyecto_id}",
+                            on_click=lambda k=clave_pct, v=pct_maximo: st.session_state.update({k: v}),
+                        )
                 st.session_state.cartera_selecciones[proyecto_id]['porcentaje'] = porcentaje
                 suma_porcentajes += porcentaje
             
             # ¿Tiene la oferta OTC elegida tokens suficientes para ese %?
-            compra = st.session_state.precios_compra.get(proyecto_id, {})
-            if compra.get('tipo') == 'OTC' and compra.get('precio'):
+            if pct_maximo is not None:
                 importe_proy = importe_total_p4 * porcentaje / 100
                 tokens_necesarios = convertir_divisa(importe_proy, divisa_cliente_p4, compra['divisa']) / compra['precio']
                 tokens_oferta = _num(compra.get('n_tokens'), 0.0)
                 if tokens_necesarios > tokens_oferta + 0.01:
-                    pct_maximo = (convertir_divisa(tokens_oferta * compra['precio'], compra['divisa'], divisa_cliente_p4)
-                                  / importe_total_p4 * 100) if importe_total_p4 else 0
                     proyectos_sin_tokens.append(proyecto_nombre)
-                    solucion = ("elige otra oferta o quita algún proyecto"
-                                if reparto_igual else "elige otra oferta o baja el porcentaje")
+                    solucion = ("elige otra oferta, quita algún proyecto o cambia en el Paso 3 a "
+                                "«Elegir cuánto invertir en cada uno»" if reparto_igual
+                                else "elige otra oferta o pulsa «Usar la máxima cantidad de tokens disponibles»")
                     st.warning(
                         f"⚠️ Con un {porcentaje:.1f}% ({importe_proy:,.0f} {simbolo_cliente_p4}) necesitarías "
                         f"{tokens_necesarios:,.2f} tokens, pero esta oferta solo tiene {tokens_oferta:,.2f} "
