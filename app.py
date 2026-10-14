@@ -500,7 +500,7 @@ elif st.session_state.paso_actual == 2:
     st.markdown("""
     <a href="https://api.leadconnectorhq.com/widget/booking/kAzM5NH9hFxtc88sTQKy" target="_blank" style="text-decoration: none; color: inherit;">
         <div style="background-color: #fff3e0; border: 2px solid #ff8c00; color: #000000; border-radius: 8px; padding: 15px; font-size: 15px; cursor: pointer; text-align: center;">
-            💡 ¿Quieres más información sobre qué es el estatus RNT y cómo puede ayudarte a maximizar tu rentabilidad inmobiliaria? Agenda con nuestro equipo de Onboarding <b style="color: #ff8c00;">aquí</b>.
+            💡 ¿Quieres más información sobre <b> qué es el estatus RNT<b> y cómo puede ayudarte a <b>maximizar tu rentabilidad inmobiliaria<b>? Agenda con nuestro equipo de Onboarding <b style="color: #ff8c00;">aquí</b>.
         </div>
     </a>
     """, unsafe_allow_html=True)
