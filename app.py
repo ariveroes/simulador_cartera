@@ -1,6 +1,5 @@
 """
-SIMULADOR DE CARTERA INMOBILIARIA REENTAL - FASE 3 COMPLETA
-Streamlit App - Versión FASE 3 con Precios OTC Reales
+SIMULADOR DE CARTERA INMOBILIARIA REENTAL
 
 Pasos:
 1. Datos cliente (nombre, email, capital, divisa)
@@ -627,7 +626,38 @@ elif st.session_state.paso_actual == 4:
         # Cargar ofertas OTC + P2P
         ofertas_otc_list = cargar_todas_ofertas_secundario()
         ofertas_por_proy = agrupar_ofertas_por_proyecto(ofertas_otc_list)
-        
+
+        # ========== REVISIÓN TEMPORAL DEL ORIGEN OTC (borrar cuando esté revisado) ==========
+        with st.expander("🔎 Revisar de dónde salen las ofertas OTC"):
+            nombre_por_clave = {}
+            for _, r in df_proyectos_todos.iterrows():
+                nombre_master = f"{r.get('Nombre del proyecto', '')} ({r.get('ID', '')})"
+                for k in (str(r.get('ID', '')).lower(), str(r.get('Token Address', '')).lower()):
+                    if k and k != 'nan':
+                        nombre_por_clave[k] = nombre_master
+
+            filas_rev = []
+            for o in ofertas_otc_list:
+                clave = (o.get('proyecto_id') or '').lower() or (o.get('token_address') or '').lower()
+                filas_rev.append({
+                    'Origen': o.get('canal') or 'OTC',
+                    'Proyecto en la oferta': o.get('proyecto_nombre') or o.get('proyecto_id') or '',
+                    'Emparejado en el Master': nombre_por_clave.get(clave, '❌ sin coincidencia'),
+                    'Precio': o.get('precio_venta', ''),
+                    'Divisa': o.get('divisa', ''),
+                    'Tokens': o.get('n_tokens', ''),
+                    'Estado': o.get('estado', ''),
+                    'Fecha': o.get('fecha', ''),
+                    'Clave usada (ID o token)': clave,
+                })
+
+            if not filas_rev:
+                st.info("No ha llegado ninguna oferta ni de OTC ni de P2P.")
+            else:
+                df_rev = pd.DataFrame(filas_rev).astype(str)
+                st.write("**Ofertas recibidas por origen:**", df_rev['Origen'].value_counts().to_dict())
+                st.dataframe(df_rev, use_container_width=True, hide_index=True)
+
         # Separar proyectos ACTIVOS (FINANCIÁNDOSE)
         df_matchean = df_proyectos[df_proyectos['Ubicación'].isin(mercados_seleccionados)].copy()
         df_no_matchean = df_proyectos[~df_proyectos['Ubicación'].isin(mercados_seleccionados)].copy()
