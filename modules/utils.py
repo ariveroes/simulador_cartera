@@ -445,4 +445,3 @@ def fetch_all_account_txs(wallet: str, api_key: str, action: str = "tokentx",
 def fetch_all_token_txs(wallet: str, api_key: str, max_rounds: int = 40) -> list:
     """Descarga TODOS los transfers ERC-20 de una wallet (ver fetch_all_account_txs)."""
     return fetch_all_account_txs(wallet, api_key, action="tokentx", max_rounds=max_rounds)
-
