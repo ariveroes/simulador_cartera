@@ -5,7 +5,7 @@ Usa la misma cuenta de servicio que maestro.py (st.secrets["gcp_service_account"
 El Sheet se indica en los Secrets:
 
     [leads]
-    sheet_id = "1mBaPpzVWCijgRqZxKNgRiyrra81o86OEi_LloEI8c5M"
+    sheet_id = "ID_DEL_GOOGLE_SHEET"
     pestana  = "Leads"          # opcional, por defecto "Leads"
 
 El Sheet tiene que estar compartido (como Editor) con el email de la cuenta de
@@ -24,7 +24,7 @@ import streamlit as st
 from google.oauth2.service_account import Credentials
 
 CABECERAS = [
-    "Fecha (UTC)", "ID lead", "Evento", "Nombre", "Email", "¿Ya inversor?",
+    "Fecha (UTC)", "ID lead", "Evento", "Nombre", "Email", "Teléfono", "¿Ya inversor?",
     "Divisa", "Capital (rango)", "Estatus", "Objetivo",
     "Distribución", "Mercados", "Cartera", "Importe simulado",
 ]
@@ -64,6 +64,7 @@ def guardar(lead_id: str, evento: str, datos: dict, cartera: str = "", importe: 
         evento,
         datos.get("nombre", ""),
         datos.get("email", ""),
+        datos.get("telefono", ""),
         datos.get("ya_inversor", ""),
         datos.get("divisa", ""),
         datos.get("capital", ""),
