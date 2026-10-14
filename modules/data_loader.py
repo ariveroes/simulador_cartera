@@ -14,7 +14,9 @@ import streamlit as st
 from modules import maestro
 
 
-@st.cache_data(ttl=3600)
+# Sin caché propia: maestro.py ya guarda la lectura del Sheet una hora. Si se
+# cacheara aquí también, al cambiar maestro.py la app seguía usando los datos
+# procesados con la versión anterior hasta la siguiente hora (o un Reboot).
 def cargar_todos_proyectos():
     """
     Carga TODOS los proyectos sin filtrar por estado.
@@ -70,7 +72,6 @@ def cargar_todos_proyectos():
         return pd.DataFrame()
 
 
-@st.cache_data(ttl=3600)
 def cargar_proyectos():
     """
     Carga proyectos desde Google Sheet usando maestro.py (gspread)
@@ -123,8 +124,6 @@ def cargar_proyectos():
         # Renombrar solo las columnas que existen
         columnas_a_renombrar = {k: v for k, v in mapeo_columnas.items() if k in df.columns}
         df = df.rename(columns=columnas_a_renombrar)
-        
-        st.success(f"✅ Cargados {len(df)} proyectos en FINANCIÁNDOSE")
         
         return df
         
