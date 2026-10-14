@@ -433,6 +433,47 @@ def precio_rnt_actual():
         return PRECIO_RNT_DEFECTO
 
 
+from modules.rentabilidad_compra import rentabilidad_ajustada
+
+
+def divisa_proyecto(row):
+    """'USD' o 'EUR' según la divisa del proyecto en el Master."""
+    return 'USD' if str(row.get('Divisa', '') or '').strip().upper() in ('USD', '$', 'USDT') else 'EUR'
+
+
+def convertir_divisa(importe, desde, hacia):
+    """Convierte entre EUR y USD (USDT cuenta como USD) con el tipo del BCE."""
+    desde = 'USD' if str(desde).upper() in ('USD', 'USDT', '$') else 'EUR'
+    hacia = 'USD' if str(hacia).upper() in ('USD', 'USDT', '$') else 'EUR'
+    if desde == hacia:
+        return importe
+    tc = tipo_cambio_actual()
+    return importe * tc if desde == 'EUR' else importe / tc
+
+
+def aplicar_rentabilidad_ajustada(df_display, df_origen, estatus, precio_por_id=None):
+    """Sustituye 'Rentabilidad Total' y 'Rentabilidad Anualizada' de una tabla del
+    Paso 4 por las calculadas con el precio de compra y los meses que quedan
+    (mismas fórmulas que la plantilla de propuestas). `precio_por_id` va en la
+    divisa de cada proyecto; si un proyecto no está, se usa su precio de emisión."""
+    if df_display is None or len(df_display) == 0:
+        return df_display
+    filas = {row['ID']: row for _, row in df_origen.iterrows()}
+    totales, anuales = [], []
+    for pid in df_display['ID']:
+        row = filas.get(pid)
+        if row is None:
+            totales.append(None); anuales.append(None)
+            continue
+        r = rentabilidad_ajustada(row, estatus, (precio_por_id or {}).get(pid))
+        totales.append(round(r['total'], 2))
+        anuales.append(round(r['anual'], 2) if r['anual'] is not None else None)
+    df_display = df_display.copy()
+    df_display['Rentabilidad Total'] = totales
+    df_display['Rentabilidad Anualizada'] = anuales
+    return df_display
+
+
 def tabla_seleccionable(df_display, key):
     """
     Muestra una tabla con una casilla 'Incluir' en cada fila
@@ -800,11 +841,13 @@ elif st.session_state.paso_actual == 4:
         
         if len(df_matchean) > 0:
             df_display_matchean = preparar_proyectos_para_paso4(df_matchean, estatus)
+            df_display_matchean = aplicar_rentabilidad_ajustada(df_display_matchean, df_matchean, estatus)
             ids_seleccionados += tabla_seleccionable(df_display_matchean, "tabla_primera_emision")
         
         if len(df_no_matchean) > 0:
             st.markdown("#### Proyectos adicionales que podrían interesarte")
             df_display_no_matchean = preparar_proyectos_para_paso4(df_no_matchean, estatus)
+            df_display_no_matchean = aplicar_rentabilidad_ajustada(df_display_no_matchean, df_no_matchean, estatus)
             ids_seleccionados += tabla_seleccionable(df_display_no_matchean, "tabla_adicionales")
         
         # ========== TABLA OTC ==========
@@ -845,23 +888,30 @@ elif st.session_state.paso_actual == 4:
             except:
                 pass
             
-            # Precio OTC más bajo por proyecto
+            # Precio OTC más bajo por proyecto, en la divisa del proyecto
             precio_min_por_id = {}
             for idx, row in df_con_otc.iterrows():
                 clave = str(row.get('ID', '')).lower() or str(row.get('Token Address', '')).lower()
+                div_proy = divisa_proyecto(row)
                 precios = []
                 for oferta in ofertas_por_proy.get(clave, []):
                     try:
                         precio = float(oferta.get('precio_venta', 0))
                         if precio > 0:
-                            precios.append(precio)
+                            precios.append(convertir_divisa(precio, oferta.get('divisa', 'USD'), div_proy))
                     except:
                         pass
-                precio_min_por_id[row['ID']] = min(precios) if precios else row.get('Precio Emisión', 0)
+                if precios:
+                    precio_min_por_id[row['ID']] = min(precios)
             
+            simbolo_por_id = {row['ID']: ('$' if divisa_proyecto(row) == 'USD' else '€')
+                              for _, row in df_con_otc.iterrows()}
             df_display_otc = preparar_proyectos_para_paso4(df_con_otc, estatus)
+            # Rentabilidad comprando a la oferta más barata
+            df_display_otc = aplicar_rentabilidad_ajustada(df_display_otc, df_con_otc, estatus, precio_min_por_id)
             df_display_otc['Precio OTC Más Bajo'] = df_display_otc['ID'].map(
-                lambda pid: f"€{float(precio_min_por_id.get(pid, 0) or 0):.2f}"
+                lambda pid: (f"{precio_min_por_id[pid]:.2f} {simbolo_por_id.get(pid, '€')}"
+                             if pid in precio_min_por_id else "-")
             )
             ids_seleccionados += tabla_seleccionable(df_display_otc, "tabla_otc")
         elif ofertas_por_proy:
@@ -918,7 +968,8 @@ elif st.session_state.paso_actual == 4:
             ofertas_proyecto = ofertas_por_proy.get(clave_otc, [])
             
             # Precio de emisión solo si el proyecto sigue en primera emisión
-            opciones_precio = [f"Emisión: {precio_emision:.2f} EUR"] if es_primera_emision else []
+            div_emision = divisa_proyecto(row)
+            opciones_precio = [f"Emisión: {precio_emision:.2f} {div_emision}"] if es_primera_emision else []
             mejores_ofertas = []
             
             for oferta in ofertas_proyecto:
@@ -941,7 +992,7 @@ elif st.session_state.paso_actual == 4:
             
             # Seguridad: si no hay ninguna opción válida, usar el precio de emisión
             if not opciones_precio:
-                opciones_precio = [f"Emisión: {precio_emision:.2f} EUR"]
+                opciones_precio = [f"Emisión: {precio_emision:.2f} {div_emision}"]
             
             # Fila del proyecto: precio (izquierda) y % (derecha) a la misma altura
             st.markdown(f"**{proyecto_nombre}**")
@@ -967,7 +1018,7 @@ elif st.session_state.paso_actual == 4:
                 else:
                     st.session_state.precios_compra[proyecto_id] = {
                         'precio': precio_emision,
-                        'divisa': 'EUR',
+                        'divisa': div_emision,
                         'tipo': 'Emisión'
                     }
             
@@ -1140,6 +1191,31 @@ elif st.session_state.paso_actual == 5:
         filas_tabla = []
         filas_graficos = []
         proyectos_pdf = []
+        
+        # Precio de compra de cada proyecto, convertido a la divisa del propio
+        # proyecto: es lo que necesita el cálculo de rentabilidad ajustada.
+        def precio_compra_en_divisa_proyecto(pid, row):
+            info = precios_compra.get(pid, {})
+            precio = a_numero(info.get('precio', row.get('Precio Emisión', 0)))
+            return convertir(precio, info.get('divisa', divisa_proyecto(row)), divisa_proyecto(row))
+        
+        def rent_proyecto(pid, est):
+            fila = df_proy[df_proy['ID'] == pid]
+            if len(fila) == 0:
+                return None
+            row = fila.iloc[0]
+            return rentabilidad_ajustada(row, est, precio_compra_en_divisa_proyecto(pid, row))
+        
+        def media_cartera(est, campo):
+            """Media de la cartera ponderada por el % invertido en cada proyecto."""
+            total = 0.0
+            for proyecto in proyectos_cartera:
+                r = rent_proyecto(proyecto['id'], est)
+                if r is None:
+                    continue
+                peso = distribuciones.get(proyecto['id'], {}).get('porcentaje', 0)
+                total += (r[campo] or 0.0) * peso / 100
+            return total
         rentabilidad_media = 0.0
         
         for proyecto in proyectos_cartera:
@@ -1157,8 +1233,10 @@ elif st.session_state.paso_actual == 5:
             tipo_precio = info_precio.get('tipo', 'Emisión')
             precio_conv = convertir(precio, divisa_precio, divisa_cliente)
             
-            rent_anual = a_numero(row.get(col_anual, 0))
-            rent_total = a_numero(row.get(col_total, 0))
+            r_est = rent_proyecto(proyecto_id, estatus)
+            r_rnt = rent_proyecto(proyecto_id, 'Reentel')
+            rent_anual = r_est['anual'] or 0.0
+            rent_total = r_est['total']
             rentabilidad_media += rent_anual * peso / 100
             
             tipologia = str(row.get(col_tipologia, '') or '').strip() if col_tipologia else ''
@@ -1183,8 +1261,8 @@ elif st.session_state.paso_actual == 5:
                 'tipo_precio': tipo_precio,
                 'pct': peso,
                 'importe': importe_inmuebles * peso / 100,
-                'rent_anu_rnt': a_numero(row.get('Rentabilidad_Anualizada_Reentel', 0)),
-                'rent_tot_rnt': a_numero(row.get('Rentabilidad_Total_Reentel', 0)),
+                'rent_anu_rnt': r_rnt['anual'] or 0.0,
+                'rent_tot_rnt': r_rnt['total'],
                 'rent_anu_est': rent_anual,
                 'rent_tot_est': rent_total,
                 'fecha_inicio': str(row.get('Fecha Inicio Estimada', '') or ''),
@@ -1211,7 +1289,7 @@ elif st.session_state.paso_actual == 5:
         for col, (titulo, valor, sub) in zip(cols, tarjetas):
             col.markdown(tarjeta(titulo, valor, sub), unsafe_allow_html=True)
         
-        st.caption("Las rentabilidades se ponderan por el % de la cartera invertido en cada proyecto.")
+        st.caption("Las rentabilidades se calculan con el precio de compra de cada proyecto y los meses de renta que le quedan, y se ponderan por el % de la cartera invertido en cada uno.")
         st.markdown("")
         
         # ----- Tabla de proyectos -----
@@ -1308,15 +1386,8 @@ elif st.session_state.paso_actual == 5:
         MESES_COMPARATIVA = 36
         
         def rentabilidad_media_estatus(est):
-            """Rentabilidad anualizada media de la cartera con las columnas de ese estatus."""
-            total = 0.0
-            for proyecto in proyectos_cartera:
-                fila = df_proy[df_proy['ID'] == proyecto['id']]
-                if len(fila) == 0:
-                    continue
-                peso = distribuciones.get(proyecto['id'], {}).get('porcentaje', 0)
-                total += a_numero(fila.iloc[0].get(f'Rentabilidad_Anualizada_{est}', 0)) * peso / 100
-            return total
+            """Rentabilidad anualizada media de la cartera para ese estatus, al precio de compra."""
+            return media_cartera(est, 'anual')
         
         filas_comparativa = []
         comparativa_pdf = []
@@ -1349,18 +1420,8 @@ elif st.session_state.paso_actual == 5:
                 'Coste del estatus': fmt(coste_est),
             })
         
-        def media_columna(prefijo, est):
-            total = 0.0
-            for proyecto in proyectos_cartera:
-                fila = df_proy[df_proy['ID'] == proyecto['id']]
-                if len(fila) == 0:
-                    continue
-                peso = distribuciones.get(proyecto['id'], {}).get('porcentaje', 0)
-                total += a_numero(fila.iloc[0].get(f'{prefijo}_{est}', 0)) * peso / 100
-            return total
-        
-        rent_anual_media_pdf = {est: media_columna('Rentabilidad_Anualizada', est) for est in {'Reentel', estatus}}
-        rent_total_media_pdf = {est: media_columna('Rentabilidad_Total', est) for est in {'Reentel', estatus}}
+        rent_anual_media_pdf = {est: media_cartera(est, 'anual') for est in {'Reentel', estatus}}
+        rent_total_media_pdf = {est: media_cartera(est, 'total') for est in {'Reentel', estatus}}
         
         escenarios_pdf = []
         for meses in [6, 12, 24, 36]:
