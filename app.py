@@ -13,10 +13,14 @@ Pasos:
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import re
+import traceback
+import uuid
 from modules.data_loader import cargar_proyectos, cargar_todos_proyectos
 from modules.calculo_cartera import rankear_proyectos, CalculadoraCartera
 from modules.formateo_datos import preparar_proyectos_para_paso4
 from modules.pdf_generator import generar_pdf_cartera
+from modules import leads
 
 # ========== CONFIGURACIÓN STREAMLIT ==========
 st.set_page_config(
@@ -267,7 +271,10 @@ def cargar_ofertas_otc(df_proyectos=None):
     try:
         res = catalogo_otc(_proyectos_para_catalogo(df_proyectos))
     except Exception as e:
-        st.warning(f"⚠️ No se pudo calcular la disponibilidad OTC: {e}")
+        print(f"❌ Error calculando la disponibilidad OTC: {e}")
+        traceback.print_exc()
+        st.warning("⚠️ Ahora mismo no hemos podido cargar las ofertas del mercado secundario. "
+                   "Inténtalo de nuevo en unos minutos.")
         return []
 
     proyecto_de = {str(r.get('Token Address', '')).strip().lower(): r
@@ -302,8 +309,9 @@ def cargar_ofertas_otc(df_proyectos=None):
             })
 
     if res.get("error") == "falta_clave":
-        st.error("❌ No se puede consultar la disponibilidad OTC: falta la clave de Etherscan "
-                 "en los Secrets de Streamlit (sección [etherscan], campo api_key).")
+        print("❌ Falta la clave de Etherscan en los Secrets ([etherscan] api_key)")
+        st.warning("⚠️ Ahora mismo no hemos podido cargar las ofertas del mercado secundario. "
+                   "Inténtalo de nuevo en unos minutos.")
     return ofertas
 
 def cargar_ofertas_p2p():
@@ -336,7 +344,7 @@ def cargar_ofertas_p2p():
         
         return ofertas_p2p
     except Exception as e:
-        st.warning(f"⚠️ No se pudieron cargar las operaciones P2P: {e}")
+        print(f"❌ Error cargando P2P: {e}")
         return []
 
 def cargar_todas_ofertas_secundario(df_proyectos=None):
@@ -474,6 +482,19 @@ def aplicar_rentabilidad_ajustada(df_display, df_origen, estatus, precio_por_id=
     return df_display
 
 
+# Importe con el que se simula cada rango de capital del Paso 1 (punto medio del
+# rango; para "Más de 50.000", que no tiene techo, se usan 100.000).
+CAPITAL_SIMULADO = {
+    "Menos de 5.000": 2500,
+    "Entre 5.000 y 10.000": 7500,
+    "Entre 10.000 y 50.000": 30000,
+    "Más de 50.000": 100000,
+}
+
+def importe_simulado(capital_texto):
+    return CAPITAL_SIMULADO.get(capital_texto, 30000)
+
+
 def tabla_seleccionable(df_display, key):
     """
     Muestra una tabla con una casilla 'Incluir' en cada fila
@@ -562,6 +583,8 @@ if st.session_state.paso_actual == 1:
             placeholder="Selecciona tu rango de capital",
             key="select_capital"
         )
+        st.caption("Para simular tu cartera usaremos el punto medio del rango elegido "
+                   "(por ejemplo, 30.000 para «Entre 10.000 y 50.000», y 100.000 si eliges «Más de 50.000»).")
     
     st.markdown("")
     st.markdown("---")
@@ -571,18 +594,25 @@ if st.session_state.paso_actual == 1:
     
     with col3:
         if st.button("Siguiente >", use_container_width=True, key="btn_paso1_next"):
-            if nombre and email and divisa is not None and capital is not None and ya_inversor is not None:
+            email_valido = bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", (email or "").strip()))
+            if not (nombre and email and divisa is not None and capital is not None and ya_inversor is not None):
+                st.error("Por favor completa todos los campos marcados con *")
+            elif not email_valido:
+                st.error("Revisa el email: no parece una dirección válida.")
+            else:
                 st.session_state.datos_cliente = {
-                    'nombre': nombre,
-                    'email': email,
+                    'nombre': nombre.strip(),
+                    'email': email.strip(),
                     'divisa': divisa,
                     'ya_inversor': ya_inversor,
-                    'capital': capital
+                    'capital': capital,
                 }
+                # Guardar el lead (si falla, la app sigue igual)
+                if 'lead_id' not in st.session_state:
+                    st.session_state.lead_id = uuid.uuid4().hex[:10]
+                leads.guardar(st.session_state.lead_id, "Datos de contacto", st.session_state.datos_cliente)
                 st.session_state.paso_actual = 2
                 st.rerun()
-            else:
-                st.error("Por favor completa todos los campos marcados con *")
 
 # ========== PASO 2: ESTATUS ==========
 elif st.session_state.paso_actual == 2:
@@ -768,7 +798,9 @@ elif st.session_state.paso_actual == 3:
                     st.session_state.paso_actual = 4
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Error cargando proyectos: {e}")
+                    print(f"❌ Error cargando proyectos: {e}")
+                    traceback.print_exc()
+                    st.error("No hemos podido cargar los proyectos. Inténtalo de nuevo en unos minutos.")
         else:
             st.button("Siguiente >", use_container_width=True, disabled=True, key="btn_paso3_next_disabled")
 
@@ -801,26 +833,6 @@ elif st.session_state.paso_actual == 4:
         # Cargar ofertas OTC + P2P
         ofertas_otc_list = cargar_todas_ofertas_secundario(df_proyectos_todos)
         ofertas_por_proy = agrupar_ofertas_por_proyecto(ofertas_otc_list)
-
-        # ========== REVISIÓN TEMPORAL DEL ORIGEN OTC (borrar cuando esté revisado) ==========
-        with st.expander("🔎 Revisar de dónde salen las ofertas OTC"):
-            filas_rev = [{
-                'Origen': o.get('canal', ''),
-                'Proyecto': o.get('proyecto_nombre', ''),
-                'ID': (o.get('proyecto_id') or '').upper(),
-                'Tokens disponibles': o.get('n_tokens', ''),
-                'Precio': o.get('precio_venta', ''),
-                'Divisa': o.get('divisa', ''),
-                'Origen del precio': o.get('origen_precio', ''),
-            } for o in ofertas_otc_list if o.get('estado') == 'activa']
-            
-            if not filas_rev:
-                st.info("No hay nada disponible en OTC ahora mismo.")
-            else:
-                df_rev = pd.DataFrame(filas_rev).astype(str)
-                st.write("**Disponible por origen:**", df_rev['Origen'].value_counts().to_dict())
-                st.dataframe(df_rev, use_container_width=True, hide_index=True)
-            
 
         # Separar proyectos ACTIVOS (FINANCIÁNDOSE)
         df_matchean = df_proyectos[df_proyectos['Ubicación'].isin(mercados_seleccionados)].copy()
@@ -938,6 +950,11 @@ elif st.session_state.paso_actual == 4:
         proyectos_seleccionados = []
         suma_porcentajes = 0
         reparto_igual = distribucion_type == 'Distribuir en partes iguales'
+        # Para comprobar que las ofertas OTC tienen tokens suficientes
+        divisa_cliente_p4 = (st.session_state.datos_cliente.get('divisa') or 'EUR').upper()
+        importe_total_p4 = importe_simulado(st.session_state.datos_cliente.get('capital'))
+        simbolo_cliente_p4 = '€' if divisa_cliente_p4 == 'EUR' else '$'
+        proyectos_sin_tokens = []
         ids_validos = [pid for pid in ids_seleccionados if pid in filas_por_id]
         porcentaje_igual = 100 / len(ids_validos) if ids_validos else 0
         
@@ -1012,7 +1029,8 @@ elif st.session_state.paso_actual == 4:
                             st.session_state.precios_compra[proyecto_id] = {
                                 'precio': oferta['precio'],
                                 'divisa': oferta['divisa'],
-                                'tipo': 'OTC'
+                                'tipo': 'OTC',
+                                'n_tokens': oferta['n_tokens'],
                             }
                             break
                 else:
@@ -1043,6 +1061,24 @@ elif st.session_state.paso_actual == 4:
                     )
                 st.session_state.cartera_selecciones[proyecto_id]['porcentaje'] = porcentaje
                 suma_porcentajes += porcentaje
+            
+            # ¿Tiene la oferta OTC elegida tokens suficientes para ese %?
+            compra = st.session_state.precios_compra.get(proyecto_id, {})
+            if compra.get('tipo') == 'OTC' and compra.get('precio'):
+                importe_proy = importe_total_p4 * porcentaje / 100
+                tokens_necesarios = convertir_divisa(importe_proy, divisa_cliente_p4, compra['divisa']) / compra['precio']
+                tokens_oferta = _num(compra.get('n_tokens'), 0.0)
+                if tokens_necesarios > tokens_oferta + 0.01:
+                    pct_maximo = (convertir_divisa(tokens_oferta * compra['precio'], compra['divisa'], divisa_cliente_p4)
+                                  / importe_total_p4 * 100) if importe_total_p4 else 0
+                    proyectos_sin_tokens.append(proyecto_nombre)
+                    solucion = ("elige otra oferta o quita algún proyecto"
+                                if reparto_igual else "elige otra oferta o baja el porcentaje")
+                    st.warning(
+                        f"⚠️ Con un {porcentaje:.1f}% ({importe_proy:,.0f} {simbolo_cliente_p4}) necesitarías "
+                        f"{tokens_necesarios:,.2f} tokens, pero esta oferta solo tiene {tokens_oferta:,.2f} "
+                        f"(como mucho un {pct_maximo:.1f}% de tu capital). Para continuar, {solucion}."
+                    )
         
         # Mensaje de estado justo debajo de "Construye tu cartera"
         if not ids_validos:
@@ -1070,7 +1106,9 @@ elif st.session_state.paso_actual == 4:
                 st.rerun()
         
         with col3:
-            if len(proyectos_seleccionados) > 0 and suma_porcentajes == 100:
+            if proyectos_sin_tokens:
+                st.caption("No hay tokens suficientes en: " + ", ".join(proyectos_sin_tokens))
+            if len(proyectos_seleccionados) > 0 and suma_porcentajes == 100 and not proyectos_sin_tokens:
                 if st.button("Generar cartera >", use_container_width=True, key="btn_paso4_next"):
                     st.session_state.datos_cliente['cartera'] = {
                         'proyectos': proyectos_seleccionados,
@@ -1165,13 +1203,7 @@ elif st.session_state.paso_actual == 5:
         # ========== 3) TU CARTERA DE INVERSIÓN ==========
         st.markdown("### Tu cartera de inversión")
         
-        capital_map = {
-            "Menos de 5.000": 2500,
-            "Entre 5.000 y 10.000": 7500,
-            "Entre 10.000 y 50.000": 30000,
-            "Más de 50.000": 100000
-        }
-        importe_inmuebles = capital_map.get(datos.get('capital'), 30000)  # en la divisa del cliente
+        importe_inmuebles = importe_simulado(datos.get('capital'))  # en la divisa del cliente
         
         rnt_estatus = RNT_POR_ESTATUS.get(estatus, 0)
         coste_estatus = convertir(rnt_estatus * precio_rnt, 'USD', divisa_cliente)
@@ -1484,6 +1516,17 @@ elif st.session_state.paso_actual == 5:
             'comparativa': comparativa_pdf,
             'meses': MESES_COMPARATIVA,
         }
+        
+        # Guardar el lead con la cartera simulada (una sola vez por cartera)
+        cartera_txt = "; ".join(
+            f"{f['Proyecto']} ({f['% cartera']:.1f}% · {f['Precio de compra']})" for f in filas_tabla)
+        firma_cartera = f"{st.session_state.get('lead_id', '')}|{estatus}|{cartera_txt}"
+        if st.session_state.get('lead_cartera_guardada') != firma_cartera:
+            if 'lead_id' not in st.session_state:
+                st.session_state.lead_id = uuid.uuid4().hex[:10]
+            leads.guardar(st.session_state.lead_id, "Cartera generada", datos,
+                          cartera=cartera_txt, importe=fmt(importe_inmuebles))
+            st.session_state.lead_cartera_guardada = firma_cartera
         
         pdf_buffer = generar_pdf_cartera(
             st.session_state.datos_cliente,
