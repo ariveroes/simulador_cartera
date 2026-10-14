@@ -172,6 +172,12 @@ if 'precios_compra' not in st.session_state:
 if 'sel_tablas' not in st.session_state:
     st.session_state.sel_tablas = {}
 
+# Construye tu cartera: tokens a comprar y oferta elegida por proyecto
+for _clave, _defecto in (('tokens_compra', {}), ('oferta_elegida', {}),
+                         ('tokens_manual', False), ('version_editor', 0)):
+    if _clave not in st.session_state:
+        st.session_state[_clave] = _defecto
+
 # ========== FUNCIONES AUXILIARES OTC ==========
 # Los módulos OTC de la herramienta del compañero (otc_inventario, otc_saldos,
 # aave_lend, utils, reental_tokens) se importan entre sí sin el prefijo
@@ -510,18 +516,11 @@ def capital_mostrado(datos, simbolo):
     return f"{datos.get('capital', 'N/A')} ({'EUR' if simbolo == '€' else 'USD'})"
 
 
-def ajustar_capital(ids, importe_actual, suma_pct):
-    """Cambia el capital para que los importes elegidos sumen exactamente el 100 %.
-    Cada proyecto conserva su importe (y sus tokens); solo se recalculan los %."""
-    if not suma_pct:
-        return
-    st.session_state.datos_cliente['capital_ajustado'] = importe_actual * suma_pct / 100
-    for pid in ids:
-        clave = f"input_{pid}"
-        pct = float(st.session_state.get(clave, 0.0) or 0.0)
-        nuevo = pct / suma_pct * 100
-        st.session_state[clave] = nuevo
-        st.session_state.cartera_selecciones.setdefault(pid, {})['porcentaje'] = nuevo
+def ajustar_capital(importe_repartido):
+    """Fija el capital en lo que suman los tokens elegidos, para que el reparto sea
+    exactamente el 100 %. Los tokens de cada proyecto no cambian."""
+    if importe_repartido and importe_repartido > 0:
+        st.session_state.datos_cliente['capital_ajustado'] = importe_repartido
 
 
 def tabla_seleccionable(df_display, key):
@@ -983,56 +982,32 @@ elif st.session_state.paso_actual == 4:
         st.markdown("### Construye tu cartera")
         
         proyectos_seleccionados = []
-        suma_porcentajes = 0
         reparto_igual = distribucion_type == 'Distribuir en partes iguales'
         divisa_cliente_p4 = (st.session_state.datos_cliente.get('divisa') or 'EUR').upper()
         importe_total_p4 = importe_cliente(st.session_state.datos_cliente)
         simbolo_cliente_p4 = '€' if divisa_cliente_p4 == 'EUR' else '$'
-        proyectos_sin_tokens = []
         ids_validos = [pid for pid in ids_seleccionados if pid in filas_por_id]
-        porcentaje_igual = 100 / len(ids_validos) if ids_validos else 0
+        tokens_compra = st.session_state.tokens_compra
         
         def _simbolo(div):
             return '$' if str(div).upper() in ('USD', 'USDT', '$') else '€'
         
-        def _columnas_fila():
-            """Columnas de cada fila: proyecto · precio · % · Máx · importe y tokens."""
-            anchos = [2.6, 3.2, 1.1, 0.7, 2.4]
-            try:
-                return st.columns(anchos, vertical_alignment="center")
-            except TypeError:       # versiones antiguas de Streamlit
-                return st.columns(anchos)
+        def _etiqueta(o):
+            texto = f"{o['precio']:.2f} {_simbolo(o['divisa'])}"
+            if _simbolo(o['divisa']) != simbolo_cliente_p4:
+                texto += f" (aprox. {convertir_divisa(o['precio'], o['divisa'], divisa_cliente_p4):.2f} {simbolo_cliente_p4})"
+            return texto
         
-        if not ids_validos:
-            st.info("Marca en las tablas de arriba los proyectos que quieras incluir")
-        else:
-            c = _columnas_fila()
-            for col, titulo in zip(c, ["Proyecto", "Precio de compra", "%", "", "Importe · tokens"]):
-                col.markdown(f"**{titulo}**")
-        
-        for proyecto_id in ids_validos:
-            row = filas_por_id[proyecto_id]
-            proyecto_nombre = row['Nombre del proyecto']
-            token_address = row.get('Token Address', '')
-            es_primera_emision = str(row.get('ESTADO', '')).upper() == 'FINANCIÁNDOSE'
-            precio_emision = _num(row.get('Precio Emisión', 0))
-            div_emision = divisa_proyecto(row)
-            
-            proyectos_seleccionados.append({
-                'id': proyecto_id,
-                'nombre': proyecto_nombre,
-                'ubicacion': row['Ubicación'],
-                'rentabilidad': row.get('Rentabilidad_Anualizada_SuperReentel', 0),
-                'address': token_address,
-                'precio_emision': precio_emision
-            })
-            
-            # Opciones de compra: emisión (si sigue abierta) y cada oferta OTC
-            clave_otc = str(proyecto_id).lower() or str(token_address).lower()
+        # ----- Opciones de compra de cada proyecto (la más barata primero) -----
+        opciones_por_id = {}
+        for pid in ids_validos:
+            row = filas_por_id[pid]
+            precio_em = _num(row.get('Precio Emisión', 0))
             opciones = []
-            if es_primera_emision:
-                opciones.append({'tipo': 'Emisión', 'precio': precio_emision,
-                                 'divisa': div_emision, 'n_tokens': None})
+            if str(row.get('ESTADO', '')).upper() == 'FINANCIÁNDOSE':
+                opciones.append({'tipo': 'Emisión', 'precio': precio_em,
+                                 'divisa': divisa_proyecto(row), 'n_tokens': None})
+            clave_otc = str(pid).lower() or str(row.get('Token Address', '')).lower()
             for oferta in ofertas_por_proy.get(clave_otc, []):
                 precio = _num(oferta.get('precio_venta'), 0.0)
                 if precio > 0:
@@ -1040,123 +1015,159 @@ elif st.session_state.paso_actual == 4:
                                      'divisa': oferta.get('divisa', 'EUR'),
                                      'n_tokens': _num(oferta.get('n_tokens'), 0.0)})
             if not opciones:
-                opciones.append({'tipo': 'Emisión', 'precio': precio_emision,
-                                 'divisa': div_emision, 'n_tokens': None})
-            
-            def _etiqueta(i, opciones=opciones):
-                o = opciones[i]
-                texto = f"{o['precio']:.2f} {_simbolo(o['divisa'])}"
-                # Si el precio va en otra divisa, su equivalente en la del cliente
-                if _simbolo(o['divisa']) != simbolo_cliente_p4:
-                    equivalente = convertir_divisa(o['precio'], o['divisa'], divisa_cliente_p4)
-                    texto += f" (aprox. {equivalente:.2f} {simbolo_cliente_p4})"
-                if o['n_tokens'] is not None:
-                    texto += f" · {o['n_tokens']:,.2f} tk"
-                return texto
-            
-            clave_precio = f"precio_{proyecto_id}"
-            if st.session_state.get(clave_precio, 0) not in range(len(opciones)):
-                st.session_state[clave_precio] = 0
-            
-            col_nombre, col_precio, col_pct, col_max, col_importe = _columnas_fila()
-            col_nombre.markdown(proyecto_nombre)
-            
-            with col_precio:
-                idx = st.selectbox("Precio de compra", list(range(len(opciones))),
-                                   format_func=_etiqueta, key=clave_precio,
-                                   label_visibility="collapsed")
-            elegida = opciones[idx]
-            st.session_state.precios_compra[proyecto_id] = {
-                'precio': elegida['precio'], 'divisa': elegida['divisa'],
-                'tipo': elegida['tipo'], 'n_tokens': elegida['n_tokens'],
-            }
-            
-            # Máximo % que permite la oferta OTC elegida
-            pct_maximo = None
-            tokens_maximos = None
-            if elegida['tipo'] == 'OTC' and importe_total_p4:
-                valor_oferta = convertir_divisa(elegida['n_tokens'] * elegida['precio'],
-                                                elegida['divisa'], divisa_cliente_p4)
-                pct_maximo = min(100.0, math.floor(valor_oferta / importe_total_p4 * 100 * 10) / 10)
-                tokens_maximos = convertir_divisa(importe_total_p4 * pct_maximo / 100, divisa_cliente_p4,
-                                                  elegida['divisa']) / elegida['precio']
-            
-            clave_pct = f"input_{proyecto_id}"
-            with col_pct:
-                if reparto_igual:
-                    porcentaje = porcentaje_igual
-                    st.markdown(f"{porcentaje:.1f}%")
-                else:
-                    if clave_pct not in st.session_state:
-                        st.session_state[clave_pct] = round(float(
-                            st.session_state.cartera_selecciones[proyecto_id].get('porcentaje', 0.0)), 1)
-                    porcentaje = st.number_input("%", min_value=0.0, max_value=100.0, step=0.1,
-                                                 key=clave_pct, label_visibility="collapsed")
-            
-            with col_max:
-                if pct_maximo is not None and not reparto_igual:
-                    st.button("Máx", key=f"max_{proyecto_id}",
-                              help=(f"Usar todos los tokens disponibles: {tokens_maximos:,.2f} tokens "
-                                    f"(≈ {importe_total_p4 * pct_maximo / 100:,.0f} {simbolo_cliente_p4}, "
-                                    f"{pct_maximo:.1f}% de tu capital)"),
-                              on_click=lambda k=clave_pct, v=pct_maximo: st.session_state.update({k: v}))
-            
-            st.session_state.cartera_selecciones[proyecto_id]['porcentaje'] = porcentaje
-            suma_porcentajes += porcentaje
-            
-            # Importe y tokens que se compran; aviso si la oferta no llega
-            importe_proy = importe_total_p4 * porcentaje / 100
-            tokens_compra = (convertir_divisa(importe_proy, divisa_cliente_p4, elegida['divisa'])
-                             / elegida['precio']) if elegida['precio'] else 0.0
-            texto_importe = f"{importe_proy:,.0f} {simbolo_cliente_p4} · {tokens_compra:,.2f} tk"
-            if elegida['tipo'] == 'OTC' and tokens_compra > elegida['n_tokens'] + 0.01:
-                proyectos_sin_tokens.append(proyecto_nombre)
-                col_importe.markdown(
-                    f":orange[⚠ {importe_proy:,.0f} {simbolo_cliente_p4} · "
-                    f"faltan {tokens_compra - elegida['n_tokens']:,.2f} tk]")
-            else:
-                col_importe.markdown(texto_importe)
+                opciones.append({'tipo': 'Emisión', 'precio': precio_em,
+                                 'divisa': divisa_proyecto(row), 'n_tokens': None})
+            opciones.sort(key=lambda o: convertir_divisa(o['precio'], o['divisa'], divisa_cliente_p4))
+            opciones_por_id[pid] = opciones
         
-        # ----- Fila de total y avisos -----
-        if ids_validos:
-            if reparto_igual:
-                suma_porcentajes = 100
-            suma_porcentajes = round(suma_porcentajes, 1)
-            importe_repartido = importe_total_p4 * suma_porcentajes / 100
+        def _oferta(pid):
+            opciones = opciones_por_id[pid]
+            i = st.session_state.oferta_elegida.get(pid, 0)
+            return opciones[i] if 0 <= i < len(opciones) else opciones[0]
+        
+        def _tokens_por_importe(pid, importe):
+            o = _oferta(pid)
+            return convertir_divisa(importe, divisa_cliente_p4, o['divisa']) / o['precio'] if o['precio'] else 0.0
+        
+        def _repartir_por_igual():
+            if ids_validos:
+                parte = importe_total_p4 / len(ids_validos)
+                for pid in ids_validos:
+                    st.session_state.tokens_compra[pid] = round(_tokens_por_importe(pid, parte), 4)
+            st.session_state.tokens_manual = False
+            st.session_state.version_editor += 1
+        
+        # Reparto inicial: en partes iguales mientras no se toque a mano
+        if ids_validos and reparto_igual and not st.session_state.tokens_manual:
+            parte = importe_total_p4 / len(ids_validos)
+            for pid in ids_validos:
+                tokens_compra[pid] = round(_tokens_por_importe(pid, parte), 4)
+        for pid in ids_validos:
+            tokens_compra.setdefault(pid, 0.0)
+        
+        # ----- Cálculo de importes y % a partir de los tokens -----
+        filas_editor, maximos, proyectos_sin_tokens = [], {}, []
+        importe_repartido = 0.0
+        for pid in ids_validos:
+            row = filas_por_id[pid]
+            o = _oferta(pid)
+            tokens = _num(tokens_compra.get(pid), 0.0)
+            importe = convertir_divisa(tokens * o['precio'], o['divisa'], divisa_cliente_p4)
+            importe_repartido += importe
+            pct = importe / importe_total_p4 * 100 if importe_total_p4 else 0.0
             
-            st.markdown("<hr style='margin: 4px 0 8px 0;'>", unsafe_allow_html=True)
-            c = _columnas_fila()
-            c[0].markdown("**Total**")
-            c[2].markdown(f"**{suma_porcentajes:.1f}%**")
-            c[4].markdown(f"**{importe_repartido:,.0f} {simbolo_cliente_p4}** de "
-                          f"{importe_total_p4:,.0f} {simbolo_cliente_p4}")
+            st.session_state.precios_compra[pid] = {'precio': o['precio'], 'divisa': o['divisa'],
+                                                    'tipo': o['tipo'], 'n_tokens': o['n_tokens']}
+            st.session_state.cartera_selecciones.setdefault(pid, {'seleccionado': True})['porcentaje'] = pct
+            proyectos_seleccionados.append({
+                'id': pid, 'nombre': row['Nombre del proyecto'], 'ubicacion': row['Ubicación'],
+                'rentabilidad': row.get('Rentabilidad_Anualizada_SuperReentel', 0),
+                'address': row.get('Token Address', ''), 'precio_emision': _num(row.get('Precio Emisión', 0)),
+            })
             
+            disponibles = o['n_tokens']
+            if disponibles is not None:
+                maximos[pid] = round(disponibles, 4)
+            texto_pct = f"{pct:.1f}% · {importe:,.0f} {simbolo_cliente_p4}"
+            if disponibles is not None and tokens > disponibles + 0.01:
+                proyectos_sin_tokens.append(row['Nombre del proyecto'])
+                texto_pct = f"⚠ faltan {tokens - disponibles:,.2f} tk · {texto_pct}"
+            filas_editor.append({
+                'Proyecto': row['Nombre del proyecto'],
+                'Precio de compra': _etiqueta(o),
+                'Tokens disponibles': round(disponibles, 2) if disponibles is not None else None,
+                'Máx': disponibles is not None and abs(tokens - disponibles) < 0.005,
+                'Tokens a comprar': round(tokens, 2),
+                '% de tu cartera': texto_pct,
+            })
+        
+        suma_porcentajes = round(importe_repartido / importe_total_p4 * 100, 1) if importe_total_p4 else 0.0
+        
+        # ----- Avisos y acciones (encima de la tabla) -----
+        if not ids_validos:
+            st.info("Marca en las tablas de arriba los proyectos que quieras incluir")
+        else:
+            st.button("Repartir por igual", key="btn_repartir_igual", on_click=_repartir_por_igual,
+                      help="Asigna a cada proyecto el mismo porcentaje de tu capital")
             if proyectos_sin_tokens:
-                solucion = ("elige otra oferta, quita algún proyecto o cambia en el Paso 3 a "
-                            "«Elegir cuánto invertir en cada uno»" if reparto_igual
-                            else "elige otra oferta o pulsa «Máx» para usar todos los tokens disponibles")
                 st.warning(f"⚠ No hay tokens suficientes en: {', '.join(proyectos_sin_tokens)}. "
-                           f"Para continuar, {solucion}.")
+                           "Baja los tokens, marca «Máx» o elige otra oferta más abajo.")
+            if suma_porcentajes == 0:
+                st.info("Indica cuántos tokens quieres comprar de cada proyecto.")
+            elif suma_porcentajes != 100:
+                if suma_porcentajes > 100:
+                    st.warning(f"⚠ Has repartido un {suma_porcentajes:.1f}% de tu capital: "
+                               f"te sobra un {suma_porcentajes - 100:.1f}%.")
+                else:
+                    st.warning(f"⚠ Has repartido un {suma_porcentajes:.1f}% de tu capital: "
+                               f"te queda un {100 - suma_porcentajes:.1f}% por asignar.")
+                st.button(
+                    f"Ajustar mi capital a {importe_repartido:,.0f} {simbolo_cliente_p4} "
+                    f"para invertir exactamente lo que has elegido",
+                    key="btn_ajustar_capital", on_click=ajustar_capital, args=(importe_repartido,),
+                )
+                st.caption(f"Tu capital pasará de {importe_total_p4:,.0f} {simbolo_cliente_p4} "
+                           f"a {importe_repartido:,.0f} {simbolo_cliente_p4}.")
+        
+        # ----- Tabla -----
+        if ids_validos:
+            clave_editor = f"editor_cartera_{st.session_state.version_editor}"
             
-            if not reparto_igual:
-                if suma_porcentajes == 0:
-                    st.info("Asigna porcentajes a los proyectos")
-                elif suma_porcentajes != 100:
-                    if suma_porcentajes > 100:
-                        st.warning(f"⚠ Has repartido un {suma_porcentajes:.1f}% de tu capital: "
-                                   f"te sobra un {suma_porcentajes - 100:.1f}%.")
-                    else:
-                        st.warning(f"⚠ Has repartido un {suma_porcentajes:.1f}% de tu capital: "
-                                   f"te queda un {100 - suma_porcentajes:.1f}% por asignar.")
-                    st.button(
-                        f"Ajustar mi capital a {importe_repartido:,.0f} {simbolo_cliente_p4} "
-                        f"para invertir exactamente lo que has elegido",
-                        key="btn_ajustar_capital",
-                        on_click=ajustar_capital,
-                        args=(list(ids_validos), importe_total_p4, suma_porcentajes),
-                    )
-                    st.caption(f"Tu capital pasará de {importe_total_p4:,.0f} {simbolo_cliente_p4} "
-                               f"a {importe_repartido:,.0f} {simbolo_cliente_p4}.")
+            def _aplicar_edicion(clave, ids, maximos):
+                cambios = (st.session_state.get(clave) or {}).get("edited_rows", {})
+                for fila, cols in cambios.items():
+                    pid = ids[int(fila)]
+                    if "Máx" in cols:
+                        if cols["Máx"] and maximos.get(pid) is not None:
+                            st.session_state.tokens_compra[pid] = maximos[pid]
+                        elif not cols["Máx"]:
+                            st.session_state.tokens_compra[pid] = 0.0
+                    if "Tokens a comprar" in cols and cols["Tokens a comprar"] is not None:
+                        st.session_state.tokens_compra[pid] = max(0.0, float(cols["Tokens a comprar"]))
+                st.session_state.tokens_manual = True
+                st.session_state.version_editor += 1
+            
+            st.data_editor(
+                pd.DataFrame(filas_editor),
+                key=clave_editor,
+                hide_index=True,
+                use_container_width=True,
+                on_change=_aplicar_edicion,
+                args=(clave_editor, list(ids_validos), maximos),
+                disabled=['Proyecto', 'Precio de compra', 'Tokens disponibles', '% de tu cartera'],
+                column_config={
+                    'Proyecto': st.column_config.TextColumn(width="medium"),
+                    'Precio de compra': st.column_config.TextColumn(width="medium"),
+                    'Tokens disponibles': st.column_config.NumberColumn(format='%.2f', width="small"),
+                    'Máx': st.column_config.CheckboxColumn(
+                        width="small", help="Comprar todos los tokens disponibles de la oferta"),
+                    'Tokens a comprar': st.column_config.NumberColumn(
+                        min_value=0.0, step=0.01, format='%.2f', width="small"),
+                    '% de tu cartera': st.column_config.TextColumn(width="medium"),
+                },
+            )
+            st.markdown(f"**Total: {suma_porcentajes:.1f}% · {importe_repartido:,.0f} {simbolo_cliente_p4}** "
+                        f"de {importe_total_p4:,.0f} {simbolo_cliente_p4}")
+            
+            # ----- Cambiar de oferta (solo proyectos con varias opciones) -----
+            con_varias = [pid for pid in ids_validos if len(opciones_por_id[pid]) > 1]
+            if con_varias:
+                def _cambiar_oferta(pid):
+                    st.session_state.oferta_elegida[pid] = st.session_state[f"sel_oferta_{pid}"]
+                    st.session_state.version_editor += 1
+                
+                c1, c2, _ = st.columns([2, 3, 3])
+                pid_cambio = c1.selectbox(
+                    "Cambiar oferta de", con_varias,
+                    format_func=lambda p: filas_por_id[p]['Nombre del proyecto'], key="sel_proyecto_oferta")
+                opciones = opciones_por_id[pid_cambio]
+                c2.selectbox(
+                    "Oferta", list(range(len(opciones))),
+                    index=min(st.session_state.oferta_elegida.get(pid_cambio, 0), len(opciones) - 1),
+                    format_func=lambda i, opciones=opciones: (
+                        _etiqueta(opciones[i]) + (f" · {opciones[i]['n_tokens']:,.2f} tk"
+                                                  if opciones[i]['n_tokens'] is not None else "")),
+                    key=f"sel_oferta_{pid_cambio}", on_change=_cambiar_oferta, args=(pid_cambio,))
         
         st.markdown("")
         st.markdown("---")
@@ -1623,6 +1634,9 @@ elif st.session_state.paso_actual == 5:
                 st.session_state.cartera_selecciones = {}
                 st.session_state.precios_compra = {}
                 st.session_state.sel_tablas = {}
+                st.session_state.tokens_compra = {}
+                st.session_state.oferta_elegida = {}
+                st.session_state.tokens_manual = False
                 st.rerun()
     else:
         st.error("No hay cartera para mostrar")
