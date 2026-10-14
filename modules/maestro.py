@@ -136,7 +136,7 @@ def _obtener_cliente_gspread():
     try:
         creds_dict = st.secrets.get("gcp_service_account")
         if not creds_dict:
-            st.error("No se encontraron credenciales en Streamlit secrets")
+            print("❌ No se encontraron credenciales [gcp_service_account] en Streamlit secrets")
             return None
         
         creds = Credentials.from_service_account_info(
@@ -150,7 +150,7 @@ def _obtener_cliente_gspread():
         client = gspread.authorize(creds)
         return client
     except Exception as e:
-        st.error(f"Error autenticando con Google Sheets: {e}")
+        print(f"❌ Error autenticando con Google Sheets: {e}")
         return None
 
 
@@ -169,12 +169,12 @@ def _obtener_datos_sheet():
         datos = worksheet.get_all_values()
         
         if not datos:
-            st.warning("Sheet vacío")
+            print("⚠️ El Master está vacío")
             return []
         
         return datos
     except Exception as e:
-        st.error(f"Error leyendo Google Sheet: {e}")
+        print(f"❌ Error leyendo el Master: {e}")
         return []
 
 
