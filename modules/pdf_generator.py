@@ -70,12 +70,28 @@ ESTADO_BARRA = {"EN EXPLOTACIÓN": ORO, "EN REFORMA": C("#3b4a60"), "EN CONSTRUC
 
 # ─── Formato ─────────────────────────────────────────────────────────────────
 
+# Formato de las cifras según la divisa del cliente: en euros 1.234,56 y en
+# dólares 1,234.56. Se fija al empezar cada PDF en generar_pdf_cartera().
+_FORMATO = {"euro": True}
+
+
+def _n(v, dec=2):
+    """Número con el formato de la divisa del cliente."""
+    try:
+        texto = f"{float(v):,.{dec}f}"
+    except (TypeError, ValueError):
+        return "—"
+    if not _FORMATO["euro"]:
+        return texto
+    return texto.replace(",", "@").replace(".", ",").replace("@", ".")
+
+
 def _eur(v):
-    return "—" if v is None else f"{v:,.2f} €"
+    return "—" if v is None else f"{_n(v, 2)} €"
 
 
 def _usd(v):
-    return "—" if v is None else f"${v:,.2f}"
+    return "—" if v is None else f"${_n(v, 2)}"
 
 
 def _dinero(v, divisa):
@@ -84,7 +100,7 @@ def _dinero(v, divisa):
 
 def _pct(v, dec=2):
     """v en unidades de porcentaje (10.22 -> '10.22%')."""
-    return "—" if v is None else f"{v:.{dec}f}%"
+    return "—" if v is None else f"{_n(v, dec)}%"
 
 
 def _norm_estado(e):
@@ -232,7 +248,7 @@ def _tarjeta_donut(c, x, y, w, h, titulo, reparto):
         c.setFillColor(C(PALETA[i % len(PALETA)]))
         c.circle(lx + 5, ly + 3, 5, stroke=0, fill=1)
         ancho = _texto(c, lx + 16, ly, str(k)[:28], 9, BLANCO)
-        _texto(c, lx + 20 + ancho, ly, f"({v:.1f}%)", 9, ORO, bold=True)
+        _texto(c, lx + 20 + ancho, ly, f"({_n(v, 1)}%)", 9, ORO, bold=True)
         ly -= 17
 
 
@@ -335,7 +351,7 @@ def _resumen(c, R):
         if valor > 0:
             largo = pista_w * valor / 100
             _caja(c, px, y + 10, largo, 18, fill=color, stroke=None, r=3)
-            _texto(c, px + 6, y + 15, f"{valor:.1f}% ({etq})", 8, BG if color == ORO else BLANCO, bold=True)
+            _texto(c, px + 6, y + 15, f"{_n(valor, 1)}% ({etq})", 8, BG if color == ORO else BLANCO, bold=True)
             px += largo
     _texto(c, M + 16, y + 12, f"{R.get('n_inmuebles', 0)} inmuebles", 8.5, MUTED)
 
@@ -365,8 +381,8 @@ def _resumen(c, R):
             fy -= 20
 
     _parrafo(c, M, y - 8, ancho,
-             f"Tipo de cambio aplicado: 1 € = {tc:.4f} $ (referencia BCE). Precio del RNT: "
-             f"{(R.get('precio_rnt') or 0):.4f} USDT (pool RNT/USDT). Las rentabilidades se ponderan por el % de la "
+             f"Tipo de cambio aplicado: 1 € = {_n(tc, 4)} $ (referencia BCE). Precio del RNT: "
+             f"{_n((R.get('precio_rnt') or 0), 4)} USDT (pool RNT/USDT). Las rentabilidades se ponderan por el % de la "
              "cartera invertido en cada proyecto.", 7.5, TENUE)
 
 
@@ -404,10 +420,10 @@ def _reinversion(c, R):
     bc.valueAxis.valueMin = 0
     bc.valueAxis.visibleGrid = 1
     bc.valueAxis.gridStrokeColor = C("#1f2d44")
-    bc.valueAxis.labelTextFormat = lambda v: f"{v:,.0f}"
+    bc.valueAxis.labelTextFormat = lambda v: _n(v, 0)
     bc.groupSpacing = 14
     bc.barSpacing = 2
-    bc.barLabelFormat = lambda v: f"{v:,.0f}"
+    bc.barLabelFormat = lambda v: _n(v, 0)
     bc.barLabels.fontName = "Helvetica-Bold"
     bc.barLabels.fontSize = 6.5
     bc.barLabels.fillColor = TXT
@@ -468,7 +484,7 @@ def _analisis_1(c, R):
 
     # Distribución geográfica
     geo = sorted((R.get("repartos", {}).get("Distribución geográfica") or {}).items(), key=lambda kv: -kv[1])
-    items = [(k, v, ORO if v >= 50 else C("#c98a22") if v >= 10 else C("#9c6d20"), f"{v:.1f}%") for k, v in geo]
+    items = [(k, v, ORO if v >= 50 else C("#c98a22") if v >= 10 else C("#9c6d20"), f"{_n(v, 1)}%") for k, v in geo]
     alto_geo = 44 + len(items) * 25
     y -= 12 + alto_geo
     _caja(c, M, y, ancho, alto_geo)
@@ -514,11 +530,8 @@ def _analisis_2(c, R):
 
 
 def _num_es(v, dec=2):
-    """Número en formato español (1.234,56); '—' si no hay dato."""
-    try:
-        return f"{float(v):,.{dec}f}".replace(",", "@").replace(".", ",").replace("@", ".")
-    except (TypeError, ValueError):
-        return "—"
+    """Número con el formato de la divisa del cliente; '—' si no hay dato."""
+    return _n(v, dec)
 
 
 def _activos(c, R, proyectos, con_barras):
@@ -581,7 +594,7 @@ def _barras_rentabilidad(c, R, proyectos, y_top):
             _texto(c, x + 115, fy + 6, _pct(base), 7.5, BLANCO, bold=True)
             if l_dif:
                 _caja(c, x + 110 + l_base, fy + 1, l_dif, 17, fill=ORO, stroke=None, r=3)
-                _texto(c, x + 114 + l_base, fy + 6, f"+{dif:.2f}%", 7.5, BG, bold=True)
+                _texto(c, x + 114 + l_base, fy + 6, f"+{_n(dif, 2)}%", 7.5, BG, bold=True)
             fy -= 5
 
 
@@ -697,7 +710,7 @@ def _beneficios_superreentel(c, R):
     _icono_check(c, M + 34, y + 29)
     _texto(c, M + 60, y + 34, "Condiciones para obtener estatus:", 11, ORO, bold=True)
     _parrafo(c, M + 60, y + 25, ancho - 90,
-             f"Adquirir al menos <b>{rnt:,.0f} xRNT</b> (esto es, staking de {rnt:,.0f} RNT a 2 años) para {ep}.",
+             f"Adquirir al menos <b>{_n(rnt, 0)} xRNT</b> (esto es, staking de {_n(rnt, 0)} RNT a 2 años) para {ep}.",
              10.5, TXT)
 
 
@@ -707,6 +720,7 @@ def generar_pdf_cartera(datos_cliente, proyectos_cartera, distribuciones, df_pro
                         precios_compra=None, resumen=None):
     """Genera el PDF y devuelve sus bytes. `resumen` lo prepara el Paso 5 de la app."""
     R = dict(resumen or {})
+    _FORMATO["euro"] = str(R.get("divisa") or datos_cliente.get("divisa") or "EUR").upper() != "USD"
     R.setdefault("estatus", datos_cliente.get("estatus") or "Reentel")
     R.setdefault("divisa", (datos_cliente.get("divisa") or "EUR").upper())
     R.setdefault("titular", datos_cliente.get("nombre"))
