@@ -13,7 +13,7 @@ siendo la real.
 """
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 import streamlit as st
 import gspread
@@ -99,6 +99,10 @@ def texto(valor) -> str:
 
 def numero(valor):
     """Un número del maestro, venga como '28,94%', '1.234,56' o ya numérico."""
+    if isinstance(valor, bool):
+        return None
+    if isinstance(valor, (int, float)):
+        return None if valor != valor else float(valor)      # NaN -> None
     s = str(valor).strip().replace("%", "").replace(" ", "")
     if not s or s.lower() in ("nan", "none", "-", "cerrado"):
         return None
@@ -125,6 +129,10 @@ def porcentaje(valor):
     n = numero(valor)
     if n is None:
         return None
+    # El Sheet se lee con los valores SIN formato: los porcentajes llegan
+    # siempre como fracción (0.1391 = 13,91 %), sea cual sea su formato de celda.
+    if isinstance(valor, (int, float)):
+        return n * 100
     if "%" not in str(valor) and abs(n) <= 1:
         return n * 100
     return n
@@ -132,11 +140,16 @@ def porcentaje(valor):
 
 def fecha(valor):
     """Una fecha del maestro, probando los formatos que aparecen en ella."""
+    if isinstance(valor, datetime):
+        return valor.date()
+    if isinstance(valor, date):
+        return valor
+    if isinstance(valor, (int, float)) and not isinstance(valor, bool):
+        # Fecha como número de serie de Google Sheets (días desde 30/12/1899)
+        return (date(1899, 12, 30) + timedelta(days=int(valor))) if valor > 0 else None
     s = texto(valor)
     if not s:
         return None
-    if isinstance(valor, (datetime, date)):
-        return valor if isinstance(valor, date) else valor.date()
     for fmt in ("%d/%m/%Y", "%d/%m/%y", "%Y-%m-%d", "%d-%m-%Y"):
         try:
             return datetime.strptime(s, fmt).date()
@@ -181,8 +194,12 @@ def _obtener_datos_sheet():
         sheet = client.open_by_key(GSHEET_ID)
         worksheet = sheet.worksheet(WORKSHEET_NAME)
         
-        # Obtener TODAS las filas (sin headers)
-        datos = worksheet.get_all_values()
+        # Obtener TODAS las filas, con los números SIN formato. Con el valor
+        # formateado se perdían decimales: una rentabilidad de 13,91 % en una
+        # celda con formato "0.0" llegaba como "0.1" (así salía Rentas 3 mal).
+        # Las fechas sí se piden como texto (dd/mm/aaaa).
+        datos = worksheet.get_all_values(value_render_option="UNFORMATTED_VALUE",
+                                         date_time_render_option="FORMATTED_STRING")
         
         if not datos:
             print("⚠️ El Master está vacío")
