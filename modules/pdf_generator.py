@@ -513,6 +513,14 @@ def _analisis_2(c, R):
         _tarjeta_donut(c, x, yy, mitad, alto, titulo, reparto)
 
 
+def _num_es(v, dec=2):
+    """Número en formato español (1.234,56); '—' si no hay dato."""
+    try:
+        return f"{float(v):,.{dec}f}".replace(",", "@").replace(".", ",").replace("@", ".")
+    except (TypeError, ValueError):
+        return "—"
+
+
 def _activos(c, R, proyectos, con_barras):
     _fondo(c, BG)
     ep = R.get("estatus", "Reentel")
@@ -521,7 +529,7 @@ def _activos(c, R, proyectos, con_barras):
     ancho = W - 2 * M
     oro = "#f5a623"
 
-    filas = [["Nombre", "Estado", "Ubicación", "Inversión", "Rent. total Reentel", f"Rent. total {ep} ★",
+    filas = [["Nombre", "Estado", "Ubicación", "Inversión", "Tokens", "Rent. total Reentel", f"Rent. total {ep} ★",
               "Rent. anual Reentel", f"Rent. anual {ep} ★", "Fin est."]]
     for p in proyectos:
         estado = _norm_estado(p.get("estado"))
@@ -531,13 +539,14 @@ def _activos(c, R, proyectos, con_barras):
             f"<font size='6.5' color='{color}'><b>{estado}</b></font>",
             p.get("ubicacion", "—"),
             _dinero(p.get("importe"), divisa),
+            _num_es(p.get("tokens")),
             _pct(p.get("rent_tot_rnt")),
             f"<font color='{oro}'><b>{_pct(p.get('rent_tot_est'))}</b></font>",
             _pct(p.get("rent_anu_rnt")),
             f"<font color='{oro}'><b>{_pct(p.get('rent_anu_est'))}</b></font>",
             p.get("fecha_fin") or "—",
         ])
-    alto = _tabla(c, M, y, filas, [ancho * k for k in (0.19, 0.12, 0.11, 0.11, 0.1, 0.1, 0.09, 0.09, 0.09)])
+    alto = _tabla(c, M, y, filas, [ancho * k for k in (0.17, 0.11, 0.10, 0.10, 0.07, 0.09, 0.09, 0.09, 0.09, 0.09)])
     y -= alto + 14
 
     if con_barras and proyectos:
@@ -588,7 +597,8 @@ def _ficha(c, R, p, x, y, w, h):
     yy -= 22
     lineas = [("Ubicación", p.get("ubicacion")), ("Inicio renta", p.get("fecha_inicio")),
               ("Fin estimado", p.get("fecha_fin")), ("Precio de compra", p.get("precio")),
-              ("Inversión", _dinero(p.get("importe"), divisa)), ("Dividendo", str(p.get("tipodiv") or "—").capitalize()),
+              ("Inversión", _dinero(p.get("importe"), divisa)),
+              ("Tokens", _num_es(p.get("tokens")) if p.get("tokens") is not None else None), ("Dividendo", str(p.get("tipodiv") or "—").capitalize()),
               ("Peso en la cartera", _pct(p.get("pct"), 1))]
     for etq, val in lineas:
         if not val:
