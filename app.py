@@ -1,5 +1,6 @@
 """
-SIMULADOR DE CARTERA INMOBILIARIA REENTAL
+SIMULADOR DE CARTERA INMOBILIARIA REENTAL - FASE 3 COMPLETA
+Streamlit App - Versión FASE 3 con Precios OTC Reales
 
 Pasos:
 1. Datos cliente (nombre, email, capital, divisa)
@@ -167,15 +168,140 @@ if 'sel_tablas' not in st.session_state:
     st.session_state.sel_tablas = {}
 
 # ========== FUNCIONES AUXILIARES OTC ==========
-def cargar_ofertas_otc():
-    """Carga ofertas OTC del Google Sheets del compañero"""
+# Los módulos OTC de la herramienta del compañero (otc_inventario, otc_saldos,
+# aave_lend, utils, reental_tokens) se importan entre sí sin el prefijo
+# "modules.", así que la carpeta modules/ tiene que estar en la ruta de Python.
+import os
+import sys
+_DIR_MODULES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "modules")
+if _DIR_MODULES not in sys.path:
+    sys.path.insert(0, _DIR_MODULES)
+
+
+def _num(valor, defecto=0.0):
     try:
-        from modules import otc_storage
-        ofertas = otc_storage.read_list("Ofertas")
-        return ofertas if ofertas else []
-    except Exception as e:
-        st.warning(f"⚠️ No se pudo cargar ofertas OTC: {str(e)}")
+        return float(str(valor).replace(',', '.'))
+    except (TypeError, ValueError):
+        return defecto
+
+
+def _proyectos_para_catalogo(df):
+    """Tupla (hashable, para la caché) con lo que el catálogo OTC necesita de cada proyecto."""
+    filas = []
+    for _, r in df.iterrows():
+        addr = str(r.get('Token Address', '') or '').strip().lower()
+        if not (addr.startswith('0x') and len(addr) == 42):
+            continue
+        filas.append((addr, str(r.get('ID', '') or '').strip(),
+                      str(r.get('Nombre del proyecto', '') or ''),
+                      str(r.get('Divisa', '') or 'EUR'),
+                      _num(r.get('Precio Emisión', 0)),
+                      str(r.get('Ubicación', '') or ''),
+                      str(r.get('ESTADO', '') or '')))
+    return tuple(filas)
+
+
+@st.cache_data(ttl=900, show_spinner="Consultando en la blockchain qué hay disponible en OTC…")
+def catalogo_otc(proyectos):
+    """Lo disponible hoy en OTC, calculado con los MISMOS módulos que la herramienta
+    OTC del compañero (otc_inventario.catalogo): stock propio de Reental en la
+    wallet de custodia + ofertas activas de terceros, ambos contrastados con la
+    cadena y descontando reservas y entregas. Se cachea 15 minutos."""
+    import otc_inventario
+    from modules import otc_storage
+
+    api_key = st.secrets["etherscan"]["api_key"]
+    try:
+        custodia = str(st.secrets["otc"]["custodia"]).strip().lower()
+    except Exception:
+        custodia = ""
+
+    por_addr, por_id = {}, {}
+    for addr, pid, nombre, divisa, precio, ubic, estado in proyectos:
+        p = {"id": pid, "nombre": nombre, "token_address": addr, "divisa": divisa,
+             "precio_emision": precio, "ubicacion": ubic, "estado": estado,
+             "fecha_fin": None, "tipo_renta": "—"}
+        por_addr[addr] = p
+        if pid:
+            por_id[pid.lower()] = p
+
+    reservas = otc_storage.read_list("Reservas")
+    ofertas = otc_storage.read_list("Ofertas")
+
+    balances, entradas = {}, {}
+    if custodia:
+        balances, _envios, entradas, _ = otc_inventario.balances_de_wallet(
+            custodia, api_key, por_addr, por_id)
+
+    cat = otc_inventario.catalogo(balances, reservas, ofertas, api_key,
+                                  otc_inventario.saldo_en_wallet, entradas, custodia)
+    try:
+        precios = otc_storage.read_dict("precios_otc")
+    except Exception:
+        precios = {}
+    return {"catalogo": cat, "precios": precios, "con_custodia": bool(custodia)}
+
+
+def _precio_stock_reental(precios, addr, pid):
+    """Precio de venta del stock propio de Reental según la pestaña precios_otc.
+    Devuelve None si no se encuentra."""
+    for clave in (addr, addr.lower(), pid, pid.lower(), pid.upper()):
+        if not clave or clave not in precios:
+            continue
+        v = precios[clave]
+        if isinstance(v, dict):
+            v = v.get('precio') or v.get('precio_venta') or v.get('precio_otc')
+        valor = _num(v, None)
+        if valor and valor > 0:
+            return valor
+    return None
+
+
+def cargar_ofertas_otc(df_proyectos=None):
+    """Ofertas OTC disponibles, en el formato que usa el resto de la app."""
+    if df_proyectos is None or len(df_proyectos) == 0:
         return []
+    try:
+        res = catalogo_otc(_proyectos_para_catalogo(df_proyectos))
+    except Exception as e:
+        st.warning(f"⚠️ No se pudo calcular la disponibilidad OTC: {e}")
+        return []
+
+    proyecto_de = {str(r.get('Token Address', '')).strip().lower(): r
+                   for _, r in df_proyectos.iterrows()}
+    ofertas = []
+    for addr, d in (res.get("catalogo") or {}).items():
+        fila = proyecto_de.get(addr)
+        pid = str(fila.get('ID', '')) if fila is not None else str(d.get('id', ''))
+        nombre = str(fila.get('Nombre del proyecto', '')) if fila is not None else d.get('nombre', '')
+
+        # Stock propio de Reental
+        if (d.get('reental') or 0) > 0.001:
+            precio = _precio_stock_reental(res.get("precios") or {}, addr, pid)
+            precio_confirmado = precio is not None
+            if not precio_confirmado:
+                precio = _num(fila.get('Precio Emisión', 0)) if fila is not None else 0
+            ofertas.append({
+                'proyecto_id': pid.lower(), 'token_address': addr, 'proyecto_nombre': nombre,
+                'n_tokens': round(d['reental'], 4), 'precio_venta': precio,
+                'divisa': str(fila.get('Divisa', 'EUR')) if fila is not None else 'EUR',
+                'estado': 'activa', 'canal': 'Stock Reental',
+                'precio_confirmado': precio_confirmado,
+            })
+
+        # Ofertas de terceros (ya filtradas por la cadena)
+        for t in d.get('terceros', []):
+            ofertas.append({
+                'proyecto_id': pid.lower(), 'token_address': addr, 'proyecto_nombre': nombre,
+                'n_tokens': round(t['disponible'], 4), 'precio_venta': t['precio'],
+                'divisa': t.get('divisa', 'USD'), 'estado': 'activa',
+                'canal': 'Oferta de tercero', 'precio_confirmado': True,
+            })
+
+    if not res.get("con_custodia"):
+        st.info("ℹ️ Falta la wallet de custodia en los Secrets (sección [otc]): "
+                "no se muestra el stock propio de Reental, solo las ofertas de terceros.")
+    return ofertas
 
 def cargar_ofertas_p2p():
     """Carga operaciones P2P cerradas (como ofertas del mercado secundario)"""
@@ -210,9 +336,9 @@ def cargar_ofertas_p2p():
         st.warning(f"⚠️ No se pudieron cargar las operaciones P2P: {e}")
         return []
 
-def cargar_todas_ofertas_secundario():
+def cargar_todas_ofertas_secundario(df_proyectos=None):
     """Carga TODAS las ofertas del mercado secundario: OTC + P2P"""
-    ofertas_otc = cargar_ofertas_otc()
+    ofertas_otc = cargar_ofertas_otc(df_proyectos)
     ofertas_p2p = cargar_ofertas_p2p()
     
     # Combinar ambos canales
@@ -221,10 +347,15 @@ def cargar_todas_ofertas_secundario():
     return todas_ofertas
 
 def agrupar_ofertas_por_proyecto(ofertas):
-    """Agrupa ofertas OTC por proyecto_id o token_address - SIN filtro de estado"""
+    """Agrupa por proyecto_id o token_address las ofertas ACTIVAS
+    (mismo criterio que otc_inventario.catalogo de la herramienta OTC)."""
     ofertas_por_proyecto = {}
-    
+
     for oferta in ofertas:
+        # Solo ofertas vivas: las eliminadas, vendidas, etc. no son comprables
+        if str(oferta.get('estado', '')).strip().lower() != 'activa':
+            continue
+
         # Usar proyecto_id o token_address como clave
         proyecto_id = (oferta.get('proyecto_id') or '').lower()
         token_address = (oferta.get('token_address') or '').lower()
@@ -624,40 +755,37 @@ elif st.session_state.paso_actual == 4:
         }
         
         # Cargar ofertas OTC + P2P
-        ofertas_otc_list = cargar_todas_ofertas_secundario()
+        ofertas_otc_list = cargar_todas_ofertas_secundario(df_proyectos_todos)
         ofertas_por_proy = agrupar_ofertas_por_proyecto(ofertas_otc_list)
 
         # ========== REVISIÓN TEMPORAL DEL ORIGEN OTC (borrar cuando esté revisado) ==========
         with st.expander("🔎 Revisar de dónde salen las ofertas OTC"):
-            nombre_por_clave = {}
-            for _, r in df_proyectos_todos.iterrows():
-                nombre_master = f"{r.get('Nombre del proyecto', '')} ({r.get('ID', '')})"
-                for k in (str(r.get('ID', '')).lower(), str(r.get('Token Address', '')).lower()):
-                    if k and k != 'nan':
-                        nombre_por_clave[k] = nombre_master
-
-            filas_rev = []
-            for o in ofertas_otc_list:
-                clave = (o.get('proyecto_id') or '').lower() or (o.get('token_address') or '').lower()
-                filas_rev.append({
-                    'Origen': o.get('canal') or 'OTC',
-                    'Proyecto en la oferta': o.get('proyecto_nombre') or o.get('proyecto_id') or '',
-                    'Emparejado en el Master': nombre_por_clave.get(clave, '❌ sin coincidencia'),
-                    'Precio': o.get('precio_venta', ''),
-                    'Divisa': o.get('divisa', ''),
-                    'Tokens': o.get('n_tokens', ''),
-                    'Estado': o.get('estado', ''),
-                    'Fecha': o.get('fecha', ''),
-                    'Clave usada (ID o token)': clave,
-                })
-
+            filas_rev = [{
+                'Origen': o.get('canal', ''),
+                'Proyecto': o.get('proyecto_nombre', ''),
+                'ID': (o.get('proyecto_id') or '').upper(),
+                'Tokens disponibles': o.get('n_tokens', ''),
+                'Precio': o.get('precio_venta', ''),
+                'Divisa': o.get('divisa', ''),
+                'Precio confirmado': 'sí' if o.get('precio_confirmado', True) else '⚠️ no (se usa el de emisión)',
+            } for o in ofertas_otc_list if o.get('estado') == 'activa']
+            
             if not filas_rev:
-                st.info("No ha llegado ninguna oferta ni de OTC ni de P2P.")
+                st.info("No hay nada disponible en OTC ahora mismo.")
             else:
                 df_rev = pd.DataFrame(filas_rev).astype(str)
-                st.write("**Ofertas recibidas por origen:**", df_rev['Origen'].value_counts().to_dict())
+                st.write("**Disponible por origen:**", df_rev['Origen'].value_counts().to_dict())
                 st.dataframe(df_rev, use_container_width=True, hide_index=True)
-
+            
+            # Para comprobar el formato de la pestaña de precios del stock de Reental
+            try:
+                from modules import otc_storage
+                precios_raw = otc_storage.read_dict("precios_otc")
+                st.write("**Pestaña precios_otc (primeras entradas):**",
+                         dict(list(precios_raw.items())[:5]))
+            except Exception as e:
+                st.write(f"No se pudo leer precios_otc: {e}")
+        
         # Separar proyectos ACTIVOS (FINANCIÁNDOSE)
         df_matchean = df_proyectos[df_proyectos['Ubicación'].isin(mercados_seleccionados)].copy()
         df_no_matchean = df_proyectos[~df_proyectos['Ubicación'].isin(mercados_seleccionados)].copy()
@@ -804,7 +932,8 @@ elif st.session_state.paso_actual == 4:
                     divisa = oferta.get('divisa', 'EUR')
                     n_tokens = oferta.get('n_tokens', 0)
                     if precio > 0:
-                        label = f"OTC: {precio:.2f} {divisa} · {n_tokens} tokens disponibles"
+                        label = (f"OTC: {precio:.2f} {divisa} · {_num(n_tokens):,.2f} tokens disponibles"
+                                 + (" · stock Reental" if oferta.get('canal') == 'Stock Reental' else ""))
                         opciones_precio.append(label)
                         mejores_ofertas.append({
                             'label': label,
