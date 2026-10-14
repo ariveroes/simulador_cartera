@@ -1886,7 +1886,7 @@ elif st.session_state.paso_actual == 5:
         
         st.markdown("---")
         
-        # ========== COMPARATIVA POR ESTATUS (36 MESES) ==========
+        # ========== COMPARATIVA POR ESTATUS ==========
         st.markdown("### Comparativa por estatus")
         
         MESES_COMPARATIVA = 36
@@ -1895,7 +1895,6 @@ elif st.session_state.paso_actual == 5:
             """Rentabilidad anualizada media de la cartera para ese estatus, al precio de compra."""
             return media_cartera(est, 'anual')
         
-        filas_comparativa = []
         comparativa_pdf = []
         for est in ['Reentel', 'ReentelPro', 'SuperReentel']:
             rent_est = rentabilidad_media_estatus(est) / 100
@@ -1918,13 +1917,6 @@ elif st.session_state.paso_actual == 5:
                 'rent_total': (ganancia / capital_total_est * 100) if capital_total_est else 0,
                 'coste': coste_est,
             })
-            filas_comparativa.append({
-                'Estatus': est,
-                f'Ganancia a {MESES_COMPARATIVA} meses': fmt(ganancia),
-                'Rent. sobre la cartera': (ganancia / importe_inmuebles * 100) if importe_inmuebles else 0,
-                'Rent. sobre el capital total': (ganancia / capital_total_est * 100) if capital_total_est else 0,
-                'Coste del estatus': fmt(coste_est),
-            })
         
         rent_anual_media_pdf = {est: media_cartera(est, 'anual') for est in {'Reentel', estatus}}
         rent_total_media_pdf = {est: media_cartera(est, 'total') for est in {'Reentel', estatus}}
@@ -1945,15 +1937,110 @@ elif st.session_state.paso_actual == 5:
                 'rent_est': (g_est_staking / capital_total * 100) if capital_total else 0,
             })
         
-        st.dataframe(
-            pd.DataFrame(filas_comparativa),
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                'Rent. sobre la cartera': st.column_config.NumberColumn(format='%.2f %%'),
-                'Rent. sobre el capital total': st.column_config.NumberColumn(format='%.2f %%'),
-            }
+        # ----- Gráfico y tabla: Reentel frente a un estatus superior -----
+        # Si el cliente ya tiene un estatus superior se compara con el suyo; si es
+        # Reentel, con SuperReentel (lo que ganaría subiendo de estatus).
+        # La ganancia del estatus superior incluye el staking de sus RNT (*).
+        est_comp = estatus if estatus != 'Reentel' else 'SuperReentel'
+        nombre_comp = f"{est_comp}*"
+        rent_rnt_web = media_cartera('Reentel', 'anual') / 100
+        rent_comp_web = media_cartera(est_comp, 'anual') / 100
+        coste_comp = convertir(RNT_POR_ESTATUS.get(est_comp, 0) * precio_rnt, 'USD', divisa_cliente)
+        capital_comp = importe_inmuebles + coste_comp
+        
+        escenarios_web = []
+        for meses in [6, 12, 24, 36]:
+            g_rnt = CalculadoraCartera('Reentel').calcular_proyeccion(
+                importe_inmuebles, rent_rnt_web, meses) - importe_inmuebles
+            g_comp = (CalculadoraCartera(est_comp).calcular_proyeccion(importe_inmuebles, rent_comp_web, meses)
+                      - importe_inmuebles + coste_comp * (staking_rnt / 100) * (meses / 12))
+            escenarios_web.append({
+                'meses': meses, 'g_rnt': g_rnt, 'g_comp': g_comp,
+                'r_rnt': (g_rnt / importe_inmuebles * 100) if importe_inmuebles else 0,
+                'r_comp': (g_comp / capital_comp * 100) if capital_comp else 0,
+            })
+        
+        serie_rnt, serie_comp = "Ganancia Reentel", f"Ganancia {nombre_comp}"
+        orden_series = [serie_rnt, serie_comp]
+        orden_plazos = [f"{e['meses']} meses" for e in escenarios_web]
+        datos_barras = pd.DataFrame([
+            {'Plazo': f"{e['meses']} meses", 'Escenario': serie, 'Ganancia': valor,
+             'texto': es(valor, 0), 'texto_tooltip': fmt(valor)}
+            for e in escenarios_web
+            for serie, valor in ((serie_rnt, e['g_rnt']), (serie_comp, e['g_comp']))
+        ])
+        
+        # Etiquetas del eje con el formato de número de la divisa del cliente
+        formato_eje = ("replace(format(datum.value, ',.0f'), regexp(',', 'g'), '.')"
+                       if divisa_cliente == 'EUR' else "format(datum.value, ',.0f')")
+        eje_x = alt.X('Plazo:N', sort=orden_plazos, title=None,
+                      axis=alt.Axis(labelAngle=0, labelFontSize=12, labelColor=COLOR_GRIS))
+        desplazamiento = alt.XOffset('Escenario:N', sort=orden_series)
+        eje_y = alt.Y('Ganancia:Q', title=None,
+                      axis=alt.Axis(labelExpr=formato_eje, labelColor=COLOR_GRIS,
+                                    gridColor=COLOR_BORDE, domain=False, ticks=False))
+        barras = alt.Chart(datos_barras).mark_bar(
+            cornerRadiusTopLeft=4, cornerRadiusTopRight=4).encode(
+            x=eje_x, xOffset=desplazamiento, y=eje_y,
+            color=alt.Color('Escenario:N', sort=orden_series,
+                            scale=alt.Scale(domain=orden_series, range=[COLOR_NAVY, COLOR_AMBAR]),
+                            legend=alt.Legend(orient='bottom', title=None, labelFontSize=12,
+                                              symbolType='square')),
+            tooltip=[alt.Tooltip('Escenario:N', title='Escenario'),
+                     alt.Tooltip('Plazo:N', title='Plazo'),
+                     alt.Tooltip('texto_tooltip:N', title='Ganancia')],
         )
+        etiquetas = alt.Chart(datos_barras).mark_text(
+            dy=-8, fontSize=11, fontWeight='bold', color=COLOR_NAVY).encode(
+            x=eje_x, xOffset=desplazamiento, y=eje_y, text='texto:N')
+        
+        st.markdown(f"<div style='font-size:16px; font-weight:700; color:{COLOR_NAVY}; margin:6px 0 4px 0;'>"
+                    f"Ganancia total — Reentel vs <span style='color:{COLOR_AMBAR_OSCURO};'>{nombre_comp}</span>"
+                    f"</div>", unsafe_allow_html=True)
+        st.altair_chart((barras + etiquetas).properties(height=340).configure_view(stroke=None),
+                        use_container_width=True)
+        
+        # Tabla de escenarios
+        def _celda(texto, destacado=False, negrita=False, cabecera=False):
+            color = COLOR_AMBAR_OSCURO if destacado else (COLOR_GRIS if cabecera else COLOR_NAVY)
+            peso = 700 if (negrita or destacado) else (600 if cabecera else 400)
+            return (f"<td style='padding:10px 14px; text-align:center; color:{color}; font-weight:{peso}; "
+                    f"border-bottom:1px solid {COLOR_BORDE};'>{texto}</td>")
+        
+        def _fila(etiqueta, valores, destacado=False, negrita=False, cabecera=False):
+            fondo = COLOR_FONDO if cabecera else ('#fffaf0' if destacado else '#ffffff')
+            color = COLOR_AMBAR_OSCURO if destacado else (COLOR_GRIS if cabecera else COLOR_NAVY)
+            peso = 700 if (negrita or destacado) else (600 if cabecera else 400)
+            primera = (f"<td style='padding:10px 14px; text-align:left; color:{color}; font-weight:{peso}; "
+                       f"border-bottom:1px solid {COLOR_BORDE};'>{etiqueta}</td>")
+            return (f"<tr style='background:{fondo};'>{primera}"
+                    + "".join(_celda(v, destacado, negrita, cabecera) for v in valores) + "</tr>")
+        
+        filas_html = [
+            _fila("Escenario", orden_plazos, cabecera=True),
+            _fila(serie_rnt, [fmt(e['g_rnt']) for e in escenarios_web], negrita=True),
+            _fila(serie_comp, [fmt(e['g_comp']) for e in escenarios_web], destacado=True),
+            _fila("Rent. acumulada Reentel", [f"{es(e['r_rnt'], 2)} %" for e in escenarios_web]),
+            _fila(f"Rent. acumulada {nombre_comp}", [f"{es(e['r_comp'], 2)} %" for e in escenarios_web],
+                  destacado=True),
+        ]
+        st.markdown(html_seguro(
+            f"<div style='border:1px solid {COLOR_BORDE}; border-radius:10px; overflow:hidden; margin-top:6px;'>"
+            f"<table style='width:100%; border-collapse:collapse; font-size:14px; margin:0;'>{''.join(filas_html)}</table>"
+            f"</div>"
+            f"<div style='font-size:12.5px; color:{COLOR_GRIS}; margin:8px 2px 0 2px;'>"
+            f"* Incluye los beneficios estimados del staking.</div>"), unsafe_allow_html=True)
+        
+        # Mensaje destacado
+        ult = escenarios_web[-1]
+        st.markdown(html_seguro(
+            f"<div style='background:{COLOR_AMBAR_CLARO}; border:1px solid {COLOR_AMBAR}; border-radius:10px; "
+            f"padding:14px 18px; margin-top:16px; color:{COLOR_NAVY}; font-size:15px;'>"
+            f"Con <b style='color:{COLOR_AMBAR_OSCURO};'>{nombre_comp}</b>, la ganancia a {ult['meses']} meses "
+            f"alcanza <b style='color:{COLOR_AMBAR_OSCURO};'>{fmt(ult['g_comp'])}</b> frente a "
+            f"{fmt(ult['g_rnt'])} con Reentel. Rentabilidad acumulada: "
+            f"<b style='color:{COLOR_AMBAR_OSCURO};'>{es(ult['r_comp'], 2)} %</b> frente a "
+            f"{es(ult['r_rnt'], 2)} %.</div>"), unsafe_allow_html=True)
         
         st.markdown("---")
         
