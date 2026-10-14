@@ -1382,7 +1382,7 @@ elif st.session_state.paso_actual == 4:
         if st.session_state.get('selector_modo') not in MODOS_REPARTO:
             st.session_state.selector_modo = modo
         if hasattr(st, "segmented_control"):
-            st.segmented_control("¿Cómo quieres repartir tu cartera?", MODOS_REPARTO, key="selector_modo",
+               st.segmented_control("**¿Cómo quieres repartir tu cartera?**", MODOS_REPARTO, key="selector_modo",
                                  on_change=_cambiar_modo)
         else:
             st.radio("¿Cómo quieres repartir tu cartera?", MODOS_REPARTO, horizontal=True,
