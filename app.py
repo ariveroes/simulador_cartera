@@ -1029,9 +1029,16 @@ elif st.session_state.paso_actual == 4:
             opciones.sort(key=lambda o: convertir_divisa(o['precio'], o['divisa'], divisa_cliente_p4))
             opciones_por_id[pid] = opciones
         
+        if not isinstance(st.session_state.get('oferta_elegida'), dict):
+            st.session_state.oferta_elegida = {}
+        
         def _oferta(pid):
+            """La oferta elegida del proyecto (la más barata si no se ha cambiado)."""
             opciones = opciones_por_id[pid]
-            i = st.session_state.oferta_elegida.get(pid, 0)
+            try:
+                i = int(st.session_state.oferta_elegida.get(pid, 0))
+            except (TypeError, ValueError):
+                i = 0
             return opciones[i] if 0 <= i < len(opciones) else opciones[0]
         
         def _tokens_por_importe(pid, importe):
@@ -1162,7 +1169,10 @@ elif st.session_state.paso_actual == 4:
             con_varias = [pid for pid in ids_validos if len(opciones_por_id[pid]) > 1]
             if con_varias:
                 def _cambiar_oferta(pid):
-                    st.session_state.oferta_elegida[pid] = st.session_state[f"sel_oferta_{pid}"]
+                    try:
+                        st.session_state.oferta_elegida[pid] = int(st.session_state[f"sel_oferta_{pid}"])
+                    except (TypeError, ValueError, KeyError):
+                        st.session_state.oferta_elegida[pid] = 0
                     st.session_state.version_editor += 1
                 
                 c1, c2, _ = st.columns([2, 3, 3])
@@ -1172,7 +1182,8 @@ elif st.session_state.paso_actual == 4:
                 opciones = opciones_por_id[pid_cambio]
                 c2.selectbox(
                     "Oferta", list(range(len(opciones))),
-                    index=min(st.session_state.oferta_elegida.get(pid_cambio, 0), len(opciones) - 1),
+                    index=min(max(0, int(_num(st.session_state.oferta_elegida.get(pid_cambio, 0), 0))),
+                              len(opciones) - 1),
                     format_func=lambda i, opciones=opciones: (
                         _etiqueta(opciones[i]) + (f" · {es(opciones[i]['n_tokens'], 2)} tk"
                                                   if opciones[i]['n_tokens'] is not None else "")),
