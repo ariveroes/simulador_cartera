@@ -50,9 +50,15 @@ st.markdown(f"""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Fustat:wght@400;500;600;700;800&display=swap');
 
-    html, body, .stApp, .stApp p, .stApp label, .stApp input, .stApp textarea,
-    .stApp button, .stApp li, .stApp h1, .stApp h2, .stApp h3, .stApp h4 {{
+    html, body, .stApp, .stApp div, .stApp p, .stApp label, .stApp input, .stApp textarea,
+    .stApp button, .stApp li, .stApp h1, .stApp h2, .stApp h3, .stApp h4,
+    .stApp span:not([data-testid="stIconMaterial"]) {{
         font-family: 'Fustat', 'Segoe UI', sans-serif;
+    }}
+    /* Los iconos de Streamlit usan su propia fuente: si se les cambia, en vez
+       del icono aparece su nombre en texto (p. ej. «keyboard_double»). */
+    [data-testid="stIconMaterial"], .material-symbols-rounded {{
+        font-family: 'Material Symbols Rounded' !important;
     }}
 
     .stApp {{ background-color: {COLOR_FONDO}; color: {COLOR_NAVY}; }}
@@ -72,7 +78,7 @@ st.markdown(f"""
     h4 {{ color: {COLOR_GRIS}; font-weight: 600; }}
 
     /* Botones: ámbar con texto navy (más legible que el blanco sobre ámbar) */
-    .stButton > button, .stDownloadButton > button {{
+    .stButton button, .stDownloadButton button {{
         background-color: {COLOR_AMBAR};
         color: {COLOR_NAVY};
         border: none;
@@ -80,13 +86,13 @@ st.markdown(f"""
         font-weight: 700;
         transition: all 0.2s ease;
     }}
-    .stButton > button:hover, .stDownloadButton > button:hover {{
+    .stButton button:hover, .stDownloadButton button:hover {{
         background-color: #f5a11f;
         color: {COLOR_NAVY};
         border: none;
     }}
-    .stButton > button:focus:not(:active) {{ color: {COLOR_NAVY}; border: none; }}
-    .stButton > button:disabled {{
+    .stButton button:focus:not(:active) {{ color: {COLOR_NAVY}; border: none; }}
+    .stButton button:disabled {{
         background-color: {COLOR_BORDE};
         color: {COLOR_GRIS_CLARO};
     }}
@@ -1103,10 +1109,12 @@ elif st.session_state.paso_actual == 4:
             for prefijo in ("tk_", "pct_"):
                 st.session_state.pop(f"{prefijo}{pid}", None)
 
-        # ----- 1) Importe a invertir -----
+        # ----- Estado de partida -----
         importe_total_p4 = importe_cliente(st.session_state.datos_cliente)
         if 'input_importe' not in st.session_state:
             st.session_state.input_importe = float(round(importe_total_p4))
+        modo = st.session_state.modo_reparto
+        estatus_p4 = st.session_state.datos_cliente.get('estatus') or 'Reentel'
 
         def _cambiar_importe():
             anterior = importe_cliente(st.session_state.datos_cliente)
@@ -1118,25 +1126,12 @@ elif st.session_state.paso_actual == 4:
                     st.session_state.tokens_compra[p] *= nuevo / anterior
                     _olvidar_widgets(p)
 
-        rango = st.session_state.datos_cliente.get('capital', '')
-        c_imp, c_nota = st.columns([1, 2])
-        c_imp.number_input(f"Importe a invertir ({simbolo_cliente_p4})", min_value=0.0, step=500.0,
-                           format="%.0f", key="input_importe", on_change=_cambiar_importe)
-        c_nota.markdown("")
-        c_nota.caption(f"En el Paso 1 elegiste «{rango}». Te proponemos el punto medio de ese rango; "
-                       "puedes cambiarlo y poner el importe exacto que quieres invertir.")
-        importe_total_p4 = importe_cliente(st.session_state.datos_cliente)
-
-        # ----- 2) Cómo repartir -----
         def _cambiar_modo():
-            st.session_state.modo_reparto = st.session_state.radio_modo
+            valor = st.session_state.get("selector_modo")
+            if valor in MODOS_REPARTO:          # si se deselecciona, se mantiene el anterior
+                st.session_state.modo_reparto = valor
             for p in list(st.session_state.tokens_compra):
                 _olvidar_widgets(p)
-
-        st.radio("¿Cómo quieres repartir tu cartera?", MODOS_REPARTO, horizontal=True,
-                 index=MODOS_REPARTO.index(st.session_state.modo_reparto),
-                 key="radio_modo", on_change=_cambiar_modo)
-        modo = st.session_state.modo_reparto
 
         # Reparto por igual respetando los tokens disponibles: si un proyecto no
         # llega a su parte, se le asigna todo lo que hay y el resto se reparte
@@ -1167,69 +1162,173 @@ elif st.session_state.paso_actual == 4:
             tokens = max(0.0, _num(tokens_compra.get(pid), 0.0))
             importe = tokens * _precio_cliente(o)
             importe_repartido += importe
-            filas_calc.append((pid, o, tokens, importe))
+            row = filas_por_id[pid]
+            precio_proy = convertir_divisa(o['precio'], o['divisa'], divisa_proyecto(row))
+            rent = rentabilidad_ajustada(row, estatus_p4, precio_proy)
+            filas_calc.append((pid, o, tokens, importe, rent))
         pendiente = importe_total_p4 - importe_repartido
         tolerancia = max(1.0, importe_total_p4 * 0.0005)
+        tokens_totales = sum(f[2] for f in filas_calc)
+        rent_media = (sum((f[4]['anual'] or 0.0) * f[3] for f in filas_calc) / importe_repartido
+                      if importe_repartido > 0 else 0.0)
 
-        # ----- 3) Repartido / pendiente -----
-        if not ids_validos:
-            st.info("Marca en las tablas de arriba los proyectos que quieras incluir")
-        else:
-            def _tarjeta_importe(titulo, valor, color):
-                return (f"<div style='border:1px solid {COLOR_BORDE};border-radius:12px;padding:10px 14px;background:#ffffff;'>"
-                        f"<div style='font-size:12px;font-weight:700;color:{COLOR_GRIS};letter-spacing:0.5px;'>{titulo}</div>"
-                        f"<div style='font-size:22px;font-weight:700;color:{color};'>{html_seguro(valor)}</div></div>")
-            c_rep, c_pend, c_atajo = st.columns([1, 1, 1.4])
-            c_rep.markdown(_tarjeta_importe("IMPORTE REPARTIDO",
-                                            f"{es(importe_repartido, 0)} {simbolo_cliente_p4}", COLOR_NAVY),
-                           unsafe_allow_html=True)
-            if abs(pendiente) <= tolerancia:
-                c_pend.markdown(_tarjeta_importe("PENDIENTE DE REPARTIR", "✓ Todo repartido", COLOR_VERDE),
-                                unsafe_allow_html=True)
+        # ----- Estilos de esta sección -----
+        st.markdown(f"""
+        <style>
+        [class*="st-key-kpi_"] {{
+            background: #ffffff; border: 1px solid {COLOR_BORDE} !important; border-radius: 12px;
+            padding: 12px 14px 10px 14px; min-height: 118px;
+        }}
+        [class*="st-key-kpi_"] div[data-testid="stVerticalBlock"] {{ gap: 0.15rem; }}
+        .kpi-titulo {{ font-size: 12px; font-weight: 700; color: {COLOR_GRIS}; letter-spacing: 0.5px; }}
+        .kpi-valor {{ font-size: 26px; font-weight: 800; color: {COLOR_NAVY}; line-height: 1.25; }}
+        .kpi-sub {{ font-size: 12px; color: {COLOR_GRIS_CLARO}; }}
+        .st-key-kpi_importe div[data-baseweb="input"] {{ min-height: 38px; }}
+        .st-key-kpi_importe input {{ font-size: 22px; font-weight: 800; color: {COLOR_NAVY}; padding: 2px 8px; }}
+        .st-key-kpi_pendiente button {{ padding: 2px 10px; min-height: 28px; font-size: 12px; }}
+
+        .st-key-tabla_cartera {{
+            background: #ffffff; border: 1px solid {COLOR_BORDE}; border-radius: 12px; padding: 4px 6px;
+        }}
+        .st-key-tabla_cartera div[data-testid="stVerticalBlock"] {{ gap: 0; }}
+        .st-key-tabla_cartera div[data-testid="stHorizontalBlock"] {{ gap: 0.75rem; }}
+        .st-key-tabla_cartera p {{ margin-bottom: 0; }}
+        .st-key-tabla_cartera [data-testid="stMarkdownContainer"],
+        [class*="st-key-kpi_"] [data-testid="stMarkdownContainer"] {{ margin-bottom: 0 !important; }}
+        .nota-gris {{ display: block; margin-top: 2px; }}
+        [class*="st-key-fila_"] {{ padding: 8px 10px; border-radius: 8px; }}
+        [class*="st-key-fila_par_"] {{ background: {COLOR_FONDO}; }}
+        .st-key-tabla_cartera div[data-baseweb="input"],
+        .st-key-tabla_cartera div[data-baseweb="select"] > div {{ min-height: 32px; }}
+        .st-key-tabla_cartera input {{ padding: 4px 8px; }}
+        .st-key-tabla_cartera button[data-testid="stNumberInputStepUp"],
+        .st-key-tabla_cartera button[data-testid="stNumberInputStepDown"] {{ display: none; }}
+        .st-key-tabla_cartera .stButton button {{ padding: 2px 10px; min-height: 32px; }}
+        .fila-cab {{ font-size: 12px; font-weight: 700; color: {COLOR_GRIS}; letter-spacing: 0.4px; padding: 6px 10px 2px 10px; }}
+        .proy-nombre {{ font-weight: 700; color: {COLOR_NAVY}; }}
+        .proy-sub, .nota-gris {{ font-size: 12px; color: {COLOR_GRIS}; }}
+        .barra-pct {{ background: #f1f3f5; border-radius: 4px; height: 8px; width: 100%; }}
+        .barra-pct > div {{ background: {COLOR_AMBAR}; border-radius: 4px; height: 8px; }}
+        </style>
+        """, unsafe_allow_html=True)
+
+        def _kpi(clave):
+            try:
+                return st.container(key=f"kpi_{clave}")
+            except TypeError:
+                return st.container(border=True)
+
+        # ----- 1) Franja de indicadores -----
+        k1, k2, k3, k4 = st.columns(4)
+        with k1, _kpi("importe"):
+            st.markdown("<div class='kpi-titulo'>IMPORTE A INVERTIR</div>", unsafe_allow_html=True)
+            st.number_input(f"Importe a invertir ({simbolo_cliente_p4})", min_value=0.0, step=500.0,
+                            format="%.0f", key="input_importe", on_change=_cambiar_importe,
+                            label_visibility="collapsed")
+            rango = st.session_state.datos_cliente.get('capital', '')
+            st.markdown(html_seguro(f"<div class='kpi-sub'>{simbolo_cliente_p4} · punto medio de «{rango}»</div>"),
+                        unsafe_allow_html=True)
+        importe_total_p4 = importe_cliente(st.session_state.datos_cliente)
+
+        with k2, _kpi("repartido"):
+            st.markdown(html_seguro(
+                f"<div class='kpi-titulo'>REPARTIDO</div>"
+                f"<div class='kpi-valor'>{es(importe_repartido, 0)} {simbolo_cliente_p4}</div>"
+                f"<div class='kpi-sub'>{es(tokens_totales, 2)} tokens · {len(ids_validos)} "
+                f"proyecto{'s' if len(ids_validos) != 1 else ''}</div>"), unsafe_allow_html=True)
+
+        with k3, _kpi("pendiente"):
+            if not ids_validos:
+                titulo, valor, color = "PENDIENTE", "—", COLOR_GRIS_CLARO
+            elif abs(pendiente) <= tolerancia:
+                titulo, valor, color = "PENDIENTE", "✓ Todo repartido", COLOR_VERDE
             elif pendiente > 0:
-                c_pend.markdown(_tarjeta_importe("PENDIENTE DE REPARTIR",
-                                                 f"{es(pendiente, 0)} {simbolo_cliente_p4}", COLOR_AMBAR_OSCURO),
-                                unsafe_allow_html=True)
+                titulo, valor, color = "PENDIENTE", f"{es(pendiente, 0)} {simbolo_cliente_p4}", COLOR_AMBAR_OSCURO
             else:
-                c_pend.markdown(_tarjeta_importe("TE HAS PASADO EN",
-                                                 f"{es(-pendiente, 0)} {simbolo_cliente_p4}", COLOR_ROJO),
-                                unsafe_allow_html=True)
-            if abs(pendiente) > tolerancia and importe_repartido > 0:
+                titulo, valor, color = "TE HAS PASADO EN", f"{es(-pendiente, 0)} {simbolo_cliente_p4}", COLOR_ROJO
+            st.markdown(html_seguro(f"<div class='kpi-titulo'>{titulo}</div>"
+                                    f"<div class='kpi-valor' style='color:{color};'>{valor}</div>"),
+                        unsafe_allow_html=True)
+            if ids_validos and abs(pendiente) > tolerancia and importe_repartido > 0:
                 def _usar_repartido(valor):
                     st.session_state.datos_cliente['capital_ajustado'] = valor
                     st.session_state.input_importe = float(round(valor, 2))
                     for p in list(st.session_state.tokens_compra):
                         _olvidar_widgets(p)
-                with c_atajo:
-                    st.markdown("")
-                    st.button(md(f"Usar {es(importe_repartido, 0)} {simbolo_cliente_p4} como importe"),
-                              key="btn_ajustar_capital", on_click=_usar_repartido, args=(importe_repartido,),
-                              help="Cambia el importe a invertir para que coincida con lo que has repartido")
+                st.button(md(f"Usar {es(importe_repartido, 0)} {simbolo_cliente_p4} como importe"),
+                          key="btn_ajustar_capital", on_click=_usar_repartido, args=(importe_repartido,),
+                          help="Cambia el importe a invertir para que coincida con lo que has repartido")
+
+        with k4, _kpi("rentabilidad"):
+            st.markdown(html_seguro(
+                f"<div class='kpi-titulo'>RENT. ANUALIZADA</div>"
+                f"<div class='kpi-valor'>{es(rent_media, 2) + ' %' if importe_repartido > 0 else '—'}</div>"
+                f"<div class='kpi-sub'>estimada · {estatus_p4} · al precio elegido</div>"),
+                unsafe_allow_html=True)
+
+        # ----- 2) Barra de reparto -----
+        if ids_validos and importe_total_p4 > 0:
+            base = max(importe_total_p4, importe_repartido)
+            tramos = []
+            for i, (pid, o, tokens, importe, rent) in enumerate(filas_calc):
+                if importe <= 0:
+                    continue
+                ancho = importe / base * 100
+                nombre = str(filas_por_id[pid]['Nombre del proyecto']).replace("'", "&#39;")
+                color = PALETA_GRAFICOS[i % len(PALETA_GRAFICOS)]
+                texto_color = "#ffffff" if color in ("#1f2937", "#15803d", "#3e4753") else COLOR_NAVY
+                etiqueta = nombre if ancho >= 9 else ""
+                tramos.append(
+                    f"<div title='{nombre}: {es(importe / importe_total_p4 * 100, 1)} %' "
+                    f"style='width:{ancho:.3f}%;background:{color};color:{texto_color};"
+                    f"overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:0 6px;'>{etiqueta}</div>")
+            if pendiente > tolerancia:
+                ancho = pendiente / base * 100
+                tramos.append(f"<div title='Pendiente' style='width:{ancho:.3f}%;background:{COLOR_BORDE};"
+                              f"color:{COLOR_GRIS};overflow:hidden;white-space:nowrap;padding:0 6px;'>"
+                              f"{'pendiente' if ancho >= 9 else ''}</div>")
+            st.markdown(
+                "<div style='display:flex;height:26px;border-radius:8px;overflow:hidden;margin:12px 0 4px 0;"
+                f"font-size:12px;font-weight:700;line-height:26px;border:1px solid {COLOR_BORDE};"
+                f"background:{COLOR_BORDE};'>" + "".join(tramos) + "</div>",
+                unsafe_allow_html=True)
+            if pendiente < -tolerancia:
+                st.markdown(html_seguro(f"<div class='nota-gris' style='color:{COLOR_ROJO};'>Lo repartido supera "
+                                        f"tu importe a invertir en {es(-pendiente, 0)} {simbolo_cliente_p4}.</div>"),
+                            unsafe_allow_html=True)
+
+        # ----- 3) Modo de reparto (píldoras) -----
+        st.markdown("")
+        if st.session_state.get('selector_modo') not in MODOS_REPARTO:
+            st.session_state.selector_modo = modo
+        if hasattr(st, "segmented_control"):
+            st.segmented_control("¿Cómo quieres repartir tu cartera?", MODOS_REPARTO, key="selector_modo",
+                                 on_change=_cambiar_modo)
+        else:
+            st.radio("¿Cómo quieres repartir tu cartera?", MODOS_REPARTO, horizontal=True,
+                     key="selector_modo", on_change=_cambiar_modo)
 
         # ----- 4) Tabla: una fila por proyecto -----
         proyectos_sin_tokens = []
-        if ids_validos:
-            st.markdown("""
-            <style>
-            .st-key-tabla_cartera div[data-testid="stVerticalBlock"] { gap: 0.3rem; }
-            .st-key-tabla_cartera div[data-testid="stHorizontalBlock"] { gap: 0.6rem; }
-            .st-key-tabla_cartera p { margin-bottom: 0; }
-            </style>""", unsafe_allow_html=True)
-            try:
-                contenedor = st.container(key="tabla_cartera")
-            except TypeError:
-                contenedor = st.container()
+        if not ids_validos:
+            st.info("Marca en las tablas de arriba los proyectos que quieras incluir")
+        else:
+            def _contenedor(clave):
+                try:
+                    return st.container(key=clave)
+                except TypeError:
+                    return st.container()
 
             def _columnas():
-                anchos = [2.0, 3.0, 1.2, 1.5, 0.7, 2.4]
+                anchos = [2.6, 2.5, 2.0, 0.7, 2.4]
                 try:
                     return st.columns(anchos, vertical_alignment="center")
                 except TypeError:
                     return st.columns(anchos)
 
-            titulo_entrada = {"Por cantidad de tokens": "Tokens a comprar",
-                              "Por % de mi cartera": "% de la cartera",
-                              "Por igual": "Tokens a comprar"}[modo]
+            titulo_entrada = {"Por cantidad de tokens": "TOKENS A COMPRAR",
+                              "Por % de mi cartera": "% DE LA CARTERA",
+                              "Por igual": "TOKENS A COMPRAR"}[modo]
 
             def _cambiar_oferta(pid, opciones):
                 anterior = _oferta(pid)
@@ -1257,69 +1356,110 @@ elif st.session_state.paso_actual == 4:
                 st.session_state.tokens_compra[pid] = tokens_max
                 _olvidar_widgets(pid)
 
-            with contenedor:
-                c = _columnas()
-                for col, titulo in zip(c, ["Proyecto", "Precio de compra", "Tokens disponibles",
-                                           titulo_entrada, "", "% de tu cartera"]):
-                    col.markdown(f"**{titulo}**")
+            def _dividendo_corto(texto):
+                t = str(texto or "").lower()
+                partes = []
+                if "mensual" in t:
+                    partes.append("mensual")
+                if "trimestral" in t:
+                    partes.append("trimestral")
+                if "final" in t:
+                    partes.append("al final")
+                return " + ".join(partes) if partes else (str(texto) if texto else "")
 
-                for pid, o, tokens, importe in filas_calc:
+            try:
+                from modules.formateo_datos import _buscar_columna_tipologia
+                col_tipo = _buscar_columna_tipologia(df_proyectos_todos)
+            except Exception:
+                col_tipo = None
+
+            with _contenedor("tabla_cartera"):
+                c = _columnas()
+                for col, titulo in zip(c, ["PROYECTO", "PRECIO DE COMPRA", titulo_entrada, "", "% DE TU CARTERA"]):
+                    col.markdown(f"<div class='fila-cab'>{titulo or '&nbsp;'}</div>", unsafe_allow_html=True)
+
+                for n_fila, (pid, o, tokens, importe, rent) in enumerate(filas_calc):
                     row = filas_por_id[pid]
                     nombre = row['Nombre del proyecto']
                     opciones = opciones_por_id[pid]
                     precio_cli = _precio_cliente(o)
                     pct = importe / importe_total_p4 * 100 if importe_total_p4 else 0.0
-                    c_nom, c_precio, c_disp, c_entrada, c_max, c_pct = _columnas()
 
-                    c_nom.markdown(nombre)
+                    with _contenedor(f"fila_{'par' if n_fila % 2 else 'impar'}_{n_fila}"):
+                        c_nom, c_precio, c_entrada, c_max, c_pct = _columnas()
 
-                    # Precio: desplegable solo si hay varias ofertas
-                    if len(opciones) > 1:
-                        if f"of_{pid}" not in st.session_state:
-                            st.session_state[f"of_{pid}"] = opciones.index(o)
-                        c_precio.selectbox(
-                            "Precio de compra", list(range(len(opciones))), key=f"of_{pid}",
-                            format_func=lambda i, opciones=opciones: (
-                                _etiqueta(opciones[i]) + (f" · {es(opciones[i]['n_tokens'], 2)} tk"
-                                                          if opciones[i]['n_tokens'] is not None else "")),
-                            on_change=_cambiar_oferta, args=(pid, opciones), label_visibility="collapsed")
-                    else:
-                        c_precio.markdown(md(_etiqueta(o)))
+                        # Proyecto + ubicación · dividendo · rentabilidad al precio elegido
+                        detalles = [str(row.get('Ubicación', '') or '')]
+                        if col_tipo:
+                            detalles.append(_dividendo_corto(row.get(col_tipo)))
+                        if rent['anual'] is not None:
+                            detalles.append(f"{es(rent['anual'], 1)} % anual")
+                        c_nom.markdown(f"<div class='proy-nombre'>{nombre}</div>"
+                                       f"<div class='proy-sub'>{' · '.join(d for d in detalles if d)}</div>",
+                                       unsafe_allow_html=True)
 
-                    c_disp.markdown(es(o['n_tokens'], 2) if o['n_tokens'] is not None else "")
+                        # Precio: desplegable solo si hay varias ofertas
+                        if len(opciones) > 1:
+                            if f"of_{pid}" not in st.session_state:
+                                st.session_state[f"of_{pid}"] = opciones.index(o)
+                            c_precio.selectbox(
+                                "Precio de compra", list(range(len(opciones))), key=f"of_{pid}",
+                                format_func=lambda i, opciones=opciones: (
+                                    _etiqueta(opciones[i]) + (f" · {es(opciones[i]['n_tokens'], 2)} tk"
+                                                              if opciones[i]['n_tokens'] is not None else "")),
+                                on_change=_cambiar_oferta, args=(pid, opciones), label_visibility="collapsed")
+                        else:
+                            c_precio.markdown(md(_etiqueta(o)))
 
-                    # Entrada según el modo de reparto
-                    if modo == "Por cantidad de tokens":
-                        if f"tk_{pid}" not in st.session_state:
-                            st.session_state[f"tk_{pid}"] = round(tokens, 2)
-                        c_entrada.number_input("Tokens", min_value=0.0, step=1.0, format="%.2f",
-                                               key=f"tk_{pid}", on_change=_guardar_tokens, args=(pid,),
-                                               label_visibility="collapsed")
-                    elif modo == "Por % de mi cartera":
-                        if f"pct_{pid}" not in st.session_state:
-                            st.session_state[f"pct_{pid}"] = round(pct, 1)
-                        c_entrada.number_input("%", min_value=0.0, max_value=100.0, step=1.0, format="%.1f",
-                                               key=f"pct_{pid}", on_change=_guardar_pct,
-                                               args=(pid, precio_cli, importe_total_p4),
-                                               label_visibility="collapsed")
-                    else:
-                        c_entrada.number_input("Tokens", value=round(tokens, 2), format="%.2f", disabled=True,
-                                               key=f"igual_{pid}_{round(tokens, 2)}",
-                                               label_visibility="collapsed")
+                        # Entrada según el modo de reparto + disponibles debajo
+                        with c_entrada:
+                            if modo == "Por cantidad de tokens":
+                                if f"tk_{pid}" not in st.session_state:
+                                    st.session_state[f"tk_{pid}"] = round(tokens, 2)
+                                st.number_input("Tokens", min_value=0.0, step=1.0, format="%.2f",
+                                                key=f"tk_{pid}", on_change=_guardar_tokens, args=(pid,),
+                                                label_visibility="collapsed")
+                            elif modo == "Por % de mi cartera":
+                                if f"pct_{pid}" not in st.session_state:
+                                    st.session_state[f"pct_{pid}"] = round(pct, 1)
+                                st.number_input("%", min_value=0.0, max_value=100.0, step=1.0, format="%.1f",
+                                                key=f"pct_{pid}", on_change=_guardar_pct,
+                                                args=(pid, precio_cli, importe_total_p4),
+                                                label_visibility="collapsed")
+                            else:
+                                st.markdown(f"<div class='proy-nombre'>{es(tokens, 2)} tokens</div>",
+                                            unsafe_allow_html=True)
+                            if o['n_tokens'] is not None:
+                                nota = f"de {es(o['n_tokens'], 2)} disponibles"
+                                if modo == "Por % de mi cartera":
+                                    nota = f"{es(tokens, 2)} tokens " + nota
+                                st.markdown(f"<div class='nota-gris'>{nota}</div>", unsafe_allow_html=True)
+                            elif modo == "Por % de mi cartera":
+                                st.markdown(f"<div class='nota-gris'>{es(tokens, 2)} tokens</div>",
+                                            unsafe_allow_html=True)
 
-                    # Máx: todos los tokens disponibles, sin pasar del importe a invertir
-                    if o['n_tokens'] is not None and modo != "Por igual" and precio_cli:
-                        tokens_max = round(min(o['n_tokens'], importe_total_p4 / precio_cli), 4)
-                        c_max.button("Máx", key=f"max_{pid}", on_click=_maximo, args=(pid, tokens_max),
-                                     help=(f"Comprar {es(tokens_max, 2)} tokens: todos los disponibles "
-                                           "en esta oferta, sin pasar de tu importe a invertir"))
+                        # Máx: todos los tokens disponibles, sin pasar del importe a invertir
+                        if o['n_tokens'] is not None and modo != "Por igual" and precio_cli:
+                            tokens_max = round(min(o['n_tokens'], importe_total_p4 / precio_cli), 4)
+                            c_max.button("Máx", key=f"max_{pid}", on_click=_maximo, args=(pid, tokens_max),
+                                         help=(f"Comprar {es(tokens_max, 2)} tokens: todos los disponibles "
+                                               "en esta oferta, sin pasar de tu importe a invertir"))
 
-                    texto_pct = f"{es(pct, 1)}% · {es(importe, 0)} {simbolo_cliente_p4}"
-                    if o['n_tokens'] is not None and tokens > o['n_tokens'] + 0.01:
-                        proyectos_sin_tokens.append(nombre)
-                        c_pct.markdown(md(f":orange[⚠ faltan {es(tokens - o['n_tokens'], 2)} tk · {texto_pct}]"))
-                    else:
-                        c_pct.markdown(md(texto_pct))
+                        # % de tu cartera: barrita + importe
+                        falta = o['n_tokens'] is not None and tokens > o['n_tokens'] + 0.01
+                        if falta:
+                            proyectos_sin_tokens.append(nombre)
+                        color_barra = COLOR_ROJO if falta else COLOR_AMBAR
+                        sub = (f"<span style='color:{COLOR_ROJO};'>⚠ faltan {es(tokens - o['n_tokens'], 2)} tk</span>"
+                               f" · {es(importe, 0)} {simbolo_cliente_p4}" if falta
+                               else f"{es(importe, 0)} {simbolo_cliente_p4}")
+                        c_pct.markdown(html_seguro(
+                            "<div style='display:flex;align-items:center;gap:8px;'>"
+                            f"<div class='barra-pct' style='flex:1;'><div style='width:{min(pct, 100):.2f}%;"
+                            f"background:{color_barra};'></div></div>"
+                            f"<div style='font-weight:700;color:{COLOR_NAVY};min-width:52px;text-align:right;'>"
+                            f"{es(pct, 1)} %</div></div>"
+                            f"<div class='nota-gris'>{sub}</div>"), unsafe_allow_html=True)
 
                     # Datos para el Paso 5
                     st.session_state.precios_compra[pid] = {'precio': o['precio'], 'divisa': o['divisa'],
@@ -1337,21 +1477,6 @@ elif st.session_state.paso_actual == 4:
             if proyectos_sin_tokens:
                 st.warning(md(f"⚠ No hay tokens suficientes en: {', '.join(proyectos_sin_tokens)}. "
                               "Baja la cantidad, pulsa «Máx» o elige otra oferta."))
-
-            # ----- 5) Resumen de la cartera -----
-            estatus_p4 = st.session_state.datos_cliente.get('estatus') or 'Reentel'
-            tokens_totales = sum(t for _, _, t, _ in filas_calc)
-            rent_media = 0.0
-            if importe_repartido > 0:
-                for pid, o, tokens, importe in filas_calc:
-                    row = filas_por_id[pid]
-                    precio_proy = convertir_divisa(o['precio'], o['divisa'], divisa_proyecto(row))
-                    r = rentabilidad_ajustada(row, estatus_p4, precio_proy)
-                    rent_media += (r['anual'] or 0.0) * importe / importe_repartido
-            st.markdown("<hr style='margin: 6px 0;'>", unsafe_allow_html=True)
-            c_tot, c_rent, _ = st.columns([1, 1.6, 1.4])
-            c_tot.markdown(f"**Tokens totales:** {es(tokens_totales, 2)}")
-            c_rent.markdown(f"**Rentabilidad anualizada estimada ({estatus_p4}):** {es(rent_media, 2)} %")
 
         suma_porcentajes = 100 if (ids_validos and abs(pendiente) <= tolerancia) else (
             round(importe_repartido / importe_total_p4 * 100, 1) if importe_total_p4 else 0.0)
@@ -1373,7 +1498,7 @@ elif st.session_state.paso_actual == 4:
                     # exactamente lo repartido para que los % sumen 100.
                     if abs(pendiente) > 0.01 and importe_repartido > 0:
                         st.session_state.datos_cliente['capital_ajustado'] = importe_repartido
-                        for pid, o, tokens, importe in filas_calc:
+                        for pid, o, tokens, importe, _rent in filas_calc:
                             st.session_state.cartera_selecciones[pid]['porcentaje'] = importe / importe_repartido * 100
                     st.session_state.datos_cliente['cartera'] = {
                         'proyectos': proyectos_seleccionados,
