@@ -497,6 +497,33 @@ def importe_simulado(capital_texto):
     return CAPITAL_SIMULADO.get(capital_texto, 30000)
 
 
+def importe_cliente(datos):
+    """Capital con el que se simula: el ajustado en el Paso 4 si lo hay; si no,
+    el punto medio del rango elegido en el Paso 1."""
+    return datos.get('capital_ajustado') or importe_simulado(datos.get('capital'))
+
+
+def capital_mostrado(datos, simbolo):
+    """Texto del capital para la pantalla y el PDF."""
+    if datos.get('capital_ajustado'):
+        return f"{datos['capital_ajustado']:,.0f} {simbolo} (ajustado)"
+    return f"{datos.get('capital', 'N/A')} ({'EUR' if simbolo == '€' else 'USD'})"
+
+
+def ajustar_capital(ids, importe_actual, suma_pct):
+    """Cambia el capital para que los importes elegidos sumen exactamente el 100 %.
+    Cada proyecto conserva su importe (y sus tokens); solo se recalculan los %."""
+    if not suma_pct:
+        return
+    st.session_state.datos_cliente['capital_ajustado'] = importe_actual * suma_pct / 100
+    for pid in ids:
+        clave = f"input_{pid}"
+        pct = float(st.session_state.get(clave, 0.0) or 0.0)
+        nuevo = pct / suma_pct * 100
+        st.session_state[clave] = nuevo
+        st.session_state.cartera_selecciones.setdefault(pid, {})['porcentaje'] = nuevo
+
+
 def tabla_seleccionable(df_display, key):
     """
     Muestra una tabla con una casilla 'Incluir' en cada fila
@@ -955,13 +982,14 @@ elif st.session_state.paso_actual == 4:
         st.markdown("---")
         st.markdown("### Construye tu cartera")
         aviso_distribucion = st.empty()  # mensaje de estado (se rellena al final)
+        zona_ajuste_capital = st.empty()  # botón para ajustar el capital (si hace falta)
         
         proyectos_seleccionados = []
         suma_porcentajes = 0
         reparto_igual = distribucion_type == 'Distribuir en partes iguales'
         # Para comprobar que las ofertas OTC tienen tokens suficientes
         divisa_cliente_p4 = (st.session_state.datos_cliente.get('divisa') or 'EUR').upper()
-        importe_total_p4 = importe_simulado(st.session_state.datos_cliente.get('capital'))
+        importe_total_p4 = importe_cliente(st.session_state.datos_cliente)
         simbolo_cliente_p4 = '€' if divisa_cliente_p4 == 'EUR' else '$'
         proyectos_sin_tokens = []
         ids_validos = [pid for pid in ids_seleccionados if pid in filas_por_id]
@@ -1116,14 +1144,26 @@ elif st.session_state.paso_actual == 4:
             suma_porcentajes = round(suma_porcentajes, 1)
             if suma_porcentajes == 100:
                 aviso_distribucion.success(f"✓ Total: {suma_porcentajes}%")
-            elif suma_porcentajes > 100:
-                aviso_distribucion.warning(
-                    f"⚠ Has repartido un {suma_porcentajes:.1f}% de tu capital: te sobra un "
-                    f"{suma_porcentajes - 100:.1f}%. Baja algún porcentaje hasta que el total sea 100%.")
             elif suma_porcentajes > 0:
-                aviso_distribucion.warning(
-                    f"⚠ Has repartido un {suma_porcentajes:.1f}% de tu capital: te queda un "
-                    f"{100 - suma_porcentajes:.1f}% por asignar.")
+                if suma_porcentajes > 100:
+                    aviso_distribucion.warning(
+                        f"⚠ Has repartido un {suma_porcentajes:.1f}% de tu capital: te sobra un "
+                        f"{suma_porcentajes - 100:.1f}%.")
+                else:
+                    aviso_distribucion.warning(
+                        f"⚠ Has repartido un {suma_porcentajes:.1f}% de tu capital: te queda un "
+                        f"{100 - suma_porcentajes:.1f}% por asignar.")
+                capital_nuevo = importe_total_p4 * suma_porcentajes / 100
+                with zona_ajuste_capital.container():
+                    st.button(
+                        f"Ajustar mi capital a {capital_nuevo:,.0f} {simbolo_cliente_p4} "
+                        f"para invertir exactamente lo que has elegido",
+                        key="btn_ajustar_capital",
+                        on_click=ajustar_capital,
+                        args=(list(ids_validos), importe_total_p4, suma_porcentajes),
+                    )
+                    st.caption(f"Tu capital pasará de {importe_total_p4:,.0f} {simbolo_cliente_p4} "
+                               f"a {capital_nuevo:,.0f} {simbolo_cliente_p4}.")
             else:
                 aviso_distribucion.info("Asigna porcentajes a los proyectos")
         
@@ -1192,7 +1232,7 @@ elif st.session_state.paso_actual == 5:
             st.write(f"**Email:** {datos.get('email', 'N/A')}")
             st.write(f"**Estatus elegido:** {estatus}")
         with col2:
-            st.write(f"**Capital a invertir:** {datos.get('capital', 'N/A')} {divisa_cliente}")
+            st.write(f"**Capital a invertir:** {capital_mostrado(datos, simbolo)}")
             st.write(f"**Objetivo:** {datos.get('objetivo', 'N/A')}")
             st.write(f"**Distribución de la cartera:** {datos.get('distribucion', 'N/A')}")
         
@@ -1235,7 +1275,7 @@ elif st.session_state.paso_actual == 5:
         # ========== 3) TU CARTERA DE INVERSIÓN ==========
         st.markdown("### Tu cartera de inversión")
         
-        importe_inmuebles = importe_simulado(datos.get('capital'))  # en la divisa del cliente
+        importe_inmuebles = importe_cliente(datos)  # en la divisa del cliente
         
         rnt_estatus = RNT_POR_ESTATUS.get(estatus, 0)
         coste_estatus = convertir(rnt_estatus * precio_rnt, 'USD', divisa_cliente)
@@ -1560,8 +1600,11 @@ elif st.session_state.paso_actual == 5:
                           cartera=cartera_txt, importe=fmt(importe_inmuebles))
             st.session_state.lead_cartera_guardada = firma_cartera
         
+        datos_pdf = dict(st.session_state.datos_cliente)
+        if datos_pdf.get('capital_ajustado'):
+            datos_pdf['capital'] = capital_mostrado(datos_pdf, simbolo)
         pdf_buffer = generar_pdf_cartera(
-            st.session_state.datos_cliente,
+            datos_pdf,
             proyectos_cartera,
             distribuciones,
             st.session_state.df_proyectos,
