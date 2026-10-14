@@ -329,6 +329,29 @@ def cargar_todas_ofertas_secundario(df_proyectos=None):
     
     return todas_ofertas
 
+# En la tabla OTC no se muestran los proyectos que terminan en menos de estos
+# meses (en primera emisión sí): les queda
+# tan poco que su rentabilidad anualizada sale disparada y no es comparable.
+MESES_MINIMOS_HASTA_FIN = 3
+
+
+def termina_pronto(fecha_fin, meses=MESES_MINIMOS_HASTA_FIN):
+    """True si el proyecto termina antes de `meses` meses desde hoy."""
+    if fecha_fin is None or (isinstance(fecha_fin, float) and fecha_fin != fecha_fin):
+        return False
+    if isinstance(fecha_fin, datetime):
+        fecha_fin = fecha_fin.date()
+    if not hasattr(fecha_fin, "year"):
+        return False
+    hoy = datetime.now().date()
+    mes = hoy.month - 1 + meses
+    anio, mes = hoy.year + mes // 12, mes % 12 + 1
+    dia = min(hoy.day, [31, 29 if anio % 4 == 0 and (anio % 100 or anio % 400 == 0) else 28,
+                        31, 30, 31, 30, 31, 31, 30, 31, 30, 31][mes - 1])
+    limite = hoy.replace(year=anio, month=mes, day=dia)
+    return fecha_fin < limite
+
+
 # Mínimo de tokens disponibles para que una oferta OTC (o el stock de Reental)
 # aparezca en el simulador. Las que tengan esta cantidad o menos no se muestran.
 MIN_TOKENS_OTC = 10
@@ -983,6 +1006,10 @@ elif st.session_state.paso_actual == 4:
             
             if proyectos_con_otc:
                 df_con_otc = pd.DataFrame(proyectos_con_otc)
+                # En OTC no se muestran los que terminan en menos de MESES_MINIMOS_HASTA_FIN
+                # meses (en primera emisión sí se muestran todos)
+                if 'fecha_fin_calculo' in df_con_otc.columns:
+                    df_con_otc = df_con_otc[~df_con_otc['fecha_fin_calculo'].map(termina_pronto)]
         
         # Solo los mercados elegidos en el Paso 3
         otc_fuera_de_mercado = 0
