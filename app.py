@@ -1116,8 +1116,14 @@ elif st.session_state.paso_actual == 4:
             suma_porcentajes = round(suma_porcentajes, 1)
             if suma_porcentajes == 100:
                 aviso_distribucion.success(f"✓ Total: {suma_porcentajes}%")
+            elif suma_porcentajes > 100:
+                aviso_distribucion.warning(
+                    f"⚠ Has repartido un {suma_porcentajes:.1f}% de tu capital: te sobra un "
+                    f"{suma_porcentajes - 100:.1f}%. Baja algún porcentaje hasta que el total sea 100%.")
             elif suma_porcentajes > 0:
-                aviso_distribucion.warning(f"⚠ Total: {suma_porcentajes}% (Falta {100 - suma_porcentajes:.1f}%)")
+                aviso_distribucion.warning(
+                    f"⚠ Has repartido un {suma_porcentajes:.1f}% de tu capital: te queda un "
+                    f"{100 - suma_porcentajes:.1f}% por asignar.")
             else:
                 aviso_distribucion.info("Asigna porcentajes a los proyectos")
         
