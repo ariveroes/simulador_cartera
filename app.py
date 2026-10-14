@@ -1123,15 +1123,38 @@ elif st.session_state.paso_actual == 4:
 
         # ----- Estado de partida -----
         importe_total_p4 = importe_cliente(st.session_state.datos_cliente)
+        def _texto_importe(valor):
+            """Importe con separador de miles y el símbolo dentro de la casilla: «50.000 €»."""
+            return f"{es(valor, 0)} {simbolo_cliente_p4}"
+        
+        def _leer_importe(texto):
+            """Convierte lo escrito («50.000 €», «50000», «50,000 $»…) en número. None si no se entiende."""
+            limpio = re.sub(r"[^\d.,]", "", str(texto or ""))
+            if not limpio:
+                return None
+            if _formato_euro():
+                limpio = limpio.replace(".", "").replace(",", ".")
+            else:
+                limpio = limpio.replace(",", "")
+            try:
+                return float(limpio)
+            except ValueError:
+                return None
+        
         if 'input_importe' not in st.session_state:
-            st.session_state.input_importe = float(round(importe_total_p4))
+            st.session_state.input_importe = _texto_importe(importe_total_p4)
         modo = st.session_state.modo_reparto
         estatus_p4 = st.session_state.datos_cliente.get('estatus') or 'Reentel'
 
         def _cambiar_importe():
             anterior = importe_cliente(st.session_state.datos_cliente)
-            nuevo = float(st.session_state.input_importe or 0)
+            nuevo = _leer_importe(st.session_state.input_importe)
+            if nuevo is None or nuevo <= 0:
+                # No se entiende lo escrito: se deja el importe que había
+                st.session_state.input_importe = _texto_importe(anterior)
+                return
             st.session_state.datos_cliente['capital_ajustado'] = nuevo
+            st.session_state.input_importe = _texto_importe(nuevo)
             # Repartiendo por %, se mantienen los % y cambian los tokens
             if st.session_state.modo_reparto == "Por % de mi cartera" and anterior:
                 for p in list(st.session_state.tokens_compra):
@@ -1234,12 +1257,12 @@ elif st.session_state.paso_actual == 4:
         k1, k2, k3, k4 = st.columns(4)
         with k1, _kpi("importe"):
             st.markdown("<div class='kpi-titulo'>IMPORTE A INVERTIR</div>", unsafe_allow_html=True)
-            st.number_input(f"Importe a invertir ({simbolo_cliente_p4})", min_value=0.0, step=500.0,
-                            format="%.0f", key="input_importe", on_change=_cambiar_importe,
-                            label_visibility="collapsed")
+            st.text_input("Importe a invertir", key="input_importe", on_change=_cambiar_importe,
+                          label_visibility="collapsed")
             rango = st.session_state.datos_cliente.get('capital', '')
-            st.markdown(html_seguro(f"<div class='kpi-sub'>{simbolo_cliente_p4} · punto medio de «{rango}»</div>"),
-                        unsafe_allow_html=True)
+            st.markdown(html_seguro(f"<div class='kpi-sub'>En el Paso 1 elegiste «{rango}». Te proponemos el "
+                                    "punto medio de ese rango; puedes cambiarlo por el importe exacto que "
+                                    "quieras invertir.</div>"), unsafe_allow_html=True)
         importe_total_p4 = importe_cliente(st.session_state.datos_cliente)
 
         with k2, _kpi("repartido"):
@@ -1264,7 +1287,7 @@ elif st.session_state.paso_actual == 4:
             if ids_validos and abs(pendiente) > tolerancia and importe_repartido > 0:
                 def _usar_repartido(valor):
                     st.session_state.datos_cliente['capital_ajustado'] = valor
-                    st.session_state.input_importe = float(round(valor, 2))
+                    st.session_state.input_importe = _texto_importe(valor)
                     for p in list(st.session_state.tokens_compra):
                         _olvidar_widgets(p)
                 st.button(md(f"Usar {es(importe_repartido, 0)} {simbolo_cliente_p4} como importe"),
@@ -1983,7 +2006,7 @@ st.markdown("---")
 st.markdown(f"""
 <div style='text-align: center; color: {COLOR_GRIS}; font-size: 0.9em; margin-top: 30px;'>
     <p><b>© {datetime.now().year} Reental Wealth Services</b> | Simulador de Cartera</p>
-    <p>Para más información: <a href='https://reental.co' target='_blank' style='color: {COLOR_AMBAR_OSCURO};'>www.reental.co</a></p>
+    <p>Para más información: <a href='https://reental.com' target='_blank' style='color: {COLOR_AMBAR_OSCURO};'>www.reental.com</a></p>
     <p style='font-size: 0.85em; margin-top: 15px;'>
         <i>Este simulador es una herramienta educativa. Las proyecciones mostradas son estimaciones basadas en datos históricos 
         y parámetros actuales. La rentabilidad pasada no garantiza resultados futuros.</i>
