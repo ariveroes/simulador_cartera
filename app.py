@@ -103,8 +103,17 @@ st.markdown("")
 # El objetivo de la herramienta es que el cliente agende una reunión: el botón
 # está siempre a mano. En el Paso 5 lo sustituye un recuadro destacado.
 if st.session_state.paso_actual < 5:
-    st.markdown(f"<a class='cta-flotante' href='{URL_AGENDA}' target='_blank' rel='noopener'>"
-                f"<span class='cta-dudas'>¿Tienes dudas?</span> Habla con nuestro equipo</a>",
+    ICONO_CHAT = ("<svg viewBox='0 0 24 24' fill='none' stroke='#1f2937' stroke-width='2.2' "
+                  "stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>"
+                  "<path d='M7.9 20A9 9 0 1 0 4 16.1L2 22Z'/>"
+                  "<circle cx='8' cy='12' r='0.6' fill='#1f2937'/><circle cx='12' cy='12' r='0.6' fill='#1f2937'/>"
+                  "<circle cx='16' cy='12' r='0.6' fill='#1f2937'/></svg>")
+    st.markdown(f"<a class='cta-flotante' href='{URL_AGENDA}' target='_blank' rel='noopener' "
+                f"aria-label='¿Tienes dudas? Habla con nuestro equipo'>"
+                f"<span class='cta-texto'><span class='cta-larga'><span class='cta-dudas'>¿Tienes dudas?</span> "
+                f"Habla con nuestro equipo</span><span class='cta-corta'><span class='cta-dudas'>¿Dudas?</span> "
+                f"Habla con nosotros</span></span>"
+                f"<span class='cta-circulo'>{ICONO_CHAT}</span></a>",
                 unsafe_allow_html=True)
 
 # ========== PASO ACTUAL ==========
