@@ -467,6 +467,19 @@ def mostrar():
                     f"los beneficios obtenidos, beneficiándose del interés compuesto. Las cifras son estimaciones "
                     f"y no garantizan resultados futuros.</div>", unsafe_allow_html=True)
         
+        # ----- Llamada a agendar una reunión (el objetivo de la herramienta) -----
+        st.markdown(html_seguro(
+            f"<div style='background:{COLOR_AMBAR_CLARO}; border:2px solid {COLOR_AMBAR}; border-radius:14px; "
+            f"padding:22px 24px; margin:28px 0 8px 0; display:flex; flex-wrap:wrap; gap:14px 24px; "
+            f"align-items:center; justify-content:space-between;'>"
+            f"<div style='flex:1 1 320px; color:{COLOR_NAVY};'>"
+            f"<div style='font-size:19px; font-weight:800; margin-bottom:4px;'>¿Quieres revisar tu cartera con "
+            f"nuestro equipo?</div>"
+            f"<div style='font-size:15px;'>Agenda una reunión sin compromiso.</div></div>"
+            f"<a href='{URL_AGENDA}' target='_blank' rel='noopener' style='background:{COLOR_NAVY}; "
+            f"color:#ffffff; text-decoration:none; font-weight:700; padding:13px 22px; border-radius:10px; "
+            f"white-space:nowrap;'>Agendar reunión</a></div>"), unsafe_allow_html=True)
+        
         st.markdown("---")
         
         # ========== DESCARGAR PDF ==========
