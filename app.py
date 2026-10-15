@@ -148,8 +148,9 @@ st.markdown(f"""
         .tarjeta-titulo, .tarjeta-sub {{ font-size: 11px !important; }}
 
         /* Tabla de la comparativa por estatus: más compacta */
-        .tabla-comp td {{ padding: 8px 4px !important; font-size: 11.5px !important; }}
-        .tabla-comp td:first-child {{ min-width: 84px; padding-left: 8px !important; white-space: normal !important; }}
+        .tabla-comp td {{ padding: 8px 3px !important; font-size: 11px !important; }}
+        .tabla-comp td:first-child {{ min-width: 78px; max-width: 96px; padding-left: 7px !important;
+                                     white-space: normal !important; }}
 
         /* Mapa: se recorta el espacio vacío de arriba y abajo */
         .st-key-mapa [data-testid="stVegaLiteChart"] {{
@@ -1898,19 +1899,28 @@ elif st.session_state.paso_actual == 5:
                 base = alt.Chart(datos_g).encode(
                     theta=alt.Theta('peso:Q', stack=True),
                     color=alt.Color('categoria:N', scale=alt.Scale(range=colores),
-                                    legend=alt.Legend(orient='bottom', title=None)),
+                                    legend=alt.Legend(orient='bottom', title=None, direction='vertical',
+                                                      labelLimit=0, labelFontSize=12)),
                     tooltip=[alt.Tooltip('categoria:N', title=titulo),
                              alt.Tooltip('pct:Q', format='.0%', title='Peso')]
                 )
-                arco = base.mark_arc(innerRadius=55, outerRadius=95)
-                texto = base.mark_text(radius=112, size=11).encode(text=alt.Text('pct:Q', format='.0%'))
-                return (arco + texto).properties(title=titulo, height=290)
+                # Radios en función del ancho disponible: en pantallas estrechas el
+                # donut se hace más pequeño y los % no se salen del gráfico
+                radio = "min(width, 220) / 2 - 24"
+                arco = base.mark_arc(innerRadius=alt.ExprRef(f"({radio}) * 0.58"),
+                                     outerRadius=alt.ExprRef(radio))
+                texto = base.mark_text(radius=alt.ExprRef(f"({radio}) + 14"), size=11).encode(
+                    text=alt.Text('pct:Q', format='.0%'))
+                return (arco + texto).properties(height=265)
             
             st.markdown("")
             g1, g2, g3 = st.columns(3)
-            g1.altair_chart(donut('ubicacion', 'Distribución geográfica'), use_container_width=True)
-            g2.altair_chart(donut('tipologia', 'Tipología de dividendo'), use_container_width=True)
-            g3.altair_chart(donut('divisa', 'Divisa del inmueble'), use_container_width=True)
+            for g, campo, titulo in ((g1, 'ubicacion', 'Distribución geográfica'),
+                                     (g2, 'tipologia', 'Tipología de dividendo'),
+                                     (g3, 'divisa', 'Divisa del inmueble')):
+                g.markdown(f"<div style='font-size:15px; font-weight:700; color:{COLOR_NAVY}; "
+                           f"margin-top:8px;'>{titulo}</div>", unsafe_allow_html=True)
+                g.altair_chart(donut(campo, titulo), use_container_width=True)
             
             # ----- Mapa de distribución geográfica -----
             import unicodedata
@@ -2233,3 +2243,25 @@ st.markdown(f"""
     </p>
 </div>
 """, unsafe_allow_html=True)
+
+# ========== AL CAMBIAR DE PASO, VOLVER ARRIBA ==========
+# Streamlit conserva la posición de la página al pulsar «Siguiente»/«Atrás», así
+# que en el móvil se llegaba al paso nuevo por abajo. Este bloque solo se pinta
+# cuando cambia el paso y sube la página hasta arriba.
+if st.session_state.get("_paso_mostrado") != st.session_state.paso_actual:
+    st.session_state._paso_mostrado = st.session_state.paso_actual
+    import streamlit.components.v1 as _componentes
+    _componentes.html(f"""
+    <script>
+    // paso {st.session_state.paso_actual}
+    (function () {{
+        const doc = window.parent.document;
+        const subir = () => {{
+            ['[data-testid="stMain"]', '[data-testid="stAppViewContainer"]', 'section.main', '.main']
+                .forEach(sel => {{ const e = doc.querySelector(sel); if (e) e.scrollTop = 0; }});
+            window.parent.scrollTo(0, 0);
+        }};
+        subir(); setTimeout(subir, 150); setTimeout(subir, 500); setTimeout(subir, 1000);
+    }})();
+    </script>
+    """, height=0)
