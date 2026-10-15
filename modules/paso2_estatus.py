@@ -25,7 +25,7 @@ def mostrar():
             marca = (f"<span style='font-size:12px; font-weight:700; color:{COLOR_AMBAR_OSCURO};'>✓ Elegido</span>"
                      if elegido else "")
             st.markdown(
-                f"<div style='border:{'2px' if elegido else '1px'} solid {COLOR_AMBAR if elegido else COLOR_BORDE}; "
+                f"<div class='tarjeta-estatus' style='border:{'2px' if elegido else '1px'} solid {COLOR_AMBAR if elegido else COLOR_BORDE}; "
                 f"border-radius:14px; padding:18px 20px; min-height:170px; "
                 f"background-color:{COLOR_AMBAR_CLARO if elegido else '#ffffff'};'>"
                 f"<div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;'>"
