@@ -542,7 +542,7 @@ def tabla_seleccionable(df_display, key):
                 elegido = st.checkbox(f"{fila.get('Nombre del proyecto', pid)}", key=clave_casilla)
                 st.markdown(html_seguro(
                     "<div class='tm-datos tm-proyecto'>"
-                    f"<div><span>País</span><b>{fila.get('Ubicación', '') or '—'}</b></div>"
+                    f"<div><b class='tm-pais'>{fila.get('Ubicación', '') or '—'}</b></div>"
                     f"<div><span>Rent. anualizada</span><b>{_pct(fila.get('Rentabilidad Anualizada'))}</b></div>"
                     f"<div><span>Rent. total</span><b>{_pct(fila.get('Rentabilidad Total'))}</b></div>"
                     f"<div><span>Precio</span><b>{fila.get('Precio', '—')}</b></div>"
