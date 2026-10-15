@@ -1,0 +1,154 @@
+"""
+ESTILOS - CSS de toda la app (paleta, tipografía, botones, tablas y móvil).
+"""
+from modules.comun import *  # noqa: F401,F403  (constantes, colores y funciones comunes)
+
+
+def aplicar_estilos():
+    st.markdown(f"""
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fustat:wght@400;500;600;700;800&display=swap');
+
+        html, body, .stApp, .stApp div, .stApp p, .stApp label, .stApp input, .stApp textarea,
+        .stApp button, .stApp li, .stApp h1, .stApp h2, .stApp h3, .stApp h4,
+        .stApp span:not([data-testid="stIconMaterial"]) {{
+            font-family: 'Fustat', 'Segoe UI', sans-serif;
+        }}
+        /* Los iconos de Streamlit usan su propia fuente: si se les cambia, en vez
+           del icono aparece su nombre en texto (p. ej. «keyboard_double»). */
+        [data-testid="stIconMaterial"], .material-symbols-rounded {{
+            font-family: 'Material Symbols Rounded' !important;
+        }}
+
+        .stApp {{ background-color: {COLOR_FONDO}; color: {COLOR_NAVY}; }}
+
+        /* Títulos */
+        h1 {{ color: {COLOR_NAVY}; font-weight: 800; }}
+        h2 {{
+            color: {COLOR_NAVY};
+            font-size: 1.7em;
+            font-weight: 800;
+            margin-top: 10px;
+            padding-bottom: 6px;
+            border-bottom: 3px solid {COLOR_AMBAR};
+            display: inline-block;
+        }}
+        h3 {{ color: {COLOR_NAVY}; font-size: 1.25em; font-weight: 700; margin-top: 10px; }}
+        h4 {{ color: {COLOR_GRIS}; font-weight: 600; }}
+
+        /* Botones: ámbar con texto navy (más legible que el blanco sobre ámbar) */
+        .stButton button, .stDownloadButton button {{
+            background-color: {COLOR_AMBAR};
+            color: {COLOR_NAVY};
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            transition: all 0.2s ease;
+        }}
+        .stButton button:hover, .stDownloadButton button:hover {{
+            background-color: #f5a11f;
+            color: {COLOR_NAVY};
+            border: none;
+        }}
+        .stButton button:focus:not(:active) {{ color: {COLOR_NAVY}; border: none; }}
+        .stButton button:disabled {{
+            background-color: {COLOR_BORDE};
+            color: {COLOR_GRIS_CLARO};
+        }}
+
+        /* Campos de formulario sobre blanco */
+        div[data-baseweb="input"], div[data-baseweb="select"] > div, div[data-baseweb="textarea"] {{
+            background-color: #ffffff;
+            border-color: {COLOR_BORDE};
+            border-radius: 8px;
+        }}
+
+        /* Barra de progreso */
+        .stProgress > div > div > div > div {{ background-color: {COLOR_AMBAR}; }}
+
+        /* Tablas */
+        div[data-testid="stDataFrame"], div[data-testid="stDataEditor"] {{
+            border: 1px solid {COLOR_BORDE};
+            border-radius: 12px;
+            background-color: #ffffff;
+        }}
+
+        hr {{ border-color: {COLOR_BORDE}; }}
+
+        /* Botones secundarios (Atrás, opciones no elegidas, crear otra cartera): contorno en vez
+           de relleno, para que la acción principal de cada pantalla destaque */
+        [class*="st-key-"][class*="_back"] button, [class*="st-key-"][class*="_sec"] button,
+        .st-key-btn_nueva_cartera button {{
+            background-color: #ffffff; color: {COLOR_NAVY}; border: 1px solid #c9cdd3;
+            font-weight: 600;
+        }}
+        [class*="st-key-"][class*="_back"] button:hover, [class*="st-key-"][class*="_sec"] button:hover,
+        .st-key-btn_nueva_cartera button:hover {{
+            background-color: #f1f3f5; color: {COLOR_NAVY}; border: 1px solid #b4b9c1;
+        }}
+        /* Foco visible con teclado */
+        .stButton button:focus-visible, .stDownloadButton button:focus-visible {{
+            outline: 2px solid {COLOR_AMBAR_OSCURO}; outline-offset: 2px;
+        }}
+        /* Superficies del navegador con la paleta de la marca */
+        ::selection {{ background: {COLOR_AMBAR_CLARO}; color: {COLOR_NAVY}; }}
+        .stApp input, .stApp textarea {{ caret-color: {COLOR_AMBAR_OSCURO}; }}
+        .stApp a {{ color: {COLOR_AMBAR_OSCURO}; text-underline-offset: 2px; }}
+        /* Cifras alineadas en columnas */
+        .kpi-valor, .tarjeta-valor, .tabla-comp td {{ font-variant-numeric: tabular-nums; }}
+
+        /* Pantallas táctiles: zonas de pulsación de al menos 44 px */
+        @media (pointer: coarse) {{
+            .stButton button, .stDownloadButton button {{ min-height: 44px; }}
+            .st-key-tabla_cartera div[data-baseweb="input"] {{ min-height: 44px !important; }}
+        }}
+
+        /* Etiquetas que solo se ven en el móvil (en el ordenador las da la cabecera) */
+        .v-movil {{ display: none; }}
+        .etq-movil {{ display: none; font-size: 11px; font-weight: 700; color: {COLOR_GRIS};
+                     letter-spacing: 0.4px; margin: 2px 0 3px 0; }}
+
+        /* ===== MÓVIL (pantallas de menos de 640 px). En el ordenador no cambia nada ===== */
+        @media (max-width: 640px) {{
+            [data-testid="stMainBlockContainer"], .block-container {{
+                padding-left: 1rem !important; padding-right: 1rem !important; padding-top: 2.5rem !important;
+            }}
+            .titulo-app {{ font-size: 27px !important; }}
+            .marca-app {{ font-size: 18px !important; }}
+            .stApp h2, .stApp [data-testid="stMarkdownContainer"] h2 {{ font-size: 1.4rem !important; }}
+            .stApp h3, .stApp [data-testid="stMarkdownContainer"] h3 {{ font-size: 1.15rem !important; }}
+            .stApp h4, .stApp [data-testid="stMarkdownContainer"] h4 {{ font-size: 1.02rem !important; }}
+            /* El icono de enlace junto a los títulos se ve siempre en el móvil: se oculta */
+            [data-testid="stHeaderActionElements"] {{ display: none !important; }}
+            .etq-movil {{ display: block; }}
+            /* Filas de navegación: la acción principal (Siguiente) primero y sin huecos vacíos */
+            [data-testid="stHorizontalBlock"]:has([class*="_back"]) {{ flex-direction: column-reverse; }}
+            [data-testid="stHorizontalBlock"]:has([class*="_back"]) > [data-testid="stColumn"]:not(:has(button)) {{
+                display: none;
+            }}
+            .v-escritorio {{ display: none; }}
+            .v-movil {{ display: inline !important; }}
+
+            /* Tarjetas de resumen del Paso 5: de dos en dos en vez de una debajo de otra */
+            [data-testid="stHorizontalBlock"]:has(.tarjeta) {{ flex-wrap: wrap; gap: 0.6rem !important; row-gap: 0.6rem !important; }}
+            [data-testid="stHorizontalBlock"]:has(.tarjeta) > [data-testid="stColumn"] {{
+                flex: 1 1 calc(50% - 0.6rem) !important; min-width: calc(50% - 0.6rem) !important;
+                width: calc(50% - 0.6rem) !important;
+            }}
+            .tarjeta {{ padding: 10px 12px !important; min-height: 88px !important; margin-bottom: 1rem; }}
+            .tarjeta-valor {{ font-size: 19px !important; }}
+            .tarjeta-titulo, .tarjeta-sub {{ font-size: 11px !important; }}
+
+            /* Tabla de la comparativa por estatus: más compacta */
+            .tabla-comp td {{ padding: 8px 3px !important; font-size: 11px !important; }}
+            .tabla-comp td:first-child {{ min-width: 78px; max-width: 96px; padding-left: 7px !important;
+                                         white-space: normal !important; position: sticky; left: 0;
+                                         background: inherit; z-index: 1; }}
+
+            /* Mapa: se recorta el espacio vacío de arriba y abajo */
+            .st-key-mapa [data-testid="stVegaLiteChart"] {{
+                height: 56vw !important; overflow: hidden; display: flex; align-items: center;
+            }}
+        }}
+    </style>
+    """, unsafe_allow_html=True)
