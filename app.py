@@ -4,8 +4,8 @@ Streamlit App - Simulador de cartera inmobiliaria (Reental Wealth)
 
 Pasos:
 1. Datos cliente (nombre, email, capital, divisa)
-2. Estatus (Reentel, ReentelPro, SuperReentel)
-3. Parámetros (objetivo, mercados, distribución)
+2. Estrategia (objetivo y mercados)
+3. Estatus (Reentel, ReentelPro, SuperReentel)
 4. Cartera (proyectos disponibles ordenados según las preferencias + reparto)
 5. Resumen (tabla cartera + proyecciones + descargar PDF)
 
@@ -14,8 +14,8 @@ ESTRUCTURA DE ARCHIVOS
   modules/comun.py            → colores, constantes y funciones comunes (formatos, divisas, proyectos…)
   modules/estilos.py          → CSS de toda la app
   modules/paso1_datos.py      → Paso 1: datos del cliente
-  modules/paso2_estatus.py    → Paso 2: estatus RNT
-  modules/paso3_preferencias.py → Paso 3: objetivo y mercados
+  modules/paso2_preferencias.py → Paso 2: objetivo y mercados
+  modules/paso3_estatus.py    → Paso 3: estatus
   modules/paso4_cartera.py    → Paso 4: proyectos y reparto de la cartera
   modules/paso5_resumen.py    → Paso 5: resumen, comparativa y PDF
 """
@@ -32,7 +32,7 @@ st.set_page_config(
 
 from modules.comun import *  # noqa: F401,F403
 from modules.estilos import aplicar_estilos
-from modules import paso1_datos, paso2_estatus, paso3_preferencias, paso4_cartera, paso5_resumen
+from modules import paso1_datos, paso2_preferencias, paso3_estatus, paso4_cartera, paso5_resumen
 
 aplicar_estilos()
 
@@ -99,8 +99,16 @@ with col2:
 
 st.markdown("")
 
+# ========== BOTÓN FLOTANTE PARA AGENDAR (pasos 1 a 4) ==========
+# El objetivo de la herramienta es que el cliente agende una reunión: el botón
+# está siempre a mano. En el Paso 5 lo sustituye un recuadro destacado.
+if st.session_state.paso_actual < 5:
+    st.markdown(f"<a class='cta-flotante' href='{URL_AGENDA}' target='_blank' rel='noopener'>"
+                f"<span class='cta-dudas'>¿Tienes dudas?</span> Habla con nuestro equipo</a>",
+                unsafe_allow_html=True)
+
 # ========== PASO ACTUAL ==========
-PASOS = {1: paso1_datos, 2: paso2_estatus, 3: paso3_preferencias, 4: paso4_cartera, 5: paso5_resumen}
+PASOS = {1: paso1_datos, 2: paso2_preferencias, 3: paso3_estatus, 4: paso4_cartera, 5: paso5_resumen}
 PASOS.get(st.session_state.paso_actual, paso1_datos).mostrar()
 
 
