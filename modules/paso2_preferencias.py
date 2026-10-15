@@ -1,11 +1,11 @@
 """
-PASO 3 - Objetivo de inversión y mercados.
+PASO 2 - Objetivo de inversión y mercados.
 """
 from modules.comun import *  # noqa: F401,F403  (constantes, colores y funciones comunes)
 
 
 def mostrar():
-    st.markdown("## Paso 3: Define tu estrategia de inversión")
+    st.markdown("## Paso 2: Define tu estrategia de inversión")
     st.markdown("")
     
     col1, col2 = st.columns(2)
@@ -49,30 +49,20 @@ def mostrar():
     
     col1, col2, col3 = st.columns([1, 1, 1])
     with col1:
-        if st.button("< Atrás", use_container_width=True, key="btn_paso3_back"):
-            st.session_state.paso_actual = 2
+        if st.button("< Atrás", use_container_width=True, key="btn_paso2_back"):
+            st.session_state.paso_actual = 1
             st.rerun()
     
     with col3:
-        estatus_seleccionado = st.session_state.datos_cliente.get('estatus')
-        
-        # Validar que TODOS los campos estén completos (no None)
-        if objetivo is not None and mercados_seleccionados and estatus_seleccionado is not None:
-            if st.button("Siguiente >", use_container_width=True, key="btn_paso3_next"):
+        # Validar que estén el objetivo y al menos un mercado
+        if objetivo is not None and mercados_seleccionados:
+            if st.button("Siguiente >", use_container_width=True, key="btn_paso2_next"):
                 st.session_state.datos_cliente['objetivo'] = objetivo
                 st.session_state.datos_cliente['mercados'] = mercados_seleccionados
-                
-                # Cargar TODOS los proyectos (incluidos cerrados con OTC)
-                try:
-                    st.session_state.df_proyectos = cargar_todos_proyectos()
-                    st.session_state.paso_actual = 4
-                    st.rerun()
-                except Exception as e:
-                    print(f"❌ Error cargando proyectos: {e}")
-                    traceback.print_exc()
-                    st.error("No hemos podido cargar los proyectos. Inténtalo de nuevo en unos minutos.")
+                st.session_state.paso_actual = 3
+                st.rerun()
         else:
-            st.button("Siguiente >", use_container_width=True, disabled=True, key="btn_paso3_next_disabled")
+            st.button("Siguiente >", use_container_width=True, disabled=True, key="btn_paso2_next_disabled")
             faltan = [n for n, ok in (("el objetivo de inversión", objetivo is not None),
                                       ("al menos un mercado", bool(mercados_seleccionados))) if not ok]
             if faltan:
