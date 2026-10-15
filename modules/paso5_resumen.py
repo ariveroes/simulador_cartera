@@ -209,17 +209,33 @@ def mostrar():
         
         # ----- Tabla de proyectos -----
         if filas_tabla:
-            st.dataframe(
-                pd.DataFrame(filas_tabla),
-                use_container_width=True,
-                hide_index=True,
-                column_config={
-                    'Proyecto': st.column_config.Column(pinned=True),
-                    'Rentabilidad anualizada': st.column_config.NumberColumn(format='%.2f%%'),
-                    'Rentabilidad total': st.column_config.NumberColumn(format='%.2f%%'),
-                    '% cartera': st.column_config.NumberColumn(format='%.1f%%'),
-                }
-            )
+            # Ordenador: tabla. Móvil: una tarjeta por proyecto (estilos.py elige cuál se ve)
+            with st.container(key="vista_tabla_resumen"):
+                st.dataframe(
+                    pd.DataFrame(filas_tabla),
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        'Proyecto': st.column_config.Column(pinned=True),
+                        'Rentabilidad anualizada': st.column_config.NumberColumn(format='%.2f%%'),
+                        'Rentabilidad total': st.column_config.NumberColumn(format='%.2f%%'),
+                        '% cartera': st.column_config.NumberColumn(format='%.1f%%'),
+                    }
+                )
+            with st.container(key="vista_tarjetas_resumen"):
+                for f in filas_tabla:
+                    st.markdown(html_seguro(
+                        f"<div class='tm-tarjeta'>"
+                        f"<div style='display:flex; justify-content:space-between; gap:8px; align-items:baseline;'>"
+                        f"<span class='tm-nombre'>{f['Proyecto']}</span>"
+                        f"<span class='tm-pct'>{es(f['% cartera'], 1)} %</span></div>"
+                        f"<div class='tm-sub'>{f['Ubicación']} · {f['Tipo de dividendo']}</div>"
+                        f"<div class='tm-datos dos'>"
+                        f"<div><span>Invertido</span><b>{f['Importe invertido']}</b></div>"
+                        f"<div><span>Precio de compra</span><b>{f['Precio de compra']}</b></div>"
+                        f"<div><span>Rent. anual</span><b>{es(f['Rentabilidad anualizada'], 2)} %</b></div>"
+                        f"<div><span>Rent. total</span><b>{es(f['Rentabilidad total'] or 0, 2)} %</b></div>"
+                        f"</div></div>"), unsafe_allow_html=True)
         
         # ----- Gráficos -----
         if filas_graficos:
