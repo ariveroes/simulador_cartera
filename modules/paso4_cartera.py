@@ -78,6 +78,10 @@ def mostrar():
                                                 na_position='last', kind='stable')
             if ingresos_pasivos:
                 df_display = priorizar_rentas(df_display)
+            # Enlace al dossier comercial (columna CQ del Master)
+            if 'dossier' in df_disponibles.columns:
+                dossier_por_id = dict(zip(df_disponibles['ID'], df_disponibles['dossier']))
+                df_display['Dossier'] = df_display['ID'].map(dossier_por_id).fillna('')
             ids_seleccionados = tabla_seleccionable(df_display, "tabla_proyectos")
             if fuera_de_mercado:
                 plural = 's' if fuera_de_mercado != 1 else ''
