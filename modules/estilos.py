@@ -95,7 +95,6 @@ def aplicar_estilos():
         .stApp input, .stApp textarea {{ caret-color: {COLOR_AMBAR_OSCURO}; }}
         .stApp a {{ color: {COLOR_AMBAR_OSCURO}; text-underline-offset: 2px; }}
         /* Cifras alineadas en columnas */
-        .kpi-valor, .tarjeta-valor, .tabla-comp td {{ font-variant-numeric: tabular-nums; }}
 
         /* Pantallas táctiles: zonas de pulsación de al menos 44 px */
         @media (pointer: coarse) {{
@@ -160,21 +159,31 @@ def aplicar_estilos():
         [class*="st-key-tm_"] [data-testid="stMarkdownContainer"] {{ margin-bottom: 0 !important; }}
         [class*="st-key-tm_"] label {{ min-height: 44px; align-items: center; font-weight: 600; }}
         .tm-nombre {{ font-weight: 700; font-size: 16px; color: {COLOR_NAVY}; }}
-        .tm-pct {{ font-weight: 800; color: {COLOR_AMBAR_OSCURO}; font-variant-numeric: tabular-nums; }}
+        .tm-pct {{ font-weight: 800; color: {COLOR_AMBAR_OSCURO}; }}
         .tm-sub {{ font-size: 13px; color: {COLOR_GRIS}; margin: 2px 0 8px 0; }}
         .tm-datos {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 12px; }}
         .tm-datos.dos {{ grid-template-columns: repeat(2, 1fr); }}
         /* Tarjetas de selección de proyectos (Paso 4): nombre junto a la casilla y datos debajo */
         [class*="st-key-tm_"] [data-testid="stCheckbox"] label p {{
-            font-size: 17px; font-weight: 700; color: {COLOR_NAVY};
+            font-size: 16px; font-weight: 700; color: {COLOR_NAVY};
         }}
-        .tm-proyecto {{ grid-template-columns: repeat(6, minmax(0, 1fr)); padding-left: 28px; margin-top: 2px; }}
-        .tm-proyecto .tm-texto {{ font-size: 14px; font-weight: 600; }}
+        /* Tarjetas de selección de proyectos (Paso 4), compactas */
+        [class*="st-key-tm_"]:has(.tm-proyecto) {{ padding: 8px 14px 10px 14px; margin-bottom: 0.55rem; }}
+        [class*="st-key-tm_"]:has(.tm-proyecto) div[data-testid="stVerticalBlock"],
+        [class*="st-key-tm_"]:has(.tm-proyecto) {{ gap: 0 !important; }}
+        [class*="st-key-tm_"]:has(.tm-proyecto) label {{ min-height: 30px; }}
+        /* Columnas: país | rent. anualizada | rent. total | precio | tipo de rendimientos (más ancha) | dossier */
+        .tm-proyecto {{
+            grid-template-columns: 0.8fr 1fr 1fr 0.9fr 2.4fr 0.9fr; align-items: end;
+            padding-left: 28px; gap: 4px 14px;
+        }}
+        .tm-proyecto .tm-pais {{ font-size: 15px; font-weight: 600; color: {COLOR_NAVY}; }}
+        .tm-proyecto .tm-texto {{ font-size: 14px; font-weight: 600; white-space: nowrap; }}
         .tm-proyecto a {{ font-weight: 700; text-decoration: none; }}
         .tm-datos div {{ display: flex; flex-direction: column; }}
         .tm-datos span {{ font-size: 11px; font-weight: 700; color: {COLOR_GRIS}; letter-spacing: 0.3px;
                          text-transform: uppercase; }}
-        .tm-datos b {{ font-size: 15px; color: {COLOR_NAVY}; font-variant-numeric: tabular-nums; }}
+        .tm-datos b {{ font-size: 15px; color: {COLOR_NAVY}; }}
 
         /* Etiquetas que solo se ven en el móvil (en el ordenador las da la cabecera) */
         .v-movil {{ display: none; }}
@@ -218,7 +227,15 @@ def aplicar_estilos():
             .stApp input, .stApp textarea {{ font-size: 16px !important; }}
 
             /* Tarjetas de proyectos: datos en dos columnas */
-            .tm-proyecto {{ grid-template-columns: repeat(2, minmax(0, 1fr)); padding-left: 0; }}
+            .tm-proyecto {{
+                grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(3, auto);
+                grid-auto-flow: column; padding-left: 0; gap: 6px 14px; align-items: start;
+            }}
+            /* El país (sin título) a la altura del valor del precio */
+            .tm-proyecto div:has(> .tm-pais) {{ align-self: end; }}
+            .tm-proyecto .tm-texto {{ white-space: normal; }}
+            .tm-datos span {{ font-size: 10.5px; }}
+            .tm-datos b {{ font-size: 14px; }}
             /* Tablas → tarjetas */
             [class*="st-key-vista_tabla_"] {{ display: none; }}
             [class*="st-key-vista_tarjetas_"] {{ display: block; }}
