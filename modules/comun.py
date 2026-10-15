@@ -25,19 +25,252 @@ URL_AGENDA = "https://api.leadconnectorhq.com/widget/booking/kAzM5NH9hFxtc88sTQK
 
 # ========== PREFIJOS TELEFÓNICOS (Paso 1) ==========
 # (bandera, código del país, prefijo). El primero es el que sale por defecto.
+# Todos los países (fuente: el plan internacional de numeración de la UIT, vía la
+# librería phonenumbers). España primero; el resto, por orden alfabético en español.
 PREFIJOS_TELEFONO = [
-    ("🇪🇸", "ESP", "+34"), ("🇵🇹", "PRT", "+351"), ("🇫🇷", "FRA", "+33"), ("🇮🇹", "ITA", "+39"),
-    ("🇩🇪", "DEU", "+49"), ("🇬🇧", "GBR", "+44"), ("🇮🇪", "IRL", "+353"), ("🇳🇱", "NLD", "+31"),
-    ("🇧🇪", "BEL", "+32"), ("🇱🇺", "LUX", "+352"), ("🇨🇭", "CHE", "+41"), ("🇦🇹", "AUT", "+43"),
-    ("🇦🇩", "AND", "+376"), ("🇲🇨", "MCO", "+377"), ("🇸🇪", "SWE", "+46"), ("🇳🇴", "NOR", "+47"),
-    ("🇩🇰", "DNK", "+45"), ("🇫🇮", "FIN", "+358"), ("🇵🇱", "POL", "+48"), ("🇬🇷", "GRC", "+30"),
-    ("🇺🇸", "USA", "+1"), ("🇨🇦", "CAN", "+1"), ("🇲🇽", "MEX", "+52"), ("🇨🇴", "COL", "+57"),
-    ("🇦🇷", "ARG", "+54"), ("🇨🇱", "CHL", "+56"), ("🇵🇪", "PER", "+51"), ("🇻🇪", "VEN", "+58"),
-    ("🇪🇨", "ECU", "+593"), ("🇺🇾", "URY", "+598"), ("🇵🇾", "PRY", "+595"), ("🇧🇴", "BOL", "+591"),
-    ("🇵🇦", "PAN", "+507"), ("🇨🇷", "CRI", "+506"), ("🇬🇹", "GTM", "+502"), ("🇩🇴", "DOM", "+1"),
-    ("🇧🇷", "BRA", "+55"), ("🇦🇪", "ARE", "+971"), ("🇸🇦", "SAU", "+966"), ("🇮🇱", "ISR", "+972"),
-    ("🇲🇦", "MAR", "+212"), ("🇿🇦", "ZAF", "+27"), ("🇦🇺", "AUS", "+61"), ("🇸🇬", "SGP", "+65"),
-    ("🇭🇰", "HKG", "+852"), ("🇯🇵", "JPN", "+81"), ("🇨🇳", "CHN", "+86"), ("🇮🇳", "IND", "+91"),
+    ("🇪🇸", "ESP", "+34"),  # España
+    ("🇦🇫", "AFG", "+93"),  # Afganistán
+    ("🇦🇱", "ALB", "+355"),  # Albania
+    ("🇩🇪", "DEU", "+49"),  # Alemania
+    ("🇦🇩", "AND", "+376"),  # Andorra
+    ("🇦🇴", "AGO", "+244"),  # Angola
+    ("🇦🇮", "AIA", "+1"),  # Anguila
+    ("🇦🇬", "ATG", "+1"),  # Antigua y Barbuda
+    ("🇸🇦", "SAU", "+966"),  # Arabia Saudí
+    ("🇩🇿", "DZA", "+213"),  # Argelia
+    ("🇦🇷", "ARG", "+54"),  # Argentina
+    ("🇦🇲", "ARM", "+374"),  # Armenia
+    ("🇦🇼", "ABW", "+297"),  # Aruba
+    ("🇦🇺", "AUS", "+61"),  # Australia
+    ("🇦🇹", "AUT", "+43"),  # Austria
+    ("🇦🇿", "AZE", "+994"),  # Azerbaiyán
+    ("🇧🇸", "BHS", "+1"),  # Bahamas
+    ("🇧🇩", "BGD", "+880"),  # Bangladés
+    ("🇧🇧", "BRB", "+1"),  # Barbados
+    ("🇧🇭", "BHR", "+973"),  # Baréin
+    ("🇧🇪", "BEL", "+32"),  # Bélgica
+    ("🇧🇿", "BLZ", "+501"),  # Belice
+    ("🇧🇯", "BEN", "+229"),  # Benín
+    ("🇧🇲", "BMU", "+1"),  # Bermudas
+    ("🇧🇾", "BLR", "+375"),  # Bielorrusia
+    ("🇧🇴", "BOL", "+591"),  # Bolivia
+    ("🇧🇦", "BIH", "+387"),  # Bosnia y Herzegovina
+    ("🇧🇼", "BWA", "+267"),  # Botsuana
+    ("🇧🇷", "BRA", "+55"),  # Brasil
+    ("🇧🇳", "BRN", "+673"),  # Brunéi
+    ("🇧🇬", "BGR", "+359"),  # Bulgaria
+    ("🇧🇫", "BFA", "+226"),  # Burkina Faso
+    ("🇧🇮", "BDI", "+257"),  # Burundi
+    ("🇧🇹", "BTN", "+975"),  # Bután
+    ("🇨🇻", "CPV", "+238"),  # Cabo Verde
+    ("🇰🇭", "KHM", "+855"),  # Camboya
+    ("🇨🇲", "CMR", "+237"),  # Camerún
+    ("🇨🇦", "CAN", "+1"),  # Canadá
+    ("🇧🇶", "BES", "+599"),  # Caribe neerlandés
+    ("🇶🇦", "QAT", "+974"),  # Catar
+    ("🇹🇩", "TCD", "+235"),  # Chad
+    ("🇨🇿", "CZE", "+420"),  # Chequia
+    ("🇨🇱", "CHL", "+56"),  # Chile
+    ("🇨🇳", "CHN", "+86"),  # China
+    ("🇨🇾", "CYP", "+357"),  # Chipre
+    ("🇻🇦", "VAT", "+39"),  # Ciudad del Vaticano
+    ("🇨🇴", "COL", "+57"),  # Colombia
+    ("🇰🇲", "COM", "+269"),  # Comoras
+    ("🇨🇬", "COG", "+242"),  # Congo
+    ("🇰🇵", "PRK", "+850"),  # Corea del Norte
+    ("🇰🇷", "KOR", "+82"),  # Corea del Sur
+    ("🇨🇷", "CRI", "+506"),  # Costa Rica
+    ("🇨🇮", "CIV", "+225"),  # Côte d’Ivoire
+    ("🇭🇷", "HRV", "+385"),  # Croacia
+    ("🇨🇺", "CUB", "+53"),  # Cuba
+    ("🇨🇼", "CUW", "+599"),  # Curazao
+    ("🇩🇰", "DNK", "+45"),  # Dinamarca
+    ("🇩🇲", "DMA", "+1"),  # Dominica
+    ("🇪🇨", "ECU", "+593"),  # Ecuador
+    ("🇪🇬", "EGY", "+20"),  # Egipto
+    ("🇸🇻", "SLV", "+503"),  # El Salvador
+    ("🇦🇪", "ARE", "+971"),  # Emiratos Árabes Unidos
+    ("🇪🇷", "ERI", "+291"),  # Eritrea
+    ("🇸🇰", "SVK", "+421"),  # Eslovaquia
+    ("🇸🇮", "SVN", "+386"),  # Eslovenia
+    ("🇺🇸", "USA", "+1"),  # Estados Unidos
+    ("🇪🇪", "EST", "+372"),  # Estonia
+    ("🇸🇿", "SWZ", "+268"),  # Esuatini
+    ("🇪🇹", "ETH", "+251"),  # Etiopía
+    ("🇵🇭", "PHL", "+63"),  # Filipinas
+    ("🇫🇮", "FIN", "+358"),  # Finlandia
+    ("🇫🇯", "FJI", "+679"),  # Fiyi
+    ("🇫🇷", "FRA", "+33"),  # Francia
+    ("🇬🇦", "GAB", "+241"),  # Gabón
+    ("🇬🇲", "GMB", "+220"),  # Gambia
+    ("🇬🇪", "GEO", "+995"),  # Georgia
+    ("🇬🇭", "GHA", "+233"),  # Ghana
+    ("🇬🇮", "GIB", "+350"),  # Gibraltar
+    ("🇬🇩", "GRD", "+1"),  # Granada
+    ("🇬🇷", "GRC", "+30"),  # Grecia
+    ("🇬🇱", "GRL", "+299"),  # Groenlandia
+    ("🇬🇵", "GLP", "+590"),  # Guadalupe
+    ("🇬🇺", "GUM", "+1"),  # Guam
+    ("🇬🇹", "GTM", "+502"),  # Guatemala
+    ("🇬🇫", "GUF", "+594"),  # Guayana Francesa
+    ("🇬🇬", "GGY", "+44"),  # Guernesey
+    ("🇬🇳", "GIN", "+224"),  # Guinea
+    ("🇬🇶", "GNQ", "+240"),  # Guinea Ecuatorial
+    ("🇬🇼", "GNB", "+245"),  # Guinea-Bisáu
+    ("🇬🇾", "GUY", "+592"),  # Guyana
+    ("🇭🇹", "HTI", "+509"),  # Haití
+    ("🇭🇳", "HND", "+504"),  # Honduras
+    ("🇭🇺", "HUN", "+36"),  # Hungría
+    ("🇮🇳", "IND", "+91"),  # India
+    ("🇮🇩", "IDN", "+62"),  # Indonesia
+    ("🇮🇶", "IRQ", "+964"),  # Irak
+    ("🇮🇷", "IRN", "+98"),  # Irán
+    ("🇮🇪", "IRL", "+353"),  # Irlanda
+    ("🇮🇲", "IMN", "+44"),  # Isla de Man
+    ("🇨🇽", "CXR", "+61"),  # Isla de Navidad
+    ("🇳🇫", "NFK", "+672"),  # Isla Norfolk
+    ("🇮🇸", "ISL", "+354"),  # Islandia
+    ("🇦🇽", "ALA", "+358"),  # Islas Aland
+    ("🇰🇾", "CYM", "+1"),  # Islas Caimán
+    ("🇨🇨", "CCK", "+61"),  # Islas Cocos
+    ("🇨🇰", "COK", "+682"),  # Islas Cook
+    ("🇫🇴", "FRO", "+298"),  # Islas Feroe
+    ("🇫🇰", "FLK", "+500"),  # Islas Malvinas
+    ("🇲🇵", "MNP", "+1"),  # Islas Marianas del Norte
+    ("🇲🇭", "MHL", "+692"),  # Islas Marshall
+    ("🇸🇧", "SLB", "+677"),  # Islas Salomón
+    ("🇹🇨", "TCA", "+1"),  # Islas Turcas y Caicos
+    ("🇻🇬", "VGB", "+1"),  # Islas Vírgenes Británicas
+    ("🇻🇮", "VIR", "+1"),  # Islas Vírgenes de EE. UU.
+    ("🇮🇱", "ISR", "+972"),  # Israel
+    ("🇮🇹", "ITA", "+39"),  # Italia
+    ("🇯🇲", "JAM", "+1"),  # Jamaica
+    ("🇯🇵", "JPN", "+81"),  # Japón
+    ("🇯🇪", "JEY", "+44"),  # Jersey
+    ("🇯🇴", "JOR", "+962"),  # Jordania
+    ("🇰🇿", "KAZ", "+7"),  # Kazajistán
+    ("🇰🇪", "KEN", "+254"),  # Kenia
+    ("🇰🇬", "KGZ", "+996"),  # Kirguistán
+    ("🇰🇮", "KIR", "+686"),  # Kiribati
+    ("🇽🇰", "XKX", "+383"),  # Kosovo
+    ("🇰🇼", "KWT", "+965"),  # Kuwait
+    ("🇱🇦", "LAO", "+856"),  # Laos
+    ("🇱🇸", "LSO", "+266"),  # Lesoto
+    ("🇱🇻", "LVA", "+371"),  # Letonia
+    ("🇱🇧", "LBN", "+961"),  # Líbano
+    ("🇱🇷", "LBR", "+231"),  # Liberia
+    ("🇱🇾", "LBY", "+218"),  # Libia
+    ("🇱🇮", "LIE", "+423"),  # Liechtenstein
+    ("🇱🇹", "LTU", "+370"),  # Lituania
+    ("🇱🇺", "LUX", "+352"),  # Luxemburgo
+    ("🇲🇰", "MKD", "+389"),  # Macedonia del Norte
+    ("🇲🇬", "MDG", "+261"),  # Madagascar
+    ("🇲🇾", "MYS", "+60"),  # Malasia
+    ("🇲🇼", "MWI", "+265"),  # Malaui
+    ("🇲🇻", "MDV", "+960"),  # Maldivas
+    ("🇲🇱", "MLI", "+223"),  # Mali
+    ("🇲🇹", "MLT", "+356"),  # Malta
+    ("🇲🇦", "MAR", "+212"),  # Marruecos
+    ("🇲🇶", "MTQ", "+596"),  # Martinica
+    ("🇲🇺", "MUS", "+230"),  # Mauricio
+    ("🇲🇷", "MRT", "+222"),  # Mauritania
+    ("🇾🇹", "MYT", "+262"),  # Mayotte
+    ("🇲🇽", "MEX", "+52"),  # México
+    ("🇫🇲", "FSM", "+691"),  # Micronesia
+    ("🇲🇩", "MDA", "+373"),  # Moldavia
+    ("🇲🇨", "MCO", "+377"),  # Mónaco
+    ("🇲🇳", "MNG", "+976"),  # Mongolia
+    ("🇲🇪", "MNE", "+382"),  # Montenegro
+    ("🇲🇸", "MSR", "+1"),  # Montserrat
+    ("🇲🇿", "MOZ", "+258"),  # Mozambique
+    ("🇲🇲", "MMR", "+95"),  # Myanmar (Birmania)
+    ("🇳🇦", "NAM", "+264"),  # Namibia
+    ("🇳🇷", "NRU", "+674"),  # Nauru
+    ("🇳🇵", "NPL", "+977"),  # Nepal
+    ("🇳🇮", "NIC", "+505"),  # Nicaragua
+    ("🇳🇪", "NER", "+227"),  # Níger
+    ("🇳🇬", "NGA", "+234"),  # Nigeria
+    ("🇳🇺", "NIU", "+683"),  # Niue
+    ("🇳🇴", "NOR", "+47"),  # Noruega
+    ("🇳🇨", "NCL", "+687"),  # Nueva Caledonia
+    ("🇳🇿", "NZL", "+64"),  # Nueva Zelanda
+    ("🇴🇲", "OMN", "+968"),  # Omán
+    ("🇳🇱", "NLD", "+31"),  # Países Bajos
+    ("🇵🇰", "PAK", "+92"),  # Pakistán
+    ("🇵🇼", "PLW", "+680"),  # Palaos
+    ("🇵🇦", "PAN", "+507"),  # Panamá
+    ("🇵🇬", "PNG", "+675"),  # Papúa Nueva Guinea
+    ("🇵🇾", "PRY", "+595"),  # Paraguay
+    ("🇵🇪", "PER", "+51"),  # Perú
+    ("🇵🇫", "PYF", "+689"),  # Polinesia Francesa
+    ("🇵🇱", "POL", "+48"),  # Polonia
+    ("🇵🇹", "PRT", "+351"),  # Portugal
+    ("🇵🇷", "PRI", "+1"),  # Puerto Rico
+    ("🇭🇰", "HKG", "+852"),  # RAE de Hong Kong (China)
+    ("🇲🇴", "MAC", "+853"),  # RAE de Macao (China)
+    ("🇬🇧", "GBR", "+44"),  # Reino Unido
+    ("🇨🇫", "CAF", "+236"),  # República Centroafricana
+    ("🇨🇩", "COD", "+243"),  # República Democrática del Congo
+    ("🇩🇴", "DOM", "+1"),  # República Dominicana
+    ("🇷🇪", "REU", "+262"),  # Reunión
+    ("🇷🇼", "RWA", "+250"),  # Ruanda
+    ("🇷🇴", "ROU", "+40"),  # Rumanía
+    ("🇷🇺", "RUS", "+7"),  # Rusia
+    ("🇪🇭", "ESH", "+212"),  # Sáhara Occidental
+    ("🇼🇸", "WSM", "+685"),  # Samoa
+    ("🇦🇸", "ASM", "+1"),  # Samoa Americana
+    ("🇧🇱", "BLM", "+590"),  # San Bartolomé
+    ("🇰🇳", "KNA", "+1"),  # San Cristóbal y Nieves
+    ("🇸🇲", "SMR", "+378"),  # San Marino
+    ("🇲🇫", "MAF", "+590"),  # San Martín
+    ("🇵🇲", "SPM", "+508"),  # San Pedro y Miquelón
+    ("🇻🇨", "VCT", "+1"),  # San Vicente y las Granadinas
+    ("🇸🇭", "SHN", "+290"),  # Santa Elena
+    ("🇱🇨", "LCA", "+1"),  # Santa Lucía
+    ("🇸🇹", "STP", "+239"),  # Santo Tomé y Príncipe
+    ("🇸🇳", "SEN", "+221"),  # Senegal
+    ("🇷🇸", "SRB", "+381"),  # Serbia
+    ("🇸🇨", "SYC", "+248"),  # Seychelles
+    ("🇸🇱", "SLE", "+232"),  # Sierra Leona
+    ("🇸🇬", "SGP", "+65"),  # Singapur
+    ("🇸🇽", "SXM", "+1"),  # Sint Maarten
+    ("🇸🇾", "SYR", "+963"),  # Siria
+    ("🇸🇴", "SOM", "+252"),  # Somalia
+    ("🇱🇰", "LKA", "+94"),  # Sri Lanka
+    ("🇿🇦", "ZAF", "+27"),  # Sudáfrica
+    ("🇸🇩", "SDN", "+249"),  # Sudán
+    ("🇸🇸", "SSD", "+211"),  # Sudán del Sur
+    ("🇸🇪", "SWE", "+46"),  # Suecia
+    ("🇨🇭", "CHE", "+41"),  # Suiza
+    ("🇸🇷", "SUR", "+597"),  # Surinam
+    ("🇸🇯", "SJM", "+47"),  # Svalbard y Jan Mayen
+    ("🇹🇭", "THA", "+66"),  # Tailandia
+    ("🇹🇼", "TWN", "+886"),  # Taiwán
+    ("🇹🇿", "TZA", "+255"),  # Tanzania
+    ("🇹🇯", "TJK", "+992"),  # Tayikistán
+    ("🇮🇴", "IOT", "+246"),  # Territorio Británico del Océano Índico
+    ("🇵🇸", "PSE", "+970"),  # Territorios Palestinos
+    ("🇹🇱", "TLS", "+670"),  # Timor-Leste
+    ("🇹🇬", "TGO", "+228"),  # Togo
+    ("🇹🇰", "TKL", "+690"),  # Tokelau
+    ("🇹🇴", "TON", "+676"),  # Tonga
+    ("🇹🇹", "TTO", "+1"),  # Trinidad y Tobago
+    ("🇹🇳", "TUN", "+216"),  # Túnez
+    ("🇹🇲", "TKM", "+993"),  # Turkmenistán
+    ("🇹🇷", "TUR", "+90"),  # Turquía
+    ("🇹🇻", "TUV", "+688"),  # Tuvalu
+    ("🇺🇦", "UKR", "+380"),  # Ucrania
+    ("🇺🇬", "UGA", "+256"),  # Uganda
+    ("🇺🇾", "URY", "+598"),  # Uruguay
+    ("🇺🇿", "UZB", "+998"),  # Uzbekistán
+    ("🇻🇺", "VUT", "+678"),  # Vanuatu
+    ("🇻🇪", "VEN", "+58"),  # Venezuela
+    ("🇻🇳", "VNM", "+84"),  # Vietnam
+    ("🇼🇫", "WLF", "+681"),  # Wallis y Futuna
+    ("🇾🇪", "YEM", "+967"),  # Yemen
+    ("🇩🇯", "DJI", "+253"),  # Yibuti
+    ("🇿🇲", "ZMB", "+260"),  # Zambia
+    ("🇿🇼", "ZWE", "+263"),  # Zimbabue
 ]
 
 
