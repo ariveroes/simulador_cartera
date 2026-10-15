@@ -19,6 +19,10 @@ from modules.formateo_datos import preparar_proyectos_para_paso4
 from modules.pdf_generator import generar_pdf_cartera
 from modules import leads
 
+# ========== AGENDA DE REUNIONES ==========
+# Enlace para agendar una reunión con el equipo (botón flotante, Paso 2 y Paso 5)
+URL_AGENDA = "https://api.leadconnectorhq.com/widget/booking/kAzM5NH9hFxtc88sTQKy"
+
 # ========== PALETA ==========
 # Paleta del informe mensual de Reental Wealth: ámbar, navy y fondo gris claro,
 # con la tipografía Fustat.
