@@ -113,7 +113,8 @@ if st.session_state.paso_actual < 5:
                 f"<span class='cta-texto'><span class='cta-larga'><span class='cta-dudas'>¿Tienes dudas?</span> "
                 f"Habla con nuestro equipo</span><span class='cta-corta'><span class='cta-dudas'>¿Dudas?</span> "
                 f"Habla con nosotros</span></span>"
-                f"<span class='cta-circulo'>{ICONO_CHAT}</span></a>",
+                f"<span class='cta-circulo'>{ICONO_CHAT}</span>"
+                f"<span class='cta-ayuda'>¿Necesitas ayuda?</span></a>",
                 unsafe_allow_html=True)
 
 # ========== PASO ACTUAL ==========
@@ -140,8 +141,7 @@ st.markdown(f"""
 # cuando cambia el paso y sube la página hasta arriba.
 if st.session_state.get("_paso_mostrado") != st.session_state.paso_actual:
     st.session_state._paso_mostrado = st.session_state.paso_actual
-    import streamlit.components.v1 as _componentes
-    _componentes.html(f"""
+    _script_subir = f"""
     <script>
     // paso {st.session_state.paso_actual}
     (function () {{
@@ -154,4 +154,12 @@ if st.session_state.get("_paso_mostrado") != st.session_state.paso_actual:
         subir(); setTimeout(subir, 150); setTimeout(subir, 500); setTimeout(subir, 1000);
     }})();
     </script>
-    """, height=0)
+    """
+    # st.iframe sustituye a components.html (que Streamlit va a retirar); se usa el
+    # que exista en la versión instalada. El marco es invisible (ver estilos.py).
+    with st.container(key="subir_arriba"):
+        if hasattr(st, "iframe"):
+            st.iframe(_script_subir, height=1)
+        else:
+            import streamlit.components.v1 as _componentes
+            _componentes.html(_script_subir, height=0)
