@@ -115,6 +115,47 @@ st.markdown(f"""
     }}
 
     hr {{ border-color: {COLOR_BORDE}; }}
+
+    /* Etiquetas que solo se ven en el móvil (en el ordenador las da la cabecera) */
+    .v-movil {{ display: none; }}
+    .etq-movil {{ display: none; font-size: 11px; font-weight: 700; color: {COLOR_GRIS};
+                 letter-spacing: 0.4px; margin: 2px 0 3px 0; }}
+
+    /* ===== MÓVIL (pantallas de menos de 640 px). En el ordenador no cambia nada ===== */
+    @media (max-width: 640px) {{
+        [data-testid="stMainBlockContainer"], .block-container {{
+            padding-left: 1rem !important; padding-right: 1rem !important; padding-top: 2.5rem !important;
+        }}
+        .titulo-app {{ font-size: 27px !important; }}
+        .marca-app {{ font-size: 18px !important; }}
+        .stApp h2, .stApp [data-testid="stMarkdownContainer"] h2 {{ font-size: 1.4rem !important; }}
+        .stApp h3, .stApp [data-testid="stMarkdownContainer"] h3 {{ font-size: 1.15rem !important; }}
+        .stApp h4, .stApp [data-testid="stMarkdownContainer"] h4 {{ font-size: 1.02rem !important; }}
+        /* El icono de enlace junto a los títulos se ve siempre en el móvil: se oculta */
+        [data-testid="stHeaderActionElements"] {{ display: none !important; }}
+        .etq-movil {{ display: block; }}
+        .v-escritorio {{ display: none; }}
+        .v-movil {{ display: inline !important; }}
+
+        /* Tarjetas de resumen del Paso 5: de dos en dos en vez de una debajo de otra */
+        [data-testid="stHorizontalBlock"]:has(.tarjeta) {{ flex-wrap: wrap; gap: 0.6rem !important; row-gap: 0.6rem !important; }}
+        [data-testid="stHorizontalBlock"]:has(.tarjeta) > [data-testid="stColumn"] {{
+            flex: 1 1 calc(50% - 0.6rem) !important; min-width: calc(50% - 0.6rem) !important;
+            width: calc(50% - 0.6rem) !important;
+        }}
+        .tarjeta {{ padding: 10px 12px !important; min-height: 88px !important; margin-bottom: 1rem; }}
+        .tarjeta-valor {{ font-size: 19px !important; }}
+        .tarjeta-titulo, .tarjeta-sub {{ font-size: 11px !important; }}
+
+        /* Tabla de la comparativa por estatus: más compacta */
+        .tabla-comp td {{ padding: 8px 4px !important; font-size: 11.5px !important; }}
+        .tabla-comp td:first-child {{ min-width: 84px; padding-left: 8px !important; white-space: normal !important; }}
+
+        /* Mapa: se recorta el espacio vacío de arriba y abajo */
+        .st-key-mapa [data-testid="stVegaLiteChart"] {{
+            height: 56vw !important; overflow: hidden; display: flex; align-items: center;
+        }}
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -391,7 +432,7 @@ def agrupar_ofertas_por_proyecto(ofertas):
 # width admite "small", "medium", "large" o un número de píxeles (ej. 90).
 CONFIG_COLUMNAS_PASO4 = {
     'ID': st.column_config.Column(width="small"),
-    'Nombre del proyecto': st.column_config.Column(width=170),
+    'Nombre del proyecto': st.column_config.Column(width=170, pinned=True),
     'Tipología de dividendo': st.column_config.Column(width="medium"),
     'ESTADO': st.column_config.Column('Estado', width=145),
     'Fecha Inicio Estimada': st.column_config.Column(width="small"),
@@ -598,7 +639,7 @@ def tabla_seleccionable(df_display, key):
         key=key,
         column_config={
             **CONFIG_COLUMNAS_PASO4,
-            'Incluir': st.column_config.CheckboxColumn('Incluir', width=60),
+            'Incluir': st.column_config.CheckboxColumn('Incluir', width=60, pinned=True),
         },
         disabled=[c for c in df_editor.columns if c != 'Incluir'],
     )
@@ -611,9 +652,9 @@ def tabla_seleccionable(df_display, key):
 # ========== HEADER ==========
 st.markdown(f"""
 <div style="padding: 4px 0 10px 0;">
-    <div style="font-size: 22px; font-weight: 800; color: {COLOR_AMBAR};">Reental
+    <div class="marca-app" style="font-size: 22px; font-weight: 800; color: {COLOR_AMBAR};">Reental
         <span style="color: {COLOR_NAVY}; font-weight: 500;">Wealth</span></div>
-    <div style="font-size: 38px; font-weight: 800; color: {COLOR_NAVY}; line-height: 1.15; margin-top: 10px;">
+    <div class="titulo-app" style="font-size: 38px; font-weight: 800; color: {COLOR_NAVY}; line-height: 1.15; margin-top: 10px;">
         Simulador de <span style="color: {COLOR_AMBAR};">cartera inmobiliaria</span></div>
 </div>
 """, unsafe_allow_html=True)
@@ -1282,6 +1323,38 @@ elif st.session_state.paso_actual == 4:
         .proy-sub, .nota-gris {{ font-size: 12px; color: {COLOR_GRIS}; }}
         .barra-pct {{ background: #f1f3f5; border-radius: 4px; height: 8px; width: 100%; }}
         .barra-pct > div {{ background: {COLOR_AMBAR}; border-radius: 4px; height: 8px; }}
+
+        @media (max-width: 640px) {{
+            /* Indicadores: el importe ocupa todo el ancho y los otros tres van en una fila */
+            [data-testid="stHorizontalBlock"]:has(.st-key-kpi_importe) {{ flex-wrap: wrap; gap: 0.5rem; }}
+            [data-testid="stHorizontalBlock"]:has(.st-key-kpi_importe) > [data-testid="stColumn"] {{
+                flex: 1 1 calc(33% - 0.5rem) !important; min-width: calc(33% - 0.5rem) !important;
+                width: calc(33% - 0.5rem) !important;
+            }}
+            [data-testid="stHorizontalBlock"]:has(.st-key-kpi_importe) > [data-testid="stColumn"]:first-child {{
+                flex-basis: 100% !important; min-width: 100% !important; width: 100% !important;
+            }}
+            [class*="st-key-kpi_"] {{ min-height: 0; padding: 10px 10px 8px 10px; }}
+            .kpi-valor {{ font-size: 17px; }}
+            .kpi-titulo {{ font-size: 10.5px; letter-spacing: 0.2px; }}
+            .kpi-sub {{ font-size: 11px; }}
+            .st-key-kpi_pendiente button {{ font-size: 11px; padding: 2px 6px; }}
+
+            /* Filas de proyectos: sin cabecera (cada dato lleva su etiqueta) */
+            .st-key-cab_cartera {{ display: none; }}
+            [class*="st-key-fila_"] {{ padding: 12px 8px; }}
+            [class*="st-key-fila_"] [data-testid="stHorizontalBlock"] {{ flex-wrap: wrap; gap: 0.35rem 0.6rem; }}
+            [class*="st-key-fila_"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {{
+                flex: 1 1 100% !important; min-width: 100% !important; width: 100% !important;
+            }}
+            /* Cantidad y botón «Máx» en la misma línea */
+            [class*="st-key-fila_"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(3) {{
+                flex: 1 1 calc(100% - 76px) !important; min-width: calc(100% - 76px) !important; width: auto !important;
+            }}
+            [class*="st-key-fila_"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(4) {{
+                flex: 0 0 64px !important; min-width: 64px !important; width: 64px !important;
+            }}
+        }}
         </style>
         """, unsafe_allow_html=True)
 
@@ -1447,9 +1520,10 @@ elif st.session_state.paso_actual == 4:
                 col_tipo = None
 
             with _contenedor("tabla_cartera"):
-                c = _columnas()
-                for col, titulo in zip(c, ["PROYECTO", "PRECIO DE COMPRA", titulo_entrada, "", "% DE TU CARTERA"]):
-                    col.markdown(f"<div class='fila-cab'>{titulo or '&nbsp;'}</div>", unsafe_allow_html=True)
+                with _contenedor("cab_cartera"):
+                    c = _columnas()
+                    for col, titulo in zip(c, ["PROYECTO", "PRECIO DE COMPRA", titulo_entrada, "", "% DE TU CARTERA"]):
+                        col.markdown(f"<div class='fila-cab'>{titulo or '&nbsp;'}</div>", unsafe_allow_html=True)
 
                 for n_fila, (pid, o, tokens, importe, rent) in enumerate(filas_calc):
                     row = filas_por_id[pid]
@@ -1472,7 +1546,9 @@ elif st.session_state.paso_actual == 4:
                                        unsafe_allow_html=True)
 
                         # Precio: desplegable solo si hay varias ofertas
+                        etq_precio = "<div class='etq-movil'>PRECIO DE COMPRA</div>"
                         if len(opciones) > 1:
+                            c_precio.markdown(etq_precio, unsafe_allow_html=True)
                             if f"of_{pid}" not in st.session_state:
                                 st.session_state[f"of_{pid}"] = opciones.index(o)
                             c_precio.selectbox(
@@ -1482,10 +1558,11 @@ elif st.session_state.paso_actual == 4:
                                                               if opciones[i]['n_tokens'] is not None else "")),
                                 on_change=_cambiar_oferta, args=(pid, opciones), label_visibility="collapsed")
                         else:
-                            c_precio.markdown(md(_etiqueta(o)))
+                            c_precio.markdown(etq_precio + html_seguro(_etiqueta(o)), unsafe_allow_html=True)
 
                         # Entrada según el modo de reparto + disponibles debajo
                         with c_entrada:
+                            st.markdown(f"<div class='etq-movil'>{titulo_entrada}</div>", unsafe_allow_html=True)
                             if modo == "Por cantidad de tokens":
                                 if f"tk_{pid}" not in st.session_state:
                                     st.session_state[f"tk_{pid}"] = round(tokens, 2)
@@ -1527,6 +1604,7 @@ elif st.session_state.paso_actual == 4:
                                f" · {es(importe, 0)} {simbolo_cliente_p4}" if falta
                                else f"{es(importe, 0)} {simbolo_cliente_p4}")
                         c_pct.markdown(html_seguro(
+                            "<div class='etq-movil'>% DE TU CARTERA</div>"
                             "<div style='display:flex;align-items:center;gap:8px;'>"
                             f"<div class='barra-pct' style='flex:1;'><div style='width:{min(pct, 100):.2f}%;"
                             f"background:{color_barra};'></div></div>"
@@ -1633,10 +1711,10 @@ elif st.session_state.paso_actual == 5:
         def tarjeta(titulo, valor, sub):
             valor, sub = html_seguro(valor), html_seguro(sub)
             return f"""
-            <div style="border: 1px solid {COLOR_BORDE}; border-radius: 12px; padding: 14px 16px; background: #ffffff; min-height: 105px;">
-                <div style="font-size: 12px; font-weight: 700; color: {COLOR_GRIS}; letter-spacing: 0.5px;">{titulo}</div>
-                <div style="font-size: 26px; font-weight: 800; color: {COLOR_NAVY}; margin: 4px 0;">{valor}</div>
-                <div style="font-size: 12px; color: {COLOR_GRIS_CLARO};">{sub}</div>
+            <div class="tarjeta" style="border: 1px solid {COLOR_BORDE}; border-radius: 12px; padding: 14px 16px; background: #ffffff; min-height: 105px;">
+                <div class="tarjeta-titulo" style="font-size: 12px; font-weight: 700; color: {COLOR_GRIS}; letter-spacing: 0.5px;">{titulo}</div>
+                <div class="tarjeta-valor" style="font-size: 26px; font-weight: 800; color: {COLOR_NAVY}; margin: 4px 0;">{valor}</div>
+                <div class="tarjeta-sub" style="font-size: 12px; color: {COLOR_GRIS_CLARO};">{sub}</div>
             </div>
             """
         
@@ -1797,6 +1875,7 @@ elif st.session_state.paso_actual == 5:
                 use_container_width=True,
                 hide_index=True,
                 column_config={
+                    'Proyecto': st.column_config.Column(pinned=True),
                     'Rentabilidad anualizada': st.column_config.NumberColumn(format='%.2f%%'),
                     'Rentabilidad total': st.column_config.NumberColumn(format='%.2f%%'),
                     '% cartera': st.column_config.NumberColumn(format='%.1f%%'),
@@ -1866,10 +1945,16 @@ elif st.session_state.paso_actual == 5:
                              alt.Tooltip('pct:Q', format='.1f', title='% de la inversión')]
                 )
                 
-                mapa = (fondo + invertidos).project('equalEarth').properties(
-                    title='Distribución geográfica de la inversión', height=420
-                )
-                st.altair_chart(mapa, use_container_width=True)
+                mapa = (fondo + invertidos).project('equalEarth').properties(height=420)
+                st.markdown(f"<div style='font-size:15px; font-weight:700; color:{COLOR_NAVY}; "
+                            f"margin-top:12px;'>Distribución geográfica de la inversión</div>",
+                            unsafe_allow_html=True)
+                try:
+                    contenedor_mapa = st.container(key="mapa")
+                except TypeError:
+                    contenedor_mapa = st.container()
+                with contenedor_mapa:
+                    st.altair_chart(mapa, use_container_width=True)
             
             leyenda = " · ".join(
                 f"<span style='color:{COLOR_AMBAR};'>■</span> {r.ubicacion} — {es(r.pct, 1)}%"
@@ -1998,7 +2083,12 @@ elif st.session_state.paso_actual == 5:
             color = COLOR_AMBAR_OSCURO if destacado else (COLOR_GRIS if cabecera else COLOR_NAVY)
             peso = 700 if (negrita or destacado) else (600 if cabecera else 400)
             return (f"<td style='padding:10px 14px; text-align:center; color:{color}; font-weight:{peso}; "
-                    f"border-bottom:1px solid {COLOR_BORDE};'>{texto}</td>")
+                    f"border-bottom:1px solid {COLOR_BORDE}; white-space:nowrap;'>{texto}</td>")
+        
+        def _importe_doble(valor):
+            """Importe completo en el ordenador y sin decimales en el móvil (para que quepa)."""
+            return (f"<span class='v-escritorio'>{fmt(valor)}</span>"
+                    f"<span class='v-movil'>{es(valor, 0)} {simbolo}</span>")
         
         def _fila(etiqueta, valores, destacado=False, negrita=False, cabecera=False):
             fondo = COLOR_FONDO if cabecera else ('#fffaf0' if destacado else '#ffffff')
@@ -2011,15 +2101,16 @@ elif st.session_state.paso_actual == 5:
         
         filas_html = [
             _fila("Escenario", orden_plazos, cabecera=True),
-            _fila(serie_rnt, [fmt(e['g_rnt']) for e in escenarios_web], negrita=True),
-            _fila(serie_comp, [fmt(e['g_comp']) for e in escenarios_web], destacado=True),
+            _fila(serie_rnt, [_importe_doble(e['g_rnt']) for e in escenarios_web], negrita=True),
+            _fila(serie_comp, [_importe_doble(e['g_comp']) for e in escenarios_web], destacado=True),
             _fila("Rent. acumulada Reentel", [f"{es(e['r_rnt'], 2)} %" for e in escenarios_web]),
             _fila(f"Rent. acumulada {nombre_comp}", [f"{es(e['r_comp'], 2)} %" for e in escenarios_web],
                   destacado=True),
         ]
         st.markdown(html_seguro(
-            f"<div style='border:1px solid {COLOR_BORDE}; border-radius:10px; overflow:hidden; margin-top:6px;'>"
-            f"<table style='width:100%; border-collapse:collapse; font-size:14px; margin:0;'>{''.join(filas_html)}</table>"
+            f"<div style='border:1px solid {COLOR_BORDE}; border-radius:10px; overflow-x:auto; margin-top:6px;'>"
+            f"<table class='tabla-comp' style='width:100%; border-collapse:collapse; font-size:14px; margin:0;'>"
+            f"{''.join(filas_html)}</table>"
             f"</div>"
             f"<div style='font-size:12.5px; color:{COLOR_GRIS}; margin:8px 2px 0 2px;'>"
             f"* Incluye los beneficios estimados del staking.</div>"), unsafe_allow_html=True)
