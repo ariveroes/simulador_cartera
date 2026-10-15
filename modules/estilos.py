@@ -103,6 +103,26 @@ def aplicar_estilos():
             .st-key-tabla_cartera div[data-baseweb="input"] {{ min-height: 44px !important; }}
         }}
 
+        /* ===== Tablas (ordenador) y tarjetas (móvil) con los mismos datos ===== */
+        [class*="st-key-vista_tarjetas_"] {{ display: none; }}
+        [class*="st-key-tm_"], .tm-tarjeta {{
+            background: #ffffff; border: 1px solid {COLOR_BORDE}; border-radius: 12px;
+            padding: 12px 14px; margin-bottom: 1.1rem;
+        }}
+        [class*="st-key-tm_"] div[data-testid="stVerticalBlock"] {{ gap: 0.25rem; }}
+        [class*="st-key-tm_"]:has(input:checked) {{ border: 2px solid {COLOR_AMBAR}; background: #fffaf0; }}
+        [class*="st-key-tm_"] [data-testid="stMarkdownContainer"] {{ margin-bottom: 0 !important; }}
+        [class*="st-key-tm_"] label {{ min-height: 44px; align-items: center; font-weight: 600; }}
+        .tm-nombre {{ font-weight: 700; font-size: 16px; color: {COLOR_NAVY}; }}
+        .tm-pct {{ font-weight: 800; color: {COLOR_AMBAR_OSCURO}; font-variant-numeric: tabular-nums; }}
+        .tm-sub {{ font-size: 13px; color: {COLOR_GRIS}; margin: 2px 0 8px 0; }}
+        .tm-datos {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 12px; }}
+        .tm-datos.dos {{ grid-template-columns: repeat(2, 1fr); }}
+        .tm-datos div {{ display: flex; flex-direction: column; }}
+        .tm-datos span {{ font-size: 11px; font-weight: 700; color: {COLOR_GRIS}; letter-spacing: 0.3px;
+                         text-transform: uppercase; }}
+        .tm-datos b {{ font-size: 15px; color: {COLOR_NAVY}; font-variant-numeric: tabular-nums; }}
+
         /* Etiquetas que solo se ven en el móvil (en el ordenador las da la cabecera) */
         .v-movil {{ display: none; }}
         .etq-movil {{ display: none; font-size: 11px; font-weight: 700; color: {COLOR_GRIS};
@@ -121,11 +141,45 @@ def aplicar_estilos():
             /* El icono de enlace junto a los títulos se ve siempre en el móvil: se oculta */
             [data-testid="stHeaderActionElements"] {{ display: none !important; }}
             .etq-movil {{ display: block; }}
-            /* Filas de navegación: la acción principal (Siguiente) primero y sin huecos vacíos */
-            [data-testid="stHorizontalBlock"]:has([class*="_back"]) {{ flex-direction: column-reverse; }}
+            /* Sin zoom automático del iPhone al escribir: casillas de al menos 16 px */
+            .stApp input, .stApp textarea {{ font-size: 16px !important; }}
+
+            /* Tablas → tarjetas */
+            [class*="st-key-vista_tabla_"] {{ display: none; }}
+            [class*="st-key-vista_tarjetas_"] {{ display: block; }}
+
+            /* Paso 2: sin hueco vacío en las tarjetas cortas */
+            .tarjeta-estatus {{ min-height: 0 !important; }}
+
+            /* Filas de navegación: sin huecos vacíos */
             [data-testid="stHorizontalBlock"]:has([class*="_back"]) > [data-testid="stColumn"]:not(:has(button)) {{
                 display: none;
             }}
+            /* Paso 5: la acción principal primero */
+            [data-testid="stHorizontalBlock"]:has(.st-key-btn_paso5_back) {{ flex-direction: column-reverse; }}
+            /* Pasos 2 a 4: «Atrás» y «Siguiente» fijos abajo, uno al lado del otro, siempre a mano */
+            [data-testid="stHorizontalBlock"]:has([class*="_back"]):not(:has(.st-key-btn_paso5_back)) {{
+                position: fixed; left: 0; right: 0; bottom: 0; z-index: 999990;
+                flex-direction: row !important; flex-wrap: nowrap !important; gap: 0.6rem !important;
+                background: {COLOR_FONDO}; border-top: 1px solid {COLOR_BORDE};
+                margin: 0; width: 100% !important;
+                padding: 10px 1rem calc(10px + env(safe-area-inset-bottom));
+                box-shadow: 0 -6px 16px rgba(31, 41, 55, 0.06);
+            }}
+            /* Hueco al final de la página para que la barra no tape el pie */
+            [data-testid="stMainBlockContainer"]:has([class*="_back"]):not(:has(.st-key-btn_paso5_back)) {{
+                padding-bottom: 96px !important;
+            }}
+            [data-testid="stHorizontalBlock"]:has([class*="_back"]):not(:has(.st-key-btn_paso5_back))
+                > [data-testid="stColumn"]:has([class*="_back"]) {{
+                flex: 0 0 34% !important; min-width: 0 !important; width: 34% !important;
+            }}
+            [data-testid="stHorizontalBlock"]:has([class*="_back"]):not(:has(.st-key-btn_paso5_back))
+                > [data-testid="stColumn"]:has(button):not(:has([class*="_back"])) {{
+                flex: 1 1 0 !important; min-width: 0 !important; width: auto !important;
+            }}
+            [data-testid="stHorizontalBlock"]:has([class*="_back"]):not(:has(.st-key-btn_paso5_back))
+                [data-testid="stCaptionContainer"] {{ display: none; }}
             .v-escritorio {{ display: none; }}
             .v-movil {{ display: inline !important; }}
 
