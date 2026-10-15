@@ -5,7 +5,7 @@ Usa la misma cuenta de servicio que maestro.py (st.secrets["gcp_service_account"
 El Sheet se indica en los Secrets:
 
     [leads]
-    sheet_id = "1mBaPpzVWCijgRqZxKNgRiyrra81o86OEi_LloEI8c5M"
+    sheet_id = "ID_DEL_GOOGLE_SHEET"
     pestana  = "Leads"          # opcional, por defecto "Leads"
 
 El Sheet tiene que estar compartido (como Editor) con el email de la cuenta de
@@ -60,37 +60,6 @@ def configurado() -> bool:
         return bool(st.secrets["leads"]["sheet_id"])
     except Exception:
         return False
-
-
-def diagnostico() -> str:
-    """Comprueba la conexión con el Sheet de leads y explica qué falla."""
-    if not configurado():
-        return ("❌ No hay configuración de leads en los Secrets. Añade:\n\n"
-                "[leads]\nsheet_id = \"ID_DEL_SHEET\"")
-    try:
-        email_cuenta = dict(st.secrets["gcp_service_account"]).get("client_email", "?")
-    except Exception:
-        return "❌ Falta la sección [gcp_service_account] en los Secrets."
-    try:
-        _hoja.clear()
-        ws = _hoja()
-        return (f"✅ Conexión correcta con la pestaña «{ws.title}» del Sheet {_sheet_id()}. "
-                f"Los leads se están guardando ahí.")
-    except gspread.exceptions.SpreadsheetNotFound:
-        return (f"❌ La cuenta de servicio no encuentra el Sheet {_sheet_id()}. Revisa que el ID es "
-                f"correcto y que el Sheet está compartido como Editor con {email_cuenta}.")
-    except gspread.exceptions.APIError as e:
-        texto = str(e)
-        if "PERMISSION_DENIED" in texto or "403" in texto:
-            return (f"❌ Sin permiso para escribir en el Sheet. Compártelo como **Editor** con "
-                    f"{email_cuenta}. Si el Sheet está en una unidad de tu empresa, puede que no "
-                    f"se permita compartir con cuentas externas.")
-        if "not supported for this document" in texto.lower():
-            return ("❌ El archivo es un Excel subido a Drive, no un Google Sheet. Ábrelo y usa "
-                    "Archivo → Guardar como Hojas de cálculo de Google, y usa el ID del nuevo archivo.")
-        return f"❌ Error de Google: {texto[:300]}"
-    except Exception as e:
-        return f"❌ Error inesperado: {type(e).__name__}: {str(e)[:300]}"
 
 
 def guardar(lead_id: str, evento: str, datos: dict, cartera: str = "", importe: str = "") -> bool:
