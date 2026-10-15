@@ -1,12 +1,15 @@
 """
-PASO 2 - Estatus RNT (Reentel, ReentelPro, SuperReentel).
+PASO 3 - Estatus (Reentel, ReentelPro, SuperReentel).
 """
 from modules.comun import *  # noqa: F401,F403  (constantes, colores y funciones comunes)
 
 
 def mostrar():
-    st.markdown("## Paso 2: ¿Qué estatus RNT quieres considerar?")
-    st.markdown("")
+    st.markdown("## Paso 3: ¿Qué estatus quieres considerar?")
+    st.markdown(f"<p style='color:{COLOR_NAVY}; font-size:16px; line-height:1.6; max-width:820px; "
+                f"margin:4px 0 18px 0;'>El Estatus eleva tu categoría en Reental y multiplica los beneficios "
+                f"de tu capital. Está diseñado para inversores que buscan maximizar sus rendimientos, dándote "
+                f"acceso prioritario a las mejores oportunidades inmobiliarias.</p>", unsafe_allow_html=True)
     
     estatus_seleccionado = st.session_state.datos_cliente.get('estatus', None)
     
@@ -42,9 +45,9 @@ def mostrar():
     
     # ========== BOTÓN "¿QUIERES MÁS INFO?" ==========
     st.markdown(f"""
-    <a href="https://api.leadconnectorhq.com/widget/booking/kAzM5NH9hFxtc88sTQKy" target="_blank" style="text-decoration: none; color: inherit;">
+    <a href="{URL_AGENDA}" target="_blank" style="text-decoration: none; color: inherit;">
         <div style="background-color: {COLOR_AMBAR_CLARO}; border: 2px solid {COLOR_AMBAR}; color: {COLOR_NAVY}; border-radius: 12px; padding: 15px; font-size: 15px; cursor: pointer; text-align: center;">
-            💡 ¿Quieres más información sobre <b> qué es el estatus RNT</b> y cómo puede ayudarte a <b>maximizar tu rentabilidad inmobiliaria</b>? Agenda con nuestro equipo de Onboarding <b style="color: {COLOR_AMBAR_OSCURO};">aquí</b>.
+            💡 ¿Quieres más información sobre <b>qué es el estatus</b> y cómo puede ayudarte a <b>maximizar tu rentabilidad inmobiliaria</b>? Agenda con nuestro equipo de Onboarding <b style="color: {COLOR_AMBAR_OSCURO};">aquí</b>.
         </div>
     </a>
     """, unsafe_allow_html=True)
@@ -53,14 +56,21 @@ def mostrar():
     
     col1, col2, col3 = st.columns([1, 1, 1])
     with col1:
-        if st.button("< Atrás", use_container_width=True, key="btn_paso2_back"):
-            st.session_state.paso_actual = 1
+        if st.button("< Atrás", use_container_width=True, key="btn_paso3_back"):
+            st.session_state.paso_actual = 2
             st.rerun()
     with col3:
-        # Validar que estatus esté seleccionado (no None)
+        # Validar que haya un estatus elegido; al seguir se cargan los proyectos del Paso 4
         if estatus_seleccionado is not None:
-            if st.button("Siguiente >", use_container_width=True, key="btn_paso2_next"):
-                st.session_state.paso_actual = 3
-                st.rerun()
+            if st.button("Siguiente >", use_container_width=True, key="btn_paso3_next"):
+                try:
+                    st.session_state.df_proyectos = cargar_todos_proyectos()
+                    st.session_state.paso_actual = 4
+                    st.rerun()
+                except Exception as e:
+                    print(f"❌ Error cargando proyectos: {e}")
+                    traceback.print_exc()
+                    st.error("No hemos podido cargar los proyectos. Inténtalo de nuevo en unos minutos.")
         else:
-            st.button("Siguiente >", use_container_width=True, disabled=True, key="btn_paso2_next_disabled")
+            st.button("Siguiente >", use_container_width=True, disabled=True, key="btn_paso3_next_disabled")
+            st.caption("Para continuar, elige un estatus.")
