@@ -103,6 +103,14 @@ def aplicar_estilos():
             .st-key-tabla_cartera div[data-baseweb="input"] {{ min-height: 44px !important; }}
         }}
 
+        /* Etiqueta propia (teléfono): igual que las de Streamlit */
+        .etiqueta-campo {{ font-size: 14px; color: {COLOR_NAVY}; margin: 0 0 0.25rem 0; }}
+        .st-key-telefono, .st-key-telefono div[data-testid="stVerticalBlock"] {{ gap: 0 !important; }}
+        .st-key-telefono [data-testid="stMarkdownContainer"] {{ margin-bottom: 0 !important; }}
+
+        /* Marco invisible que sube la página al cambiar de paso */
+        .st-key-subir_arriba {{ height: 0 !important; overflow: hidden; margin: 0 !important; }}
+
         /* ===== Botón para agendar una reunión: círculo flotante arriba a la derecha ===== */
         a.cta-flotante, .stApp a.cta-flotante {{
             position: fixed; top: 76px; right: 28px; z-index: 999991;
@@ -115,7 +123,7 @@ def aplicar_estilos():
             transition: transform 0.2s ease;
         }}
         a.cta-flotante .cta-dudas {{ color: {COLOR_AMBAR_OSCURO}; font-weight: 800; }}
-        a.cta-flotante .cta-corta {{ display: none; }}
+        a.cta-flotante .cta-corta, a.cta-flotante .cta-ayuda {{ display: none; }}
         a.cta-flotante .cta-circulo {{
             position: relative; width: 58px; height: 58px; border-radius: 50%; flex: 0 0 58px;
             background: {COLOR_AMBAR}; display: flex; align-items: center; justify-content: center;
@@ -192,6 +200,20 @@ def aplicar_estilos():
             a.cta-flotante .cta-circulo {{ width: 54px; height: 54px; flex-basis: 54px; }}
             a.cta-flotante .cta-circulo svg {{ width: 26px; height: 26px; }}
             a.cta-flotante .cta-texto {{ display: none; }}
+            a.cta-flotante {{ flex-direction: column; gap: 4px; }}
+            a.cta-flotante .cta-ayuda {{
+                display: block; background: #ffffff; color: {COLOR_NAVY}; font-size: 11px; font-weight: 700;
+                padding: 2px 8px; border-radius: 999px; border: 1px solid {COLOR_BORDE};
+                box-shadow: 0 3px 10px rgba(31, 41, 55, 0.12); white-space: nowrap;
+            }}
+            /* Teléfono: prefijo y número en la misma línea */
+            .st-key-telefono [data-testid="stHorizontalBlock"] {{ flex-wrap: nowrap !important; gap: 0.5rem; }}
+            .st-key-telefono [data-testid="stColumn"]:first-child {{
+                flex: 0 0 47% !important; min-width: 0 !important; width: 47% !important;
+            }}
+            .st-key-telefono [data-testid="stColumn"]:last-child {{
+                flex: 1 1 0 !important; min-width: 0 !important; width: auto !important;
+            }}
             /* Sin zoom automático del iPhone al escribir: casillas de al menos 16 px */
             .stApp input, .stApp textarea {{ font-size: 16px !important; }}
 
