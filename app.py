@@ -150,7 +150,8 @@ st.markdown(f"""
         /* Tabla de la comparativa por estatus: más compacta */
         .tabla-comp td {{ padding: 8px 3px !important; font-size: 11px !important; }}
         .tabla-comp td:first-child {{ min-width: 78px; max-width: 96px; padding-left: 7px !important;
-                                     white-space: normal !important; }}
+                                     white-space: normal !important; position: sticky; left: 0;
+                                     background: inherit; z-index: 1; }}
 
         /* Mapa: se recorta el espacio vacío de arriba y abajo */
         .st-key-mapa [data-testid="stVegaLiteChart"] {{
@@ -450,6 +451,8 @@ TIPO_CAMBIO_DEFECTO = 1.14      # USD por 1 €
 PRECIO_RNT_DEFECTO = 0.32       # USDT por 1 RNT
 # RNT necesarios para cada estatus
 RNT_POR_ESTATUS = {'SuperReentel': 28000, 'ReentelPro': 14000, 'Reentel': 0}
+# Rendimiento anual estimado del estatus, sobre lo que cuesta (sin reinvertir)
+RENDIMIENTO_ESTATUS = 3.5
 
 # Código ISO numérico de cada país (para pintarlo en el mapa del Paso 5).
 # Si aparece un mercado nuevo en el Master, basta con añadirlo aquí.
@@ -548,6 +551,15 @@ def importe_cliente(datos):
     """Capital con el que se simula: el ajustado en el Paso 4 si lo hay; si no,
     el punto medio del rango elegido en el Paso 1."""
     return datos.get('capital_ajustado') or importe_simulado(datos.get('capital'))
+
+
+def coste_estatus_cliente(datos):
+    """Lo que cuesta el estatus elegido (los RNT que exige), en la divisa del cliente.
+    Se descuenta del importe a invertir: el resto es lo que va a inmuebles."""
+    rnt = RNT_POR_ESTATUS.get(datos.get('estatus') or 'Reentel', 0)
+    if not rnt:
+        return 0.0
+    return convertir_divisa(rnt * precio_rnt_actual(), 'USD', (datos.get('divisa') or 'EUR'))
 
 
 def capital_mostrado(datos, simbolo):
@@ -1103,7 +1115,11 @@ elif st.session_state.paso_actual == 4:
             st.session_state.pop(f"pct_{pid}", None)
 
         # ----- Estado de partida -----
-        importe_total_p4 = importe_cliente(st.session_state.datos_cliente)
+        # El importe a invertir es el TOTAL: incluye lo que cuesta el estatus. Lo que
+        # se reparte entre los proyectos es lo que queda después de descontarlo.
+        importe_capital_p4 = importe_cliente(st.session_state.datos_cliente)
+        coste_estatus_p4 = coste_estatus_cliente(st.session_state.datos_cliente)
+        importe_total_p4 = max(0.0, importe_capital_p4 - coste_estatus_p4)   # para inmuebles
         def _texto_importe(valor):
             """Importe con separador de miles y el símbolo dentro de la casilla: «50.000 €»."""
             return f"{es(valor, 0)} {simbolo_cliente_p4}"
@@ -1123,7 +1139,7 @@ elif st.session_state.paso_actual == 4:
                 return None
         
         if 'input_importe' not in st.session_state:
-            st.session_state.input_importe = _texto_importe(importe_total_p4)
+            st.session_state.input_importe = _texto_importe(importe_capital_p4)
         modo = st.session_state.modo_reparto
         estatus_p4 = st.session_state.datos_cliente.get('estatus') or 'Reentel'
 
@@ -1136,10 +1152,12 @@ elif st.session_state.paso_actual == 4:
                 return
             st.session_state.datos_cliente['capital_ajustado'] = nuevo
             st.session_state.input_importe = _texto_importe(nuevo)
-            # Repartiendo por %, se mantienen los % y cambian los tokens
-            if st.session_state.modo_reparto == "Por % de mi cartera" and anterior:
+            # Repartiendo por %, se mantienen los % y cambian los tokens (sobre lo que va a inmuebles)
+            anterior_inm = max(0.0, anterior - coste_estatus_p4)
+            nuevo_inm = max(0.0, nuevo - coste_estatus_p4)
+            if st.session_state.modo_reparto == "Por % de mi cartera" and anterior_inm:
                 for p in list(st.session_state.tokens_compra):
-                    st.session_state.tokens_compra[p] *= nuevo / anterior
+                    st.session_state.tokens_compra[p] *= nuevo_inm / anterior_inm
                     _olvidar_widgets(p)
 
         def _cambiar_modo():
@@ -1258,11 +1276,17 @@ elif st.session_state.paso_actual == 4:
             st.markdown("<div class='kpi-titulo'>IMPORTE A INVERTIR</div>", unsafe_allow_html=True)
             st.text_input("Importe a invertir", key="input_importe", on_change=_cambiar_importe,
                           label_visibility="collapsed")
+            importe_capital_p4 = importe_cliente(st.session_state.datos_cliente)
+            importe_total_p4 = max(0.0, importe_capital_p4 - coste_estatus_p4)
+            if coste_estatus_p4 > 0:
+                st.markdown(html_seguro(
+                    f"<div class='kpi-sub' style='color:{COLOR_NAVY}; margin-top:2px;'>Estatus {estatus_p4}: "
+                    f"−{es(coste_estatus_p4, 0)} {simbolo_cliente_p4} · <b>Para inmuebles: "
+                    f"{es(importe_total_p4, 0)} {simbolo_cliente_p4}</b></div>"), unsafe_allow_html=True)
             rango = st.session_state.datos_cliente.get('capital', '')
             st.markdown(html_seguro(f"<div class='kpi-sub'>En el Paso 1 elegiste «{rango}». Te proponemos el "
                                     "punto medio de ese rango; puedes cambiarlo por el importe exacto que "
                                     "quieras invertir.</div>"), unsafe_allow_html=True)
-        importe_total_p4 = importe_cliente(st.session_state.datos_cliente)
 
         with k2, _kpi("repartido"):
             st.markdown(html_seguro(
@@ -1289,9 +1313,11 @@ elif st.session_state.paso_actual == 4:
                     st.session_state.input_importe = _texto_importe(valor)
                     for p in list(st.session_state.tokens_compra):
                         _olvidar_widgets(p)
-                st.button(md(f"Usar {es(importe_repartido, 0)} {simbolo_cliente_p4} como importe"),
-                          key="btn_ajustar_capital", on_click=_usar_repartido, args=(importe_repartido,),
-                          help="Cambia el importe a invertir para que coincida con lo que has repartido")
+                importe_ajustado = importe_repartido + coste_estatus_p4
+                st.button(md(f"Usar {es(importe_ajustado, 0)} {simbolo_cliente_p4} como importe"),
+                          key="btn_ajustar_capital", on_click=_usar_repartido, args=(importe_ajustado,),
+                          help="Cambia el importe a invertir para que coincida con lo que has repartido"
+                               + (" más el coste del estatus" if coste_estatus_p4 > 0 else ""))
 
         with k4, _kpi("rentabilidad"):
             st.markdown(html_seguro(
@@ -1299,6 +1325,11 @@ elif st.session_state.paso_actual == 4:
                 f"<div class='kpi-valor'>{es(rent_media, 2) + ' %' if importe_repartido > 0 else '—'}</div>"
                 f"<div class='kpi-sub'>estimada · {estatus_p4} · al precio de compra</div>"),
                 unsafe_allow_html=True)
+
+        if coste_estatus_p4 > 0 and importe_total_p4 <= 0:
+            st.warning(md(f"Con {es(importe_capital_p4, 0)} {simbolo_cliente_p4} no llega para el estatus "
+                          f"{estatus_p4}, que cuesta {es(coste_estatus_p4, 0)} {simbolo_cliente_p4}. Sube el "
+                          "importe a invertir o vuelve al Paso 2 para elegir otro estatus."))
 
         # ----- 2) Barra de reparto -----
         if ids_validos and importe_total_p4 > 0:
@@ -1469,7 +1500,7 @@ elif st.session_state.paso_actual == 4:
                     # Si queda una diferencia mínima por redondeo, el importe pasa a ser
                     # exactamente lo repartido para que los % sumen 100.
                     if abs(pendiente) > 0.01 and importe_repartido > 0:
-                        st.session_state.datos_cliente['capital_ajustado'] = importe_repartido
+                        st.session_state.datos_cliente['capital_ajustado'] = importe_repartido + coste_estatus_p4
                         for pid, o, tokens, importe, _rent in filas_calc:
                             st.session_state.cartera_selecciones[pid]['porcentaje'] = importe / importe_repartido * 100
                     st.session_state.datos_cliente['cartera'] = {
@@ -1546,7 +1577,6 @@ elif st.session_state.paso_actual == 5:
         
         tarjetas_supuestos = [
             ("💱 TIPO DE CAMBIO", f"{es(tipo_cambio, 4)}", "USD por 1 € · referencia BCE"),
-            ("🪙 PRECIO DEL RNT", f"{es(precio_rnt, 4)} $", "precio de mercado actual"),
         ]
         cols = st.columns(2)
         for col, (titulo, valor, sub) in zip(cols, tarjetas_supuestos):
@@ -1564,11 +1594,11 @@ elif st.session_state.paso_actual == 5:
         # ========== 3) TU CARTERA DE INVERSIÓN ==========
         st.markdown("### Tu cartera de inversión")
         
-        importe_inmuebles = importe_cliente(datos)  # en la divisa del cliente
-        
+        # El importe a invertir es el total: se descuenta el estatus y el resto va a inmuebles
+        capital_total = importe_cliente(datos)  # en la divisa del cliente
         rnt_estatus = RNT_POR_ESTATUS.get(estatus, 0)
         coste_estatus = convertir(rnt_estatus * precio_rnt, 'USD', divisa_cliente)
-        capital_total = importe_inmuebles + coste_estatus
+        importe_inmuebles = max(0.0, capital_total - coste_estatus)
         
         # Columnas de rentabilidad según estatus
         col_anual = f'Rentabilidad_Anualizada_{estatus}'
@@ -1639,7 +1669,7 @@ elif st.session_state.paso_actual == 5:
                 'Ubicación': row.get('Ubicación', ''),
                 'Precio de compra': fmt(precio_conv),
                 'Tipo de dividendo': tipologia or '-',
-                'Tokens': round(_num(st.session_state.tokens_compra.get(proyecto_id), 0.0), 2),
+                'Importe invertido': fmt(importe_inmuebles * peso / 100),
                 'Rentabilidad anualizada': rent_anual,
                 'Rentabilidad total': rent_total,
                 '% cartera': peso,
@@ -1655,7 +1685,6 @@ elif st.session_state.paso_actual == 5:
                 'tipo_precio': tipo_precio,
                 'pct': peso,
                 'importe': importe_inmuebles * peso / 100,
-                'tokens': _num(st.session_state.tokens_compra.get(proyecto_id), 0.0),
                 'rent_anu_rnt': r_rnt['anual'] or 0.0,
                 'rent_tot_rnt': r_rnt['total'],
                 'rent_anu_est': rent_anual,
@@ -1684,7 +1713,10 @@ elif st.session_state.paso_actual == 5:
         for col, (titulo, valor, sub) in zip(cols, tarjetas):
             col.markdown(tarjeta(titulo, valor, sub), unsafe_allow_html=True)
         
-        st.caption("Las rentabilidades se calculan con el precio de compra de cada proyecto y los meses de renta que le quedan, y se ponderan por el % de la cartera invertido en cada uno.")
+        st.caption(("El coste del estatus se descuenta de tu importe a invertir; el resto va a inmuebles. "
+                    if coste_estatus > 0 else "")
+                   + "Las rentabilidades se calculan con el precio de compra de cada proyecto y los meses de "
+                   "renta que le quedan, y se ponderan por el % de la cartera invertido en cada uno.")
         st.markdown("")
         
         # ----- Tabla de proyectos -----
@@ -1698,7 +1730,6 @@ elif st.session_state.paso_actual == 5:
                     'Rentabilidad anualizada': st.column_config.NumberColumn(format='%.2f%%'),
                     'Rentabilidad total': st.column_config.NumberColumn(format='%.2f%%'),
                     '% cartera': st.column_config.NumberColumn(format='%.1f%%'),
-                    'Tokens': st.column_config.NumberColumn(format='%.2f'),
                 }
             )
         
@@ -1714,22 +1745,31 @@ elif st.session_state.paso_actual == 5:
                 datos_g['pct'] = datos_g['peso'] / total if total else 0
                 datos_g = datos_g.rename(columns={campo: 'categoria'})
                 
+                categorias = sorted(datos_g['categoria'].astype(str).unique())
+                color_de = {c: colores[i % len(colores)] for i, c in enumerate(categorias)}
+                oscuros = ("#1f2937", "#15803d", "#3e4753")
+                datos_g['color_texto'] = datos_g['categoria'].astype(str).map(
+                    lambda c: "#ffffff" if color_de[c] in oscuros else COLOR_NAVY)
+                
                 base = alt.Chart(datos_g).encode(
                     theta=alt.Theta('peso:Q', stack=True),
-                    color=alt.Color('categoria:N', scale=alt.Scale(range=colores),
+                    color=alt.Color('categoria:N', scale=alt.Scale(domain=categorias,
+                                                                   range=[color_de[c] for c in categorias]),
                                     legend=alt.Legend(orient='bottom', title=None, direction='vertical',
                                                       labelLimit=0, labelFontSize=12)),
                     tooltip=[alt.Tooltip('categoria:N', title=titulo),
                              alt.Tooltip('pct:Q', format='.0%', title='Peso')]
                 )
-                # Radios en función del ancho disponible: en pantallas estrechas el
-                # donut se hace más pequeño y los % no se salen del gráfico
-                radio = "min(width, 220) / 2 - 24"
-                arco = base.mark_arc(innerRadius=alt.ExprRef(f"({radio}) * 0.58"),
+                # Tamaño según el espacio real del gráfico (ancho y alto) y los % dentro
+                # del anillo: así no se salen por arriba ni se pisan entre ellos
+                radio = "max(min(width, height, 210) / 2 - 6, 40)"
+                arco = base.mark_arc(innerRadius=alt.ExprRef(f"({radio}) * 0.55"),
                                      outerRadius=alt.ExprRef(radio))
-                texto = base.mark_text(radius=alt.ExprRef(f"({radio}) + 14"), size=11).encode(
-                    text=alt.Text('pct:Q', format='.0%'))
-                return (arco + texto).properties(height=265)
+                texto = base.transform_filter('datum.pct >= 0.05').mark_text(
+                    radius=alt.ExprRef(f"({radio}) * 0.775"), size=11, fontWeight='bold').encode(
+                    text=alt.Text('pct:Q', format='.0%'),
+                    color=alt.Color('color_texto:N', scale=None, legend=None))
+                return (arco + texto).properties(height=250)
             
             st.markdown("")
             g1, g2, g3 = st.columns(3)
@@ -1793,31 +1833,33 @@ elif st.session_state.paso_actual == 5:
         st.markdown("---")
         
         # ========== COMPARATIVA POR ESTATUS ==========
+        # Mismo modelo que la hoja de cálculo de Reental Wealth: con el MISMO importe
+        # total, Reentel lo invierte todo en inmuebles; un estatus superior invierte
+        # en inmuebles lo que queda tras pagar el estatus, y el estatus rinde
+        # RENDIMIENTO_ESTATUS % anual sobre su coste (sin reinvertir).
         st.markdown("### Comparativa por estatus")
         
         MESES_COMPARATIVA = 36
         
-        def rentabilidad_media_estatus(est):
-            """Rentabilidad anualizada media de la cartera para ese estatus, al precio de compra."""
-            return media_cartera(est, 'anual')
+        def ganancia_inmobiliaria(importe, rent_anual_pct, meses, est='Reentel'):
+            return CalculadoraCartera(est).calcular_proyeccion(importe, rent_anual_pct / 100, meses) - importe
+        
+        def ganancia_estatus(coste, meses):
+            return coste * RENDIMIENTO_ESTATUS / 100 * meses / 12
         
         comparativa_pdf = []
         for est in ['Reentel', 'ReentelPro', 'SuperReentel']:
-            rent_est = rentabilidad_media_estatus(est) / 100
-            capital_final = CalculadoraCartera(est).calcular_proyeccion(importe_inmuebles, rent_est, MESES_COMPARATIVA)
-            ganancia_inmuebles = capital_final - importe_inmuebles
-            
-            rnt_est = RNT_POR_ESTATUS.get(est, 0)
-            coste_est = convertir(rnt_est * precio_rnt, 'USD', divisa_cliente)
-            ganancia = ganancia_inmuebles
-            capital_total_est = importe_inmuebles + coste_est
-            
+            rent_est = media_cartera(est, 'anual')
+            coste_est = convertir(RNT_POR_ESTATUS.get(est, 0) * precio_rnt, 'USD', divisa_cliente)
+            inmuebles_est = max(0.0, capital_total - coste_est)
+            ganancia = (ganancia_inmobiliaria(inmuebles_est, rent_est, MESES_COMPARATIVA, est)
+                        + ganancia_estatus(coste_est, MESES_COMPARATIVA))
             comparativa_pdf.append({
                 'estatus': est,
-                'rent_anual': rent_est * 100,
+                'rent_anual': rent_est,
                 'ganancia': ganancia,
-                'rent_cartera': (ganancia / importe_inmuebles * 100) if importe_inmuebles else 0,
-                'rent_total': (ganancia / capital_total_est * 100) if capital_total_est else 0,
+                'rent_cartera': (ganancia / inmuebles_est * 100) if inmuebles_est else 0,
+                'rent_total': (ganancia / capital_total * 100) if capital_total else 0,
                 'coste': coste_est,
             })
         
@@ -1826,42 +1868,46 @@ elif st.session_state.paso_actual == 5:
         
         escenarios_pdf = []
         for meses in [6, 12, 24, 36]:
-            g_rnt = CalculadoraCartera('Reentel').calcular_proyeccion(
-                importe_inmuebles, rent_anual_media_pdf['Reentel'] / 100, meses) - importe_inmuebles
-            g_est = CalculadoraCartera(estatus).calcular_proyeccion(
-                importe_inmuebles, rent_anual_media_pdf[estatus] / 100, meses) - importe_inmuebles
+            g_rnt = ganancia_inmobiliaria(capital_total, rent_anual_media_pdf['Reentel'], meses)
+            g_est = (ganancia_inmobiliaria(importe_inmuebles, rent_anual_media_pdf[estatus], meses, estatus)
+                     + ganancia_estatus(coste_estatus, meses))
             escenarios_pdf.append({
                 'meses': meses,
                 'g_rnt': g_rnt,
                 'g_est': g_est,
-                'g_est_staking': g_est,     # ya no se suma el staking (se mantiene la clave para el PDF)
-                'rent_rnt': (g_rnt / importe_inmuebles * 100) if importe_inmuebles else 0,
+                'g_est_staking': g_est,
+                'rent_rnt': (g_rnt / capital_total * 100) if capital_total else 0,
                 'rent_est': (g_est / capital_total * 100) if capital_total else 0,
             })
         
-        # ----- Gráfico y tabla: Reentel frente a un estatus superior -----
+        # ----- Reentel frente a un estatus superior -----
         # Si el cliente ya tiene un estatus superior se compara con el suyo; si es
         # Reentel, con SuperReentel (lo que ganaría subiendo de estatus).
         est_comp = estatus if estatus != 'Reentel' else 'SuperReentel'
         nombre_comp = est_comp
-        rent_rnt_web = media_cartera('Reentel', 'anual') / 100
-        rent_comp_web = media_cartera(est_comp, 'anual') / 100
+        rent_rnt_web = media_cartera('Reentel', 'anual')
+        rent_comp_web = media_cartera(est_comp, 'anual')
         coste_comp = convertir(RNT_POR_ESTATUS.get(est_comp, 0) * precio_rnt, 'USD', divisa_cliente)
-        capital_comp = importe_inmuebles + coste_comp
+        inmuebles_comp = max(0.0, capital_total - coste_comp)
         
+        PLAZOS_COMPARATIVA = [6, 12, 24, 36, 60]
         escenarios_web = []
-        for meses in [6, 12, 24, 36]:
-            g_rnt = CalculadoraCartera('Reentel').calcular_proyeccion(
-                importe_inmuebles, rent_rnt_web, meses) - importe_inmuebles
-            g_comp = (CalculadoraCartera(est_comp).calcular_proyeccion(importe_inmuebles, rent_comp_web, meses)
-                      - importe_inmuebles)
+        for meses in PLAZOS_COMPARATIVA:
+            gi_rnt = ganancia_inmobiliaria(capital_total, rent_rnt_web, meses)
+            gi_comp = ganancia_inmobiliaria(inmuebles_comp, rent_comp_web, meses, est_comp)
+            ge_comp = ganancia_estatus(coste_comp, meses)
             escenarios_web.append({
-                'meses': meses, 'g_rnt': g_rnt, 'g_comp': g_comp,
-                'r_rnt': (g_rnt / importe_inmuebles * 100) if importe_inmuebles else 0,
-                'r_comp': (g_comp / capital_comp * 100) if capital_comp else 0,
+                'meses': meses, 'gi_rnt': gi_rnt, 'gi_comp': gi_comp, 'ge_comp': ge_comp,
+                'g_rnt': gi_rnt, 'g_comp': gi_comp + ge_comp,
             })
         
-        serie_rnt, serie_comp = "Ganancia Reentel", f"Ganancia {nombre_comp}"
+        st.markdown(html_seguro(
+            f"<div style='font-size:14px; color:{COLOR_NAVY}; margin:2px 0 10px 0;'>Con el mismo importe total "
+            f"(<b>{fmt(capital_total)}</b>): con <b>Reentel</b> todo va a inmuebles; con "
+            f"<b style='color:{COLOR_AMBAR_OSCURO};'>{nombre_comp}</b>, {fmt(inmuebles_comp)} van a inmuebles y "
+            f"{fmt(coste_comp)} al estatus.</div>"), unsafe_allow_html=True)
+        
+        serie_rnt, serie_comp = "Ganancia final Reentel", f"Ganancia final {nombre_comp}"
         orden_series = [serie_rnt, serie_comp]
         orden_plazos = [f"{e['meses']} meses" for e in escenarios_web]
         datos_barras = pd.DataFrame([
@@ -1886,48 +1932,70 @@ elif st.session_state.paso_actual == 5:
             color=alt.Color('Escenario:N', sort=orden_series,
                             scale=alt.Scale(domain=orden_series, range=[COLOR_NAVY, COLOR_AMBAR]),
                             legend=alt.Legend(orient='bottom', title=None, labelFontSize=12,
-                                              symbolType='square')),
+                                              symbolType='square', labelLimit=0, direction='vertical')),
             tooltip=[alt.Tooltip('Escenario:N', title='Escenario'),
                      alt.Tooltip('Plazo:N', title='Plazo'),
                      alt.Tooltip('texto_tooltip:N', title='Ganancia')],
         )
+        # En pantallas estrechas no se pintan los importes encima de las barras (se
+        # pisarían); siguen apareciendo al tocar cada barra y en la tabla de debajo
         etiquetas = alt.Chart(datos_barras).mark_text(
-            dy=-8, fontSize=11, fontWeight='bold', color=COLOR_NAVY).encode(
+            dy=-8, fontSize=11, fontWeight='bold', color=COLOR_NAVY,
+            opacity=alt.ExprRef("width < 560 ? 0 : 1")).encode(
             x=eje_x, xOffset=desplazamiento, y=eje_y, text='texto:N')
         
         st.markdown(f"<div style='font-size:16px; font-weight:700; color:{COLOR_NAVY}; margin:6px 0 4px 0;'>"
-                    f"Ganancia total — Reentel vs <span style='color:{COLOR_AMBAR_OSCURO};'>{nombre_comp}</span>"
+                    f"Ganancia final — Reentel vs <span style='color:{COLOR_AMBAR_OSCURO};'>{nombre_comp}</span>"
                     f"</div>", unsafe_allow_html=True)
         st.altair_chart((barras + etiquetas).properties(height=340).configure_view(stroke=None),
                         use_container_width=True)
         
-        # Tabla de escenarios
-        def _celda(texto, destacado=False, negrita=False, cabecera=False):
-            color = COLOR_AMBAR_OSCURO if destacado else (COLOR_GRIS if cabecera else COLOR_NAVY)
+        # ----- Tabla, con la misma estructura que la hoja de cálculo -----
+        n_col = len(escenarios_web) + 1
+        
+        def _celda(texto, destacado=False, negrita=False, cabecera=False, color=None):
+            color = color or (COLOR_AMBAR_OSCURO if destacado else (COLOR_GRIS if cabecera else COLOR_NAVY))
             peso = 700 if (negrita or destacado) else (600 if cabecera else 400)
-            return (f"<td style='padding:10px 14px; text-align:center; color:{color}; font-weight:{peso}; "
+            return (f"<td style='padding:9px 12px; text-align:center; color:{color}; font-weight:{peso}; "
                     f"border-bottom:1px solid {COLOR_BORDE}; white-space:nowrap;'>{texto}</td>")
         
-        def _importe_doble(valor):
+        def _importe_doble(valor, signo=False):
             """Importe completo en el ordenador y sin decimales en el móvil (para que quepa)."""
-            return (f"<span class='v-escritorio'>{fmt(valor)}</span>"
-                    f"<span class='v-movil'>{es(valor, 0)} {simbolo}</span>")
+            mas = "+" if signo and valor > 0 else ""
+            return (f"<span class='v-escritorio'>{mas}{fmt(valor)}</span>"
+                    f"<span class='v-movil'>{mas}{es(valor, 0)} {simbolo}</span>")
         
-        def _fila(etiqueta, valores, destacado=False, negrita=False, cabecera=False):
+        def _fila(etiqueta, valores, destacado=False, negrita=False, cabecera=False, colores=None):
             fondo = COLOR_FONDO if cabecera else ('#fffaf0' if destacado else '#ffffff')
             color = COLOR_AMBAR_OSCURO if destacado else (COLOR_GRIS if cabecera else COLOR_NAVY)
             peso = 700 if (negrita or destacado) else (600 if cabecera else 400)
-            primera = (f"<td style='padding:10px 14px; text-align:left; color:{color}; font-weight:{peso}; "
+            primera = (f"<td style='padding:9px 12px; text-align:left; color:{color}; font-weight:{peso}; "
                        f"border-bottom:1px solid {COLOR_BORDE};'>{etiqueta}</td>")
+            colores = colores or [None] * len(valores)
             return (f"<tr style='background:{fondo};'>{primera}"
-                    + "".join(_celda(v, destacado, negrita, cabecera) for v in valores) + "</tr>")
+                    + "".join(_celda(v, destacado, negrita, cabecera, c) for v, c in zip(valores, colores))
+                    + "</tr>")
         
+        def _banda(titulo):
+            return (f"<tr><td colspan='{n_col}' style='padding:7px 12px; background:#eef0f3; color:{COLOR_NAVY}; "
+                    f"font-weight:700; font-size:13px; border-bottom:1px solid {COLOR_BORDE};'>{titulo}</td></tr>")
+        
+        variaciones = [e['g_comp'] - e['g_rnt'] for e in escenarios_web]
         filas_html = [
-            _fila("Escenario", orden_plazos, cabecera=True),
-            _fila(serie_rnt, [_importe_doble(e['g_rnt']) for e in escenarios_web], negrita=True),
-            _fila(serie_comp, [_importe_doble(e['g_comp']) for e in escenarios_web], destacado=True),
-            _fila("Rent. acumulada Reentel", [f"{es(e['r_rnt'], 2)} %" for e in escenarios_web]),
-            _fila(f"Rent. acumulada {nombre_comp}", [f"{es(e['r_comp'], 2)} %" for e in escenarios_web],
+            _fila("Plazo", orden_plazos, cabecera=True),
+            _banda("Ganancia inmobiliaria"),
+            _fila("Reentel", [_importe_doble(e['gi_rnt']) for e in escenarios_web]),
+            _fila(nombre_comp, [_importe_doble(e['gi_comp']) for e in escenarios_web]),
+            _banda("Ganancia del estatus"),
+            _fila(nombre_comp, [_importe_doble(e['ge_comp']) for e in escenarios_web]),
+            _banda("Ganancia final"),
+            _fila("Reentel", [_importe_doble(e['g_rnt']) for e in escenarios_web], negrita=True),
+            _fila(nombre_comp, [_importe_doble(e['g_comp']) for e in escenarios_web], destacado=True),
+            _fila("Variación", [_importe_doble(v, signo=True) for v in variaciones], negrita=True,
+                  colores=[COLOR_VERDE if v >= 0 else COLOR_ROJO for v in variaciones]),
+            _banda("Valor final de la cartera"),
+            _fila("Reentel", [_importe_doble(capital_total + e['g_rnt']) for e in escenarios_web]),
+            _fila(nombre_comp, [_importe_doble(capital_total + e['g_comp']) for e in escenarios_web],
                   destacado=True),
         ]
         st.markdown(html_seguro(
@@ -1936,20 +2004,21 @@ elif st.session_state.paso_actual == 5:
             f"{''.join(filas_html)}</table>"
             f"</div>"), unsafe_allow_html=True)
         
-        # Mensaje destacado
-        ult = escenarios_web[-1]
+        # Mensaje destacado (a 36 meses)
+        ref = next(e for e in escenarios_web if e['meses'] == MESES_COMPARATIVA)
+        dif = ref['g_comp'] - ref['g_rnt']
         st.markdown(html_seguro(
             f"<div style='background:{COLOR_AMBAR_CLARO}; border:1px solid {COLOR_AMBAR}; border-radius:10px; "
             f"padding:14px 18px; margin-top:16px; color:{COLOR_NAVY}; font-size:15px;'>"
-            f"Con <b style='color:{COLOR_AMBAR_OSCURO};'>{nombre_comp}</b>, la ganancia a {ult['meses']} meses "
-            f"alcanza <b style='color:{COLOR_AMBAR_OSCURO};'>{fmt(ult['g_comp'])}</b> frente a "
-            f"{fmt(ult['g_rnt'])} con Reentel. Rentabilidad acumulada: "
-            f"<b style='color:{COLOR_AMBAR_OSCURO};'>{es(ult['r_comp'], 2)} %</b> frente a "
-            f"{es(ult['r_rnt'], 2)} %.</div>"), unsafe_allow_html=True)
+            f"Con <b style='color:{COLOR_AMBAR_OSCURO};'>{nombre_comp}</b>, la ganancia final a "
+            f"{MESES_COMPARATIVA} meses es de <b style='color:{COLOR_AMBAR_OSCURO};'>{fmt(ref['g_comp'])}</b> "
+            f"frente a {fmt(ref['g_rnt'])} con Reentel: <b>{fmt(abs(dif))} {'más' if dif >= 0 else 'menos'}</b>."
+            f"</div>"), unsafe_allow_html=True)
         st.markdown(f"<div style='font-size:12.5px; color:{COLOR_GRIS}; margin:8px 2px 0 2px;'>"
-                    f"El cálculo considera la reinversión de los beneficios obtenidos, beneficiándose "
-                    f"del interés compuesto. Las cifras son estimaciones y no garantizan resultados "
-                    f"futuros.</div>", unsafe_allow_html=True)
+                    f"La ganancia del estatus es un rendimiento estimado del {es(RENDIMIENTO_ESTATUS, 1)} % "
+                    f"anual sobre su coste. El cálculo considera la reinversión de los beneficios obtenidos, "
+                    f"beneficiándose del interés compuesto. Las cifras son estimaciones y no garantizan "
+                    f"resultados futuros.</div>", unsafe_allow_html=True)
         
         st.markdown("---")
         
@@ -1994,7 +2063,7 @@ elif st.session_state.paso_actual == 5:
             if 'lead_id' not in st.session_state:
                 st.session_state.lead_id = uuid.uuid4().hex[:10]
             leads.guardar(st.session_state.lead_id, "Cartera generada", datos,
-                          cartera=cartera_txt, importe=fmt(importe_inmuebles))
+                          cartera=cartera_txt, importe=fmt(capital_total))
             st.session_state.lead_cartera_guardada = firma_cartera
         
         datos_pdf = dict(st.session_state.datos_cliente)
