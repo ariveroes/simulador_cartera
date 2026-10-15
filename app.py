@@ -116,6 +116,34 @@ st.markdown(f"""
 
     hr {{ border-color: {COLOR_BORDE}; }}
 
+    /* Botones secundarios (Atrás, opciones no elegidas, crear otra cartera): contorno en vez
+       de relleno, para que la acción principal de cada pantalla destaque */
+    [class*="st-key-"][class*="_back"] button, [class*="st-key-"][class*="_sec"] button,
+    .st-key-btn_nueva_cartera button {{
+        background-color: #ffffff; color: {COLOR_NAVY}; border: 1px solid #c9cdd3;
+        font-weight: 600;
+    }}
+    [class*="st-key-"][class*="_back"] button:hover, [class*="st-key-"][class*="_sec"] button:hover,
+    .st-key-btn_nueva_cartera button:hover {{
+        background-color: #f1f3f5; color: {COLOR_NAVY}; border: 1px solid #b4b9c1;
+    }}
+    /* Foco visible con teclado */
+    .stButton button:focus-visible, .stDownloadButton button:focus-visible {{
+        outline: 2px solid {COLOR_AMBAR_OSCURO}; outline-offset: 2px;
+    }}
+    /* Superficies del navegador con la paleta de la marca */
+    ::selection {{ background: {COLOR_AMBAR_CLARO}; color: {COLOR_NAVY}; }}
+    .stApp input, .stApp textarea {{ caret-color: {COLOR_AMBAR_OSCURO}; }}
+    .stApp a {{ color: {COLOR_AMBAR_OSCURO}; text-underline-offset: 2px; }}
+    /* Cifras alineadas en columnas */
+    .kpi-valor, .tarjeta-valor, .tabla-comp td {{ font-variant-numeric: tabular-nums; }}
+
+    /* Pantallas táctiles: zonas de pulsación de al menos 44 px */
+    @media (pointer: coarse) {{
+        .stButton button, .stDownloadButton button {{ min-height: 44px; }}
+        .st-key-tabla_cartera div[data-baseweb="input"] {{ min-height: 44px !important; }}
+    }}
+
     /* Etiquetas que solo se ven en el móvil (en el ordenador las da la cabecera) */
     .v-movil {{ display: none; }}
     .etq-movil {{ display: none; font-size: 11px; font-weight: 700; color: {COLOR_GRIS};
@@ -134,6 +162,11 @@ st.markdown(f"""
         /* El icono de enlace junto a los títulos se ve siempre en el móvil: se oculta */
         [data-testid="stHeaderActionElements"] {{ display: none !important; }}
         .etq-movil {{ display: block; }}
+        /* Filas de navegación: la acción principal (Siguiente) primero y sin huecos vacíos */
+        [data-testid="stHorizontalBlock"]:has([class*="_back"]) {{ flex-direction: column-reverse; }}
+        [data-testid="stHorizontalBlock"]:has([class*="_back"]) > [data-testid="stColumn"]:not(:has(button)) {{
+            display: none;
+        }}
         .v-escritorio {{ display: none; }}
         .v-movil {{ display: inline !important; }}
 
@@ -288,7 +321,7 @@ def cargar_ofertas_otc(df_proyectos=None):
     except Exception as e:
         print(f"❌ Error calculando la disponibilidad OTC: {e}")
         traceback.print_exc()
-        st.warning("⚠️ Ahora mismo no hemos podido revisar todos los proyectos disponibles. "
+        st.warning("Ahora mismo no hemos podido revisar todos los proyectos disponibles. "
                    "Inténtalo de nuevo en unos minutos.")
         return []
 
@@ -325,7 +358,7 @@ def cargar_ofertas_otc(df_proyectos=None):
 
     if res.get("error") == "falta_clave":
         print("❌ Falta la clave de Etherscan en los Secrets ([etherscan] api_key)")
-        st.warning("⚠️ Ahora mismo no hemos podido revisar todos los proyectos disponibles. "
+        st.warning("Ahora mismo no hemos podido revisar todos los proyectos disponibles. "
                    "Inténtalo de nuevo en unos minutos.")
     return ofertas
 
@@ -675,17 +708,18 @@ st.markdown("---")
 # ========== INSTRUCCIONES (solo al empezar, antes del Paso 1) ==========
 if st.session_state.paso_actual == 1:
     st.markdown(f"""
-<div style="background: {COLOR_AMBAR_CLARO}; border-left: 4px solid {COLOR_AMBAR};
-            border-radius: 8px; padding: 18px 22px; margin: 4px 0 22px 0;">
+<div style="background: {COLOR_AMBAR_CLARO}; border: 1px solid #f6c56b;
+            border-radius: 12px; padding: 18px 22px; margin: 4px 0 22px 0;">
     <div style="font-size: 20px; font-weight: 700; color: {COLOR_NAVY}; margin-bottom: 8px;">
         Bienvenido al Simulador de cartera inmobiliaria</div>
     <p style="color: {COLOR_NAVY}; font-size: 15px; line-height: 1.55; margin: 0 0 8px 0;">
-        Esta herramienta, desarrollada por Reental Wealth, te permitirá simular una cartera inmobiliaria <b>adaptada a tu perfil</b>: tu capital, tu objetivo de inversión y los mercados
+        Herramienta desarrollada por Reental Wealth que permite simular una cartera de inversión
+        inmobiliaria <b>adaptada a tu perfil</b>: tu capital, tu objetivo de inversión y los mercados
         que prefieras.</p>
     <p style="color: {COLOR_NAVY}; font-size: 15px; line-height: 1.55; margin: 0;">
-        En solo cinco pasos verás <b>qué proyectos encajan contigo</b> y la rentabilidad estimada de tu cartera. Al final podrás descargar un resumen
+        En cinco pasos verás <b>qué proyectos encajan contigo</b>, cómo repartir tu inversión entre
+        ellos y la rentabilidad estimada de tu cartera. Al final podrás descargar un resumen
         en PDF.</p>
-
 </div>
 """, unsafe_allow_html=True)
 
@@ -794,92 +828,43 @@ elif st.session_state.paso_actual == 2:
     st.markdown("## Paso 2: ¿Qué estatus RNT quieres considerar?")
     st.markdown("")
     
-    col1, col2, col3 = st.columns(3)
-    
     estatus_seleccionado = st.session_state.datos_cliente.get('estatus', None)
     
-    # ========== SUPERREENTEL ==========
-    with col1:
-        if estatus_seleccionado == 'SuperReentel':
-            bg_color = COLOR_AMBAR_CLARO
-            border_color = COLOR_AMBAR
-            border_width = "3px"
-        else:
-            bg_color = "#ffffff"
-            border_color = COLOR_BORDE
-            border_width = "2px"
-        
-        st.markdown(f"""
-        <div style="border: {border_width} solid {border_color}; border-radius: 14px; padding: 20px; background-color: {bg_color}; min-height: 180px; display: flex; flex-direction: column; justify-content: space-between;">
-            <div style="color: {COLOR_NAVY}; font-weight: 800; font-size: 16px; margin-bottom: 15px;">
-                🏛️ SUPERREENTEL
-            </div>
-            <div style="color: {COLOR_NAVY}; font-size: 15px; line-height: 1.6; flex-grow: 1;">
-                quiero conseguir hasta un <b>50% más de rentabilidad</b> en mis inversiones inmobiliarias y <b>acceso prioritario</b> a los proyectos.
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("Seleccionar SuperReentel", key="btn_super", use_container_width=True):
-            st.session_state.datos_cliente['estatus'] = 'SuperReentel'
-            st.rerun()
-    
-    # ========== REENTELPRO ==========
-    with col2:
-        if estatus_seleccionado == 'ReentelPro':
-            bg_color = COLOR_AMBAR_CLARO
-            border_color = COLOR_AMBAR
-            border_width = "3px"
-        else:
-            bg_color = "#ffffff"
-            border_color = COLOR_BORDE
-            border_width = "2px"
-        
-        st.markdown(f"""
-        <div style="border: {border_width} solid {border_color}; border-radius: 14px; padding: 20px; background-color: {bg_color}; min-height: 180px; display: flex; flex-direction: column; justify-content: space-between;">
-            <div style="color: {COLOR_NAVY}; font-weight: 800; font-size: 16px; margin-bottom: 15px;">
-                🏢 REENTELPRO
-            </div>
-            <div style="color: {COLOR_NAVY}; font-size: 15px; line-height: 1.6; flex-grow: 1;">
-                quiero conseguir hasta un <b>25% más de rentabilidad</b> en mis inversiones inmobiliarias y acceder a los proyectos tras los SuperReentel.
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("Seleccionar ReentelPro", key="btn_pro", use_container_width=True):
-            st.session_state.datos_cliente['estatus'] = 'ReentelPro'
-            st.rerun()
-    
-    # ========== REENTEL ==========
-    with col3:
-        if estatus_seleccionado == 'Reentel':
-            bg_color = COLOR_AMBAR_CLARO
-            border_color = COLOR_AMBAR
-            border_width = "3px"
-        else:
-            bg_color = "#ffffff"
-            border_color = COLOR_BORDE
-            border_width = "2px"
-        
-        st.markdown(f"""
-        <div style="border: {border_width} solid {border_color}; border-radius: 14px; padding: 20px; background-color: {bg_color}; min-height: 180px; display: flex; flex-direction: column; justify-content: space-between;">
-            <div style="color: {COLOR_NAVY}; font-weight: 800; font-size: 16px; margin-bottom: 15px;">
-                🏠 REENTEL
-            </div>
-            <div style="color: {COLOR_NAVY}; font-size: 15px; line-height: 1.6; flex-grow: 1;">
-                por ahora no quiero estatus.
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("Seleccionar Reentel", key="btn_reen", use_container_width=True):
-            st.session_state.datos_cliente['estatus'] = 'Reentel'
-            st.rerun()
+    OPCIONES_ESTATUS = [
+        ('SuperReentel', 'btn_super', "Quiero conseguir hasta un <b>50 % más de rentabilidad</b> en mis "
+                                      "inversiones inmobiliarias y <b>acceso prioritario</b> a los proyectos."),
+        ('ReentelPro', 'btn_pro', "Quiero conseguir hasta un <b>25 % más de rentabilidad</b> en mis inversiones "
+                                  "inmobiliarias y acceder a los proyectos tras los SuperReentel."),
+        ('Reentel', 'btn_reen', "Por ahora no quiero estatus."),
+    ]
+    for col, (nombre_est, clave, texto) in zip(st.columns(3), OPCIONES_ESTATUS):
+        elegido = estatus_seleccionado == nombre_est
+        with col:
+            # HTML en una sola pieza, sin líneas en blanco ni sangría: si no, Markdown
+            # lo interpreta como bloque de código y se ve el HTML en vez de la tarjeta
+            marca = (f"<span style='font-size:12px; font-weight:700; color:{COLOR_AMBAR_OSCURO};'>✓ Elegido</span>"
+                     if elegido else "")
+            st.markdown(
+                f"<div style='border:{'2px' if elegido else '1px'} solid {COLOR_AMBAR if elegido else COLOR_BORDE}; "
+                f"border-radius:14px; padding:18px 20px; min-height:170px; "
+                f"background-color:{COLOR_AMBAR_CLARO if elegido else '#ffffff'};'>"
+                f"<div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;'>"
+                f"<span style='color:{COLOR_NAVY}; font-weight:800; font-size:17px;'>{nombre_est}</span>{marca}</div>"
+                f"<div style='color:{COLOR_NAVY}; font-size:15px; line-height:1.55;'>{texto}</div></div>",
+                unsafe_allow_html=True)
+            # El elegido lleva el botón relleno; los demás, de contorno
+            if st.button("✓ Elegido" if elegido else f"Elegir {nombre_est}",
+                         key=f"{clave}{'' if elegido else '_sec'}", use_container_width=True):
+                st.session_state.datos_cliente['estatus'] = nombre_est
+                st.rerun()
     
     st.markdown('<div style="margin-bottom: 20px;"></div>', unsafe_allow_html=True)
     
     # ========== BOTÓN "¿QUIERES MÁS INFO?" ==========
     st.markdown(f"""
     <a href="https://api.leadconnectorhq.com/widget/booking/kAzM5NH9hFxtc88sTQKy" target="_blank" style="text-decoration: none; color: inherit;">
-        <div style="background-color: {COLOR_AMBAR_CLARO}; border: 2px solid {COLOR_AMBAR}; color: {COLOR_NAVY}; border-radius: 12px; padding: 15px; font-size: 15px; cursor: pointer; text-align: center;">
-            💡 ¿Quieres más información sobre <b> qué es el estatus RNT</b> y cómo puede ayudarte a <b>maximizar tu rentabilidad inmobiliaria</b>? Agenda con nuestro equipo de Onboarding <b style="color: {COLOR_AMBAR_OSCURO};">aquí</b>.
+        <div style="background-color: #ffffff; border: 1px solid {COLOR_BORDE}; color: {COLOR_NAVY}; border-radius: 12px; padding: 15px; font-size: 15px; cursor: pointer; text-align: center;">
+            ¿Quieres más información sobre <b> qué es el estatus RNT</b> y cómo puede ayudarte a <b>maximizar tu rentabilidad inmobiliaria</b>? Agenda con nuestro equipo de Onboarding <b style="color: {COLOR_AMBAR_OSCURO};">aquí</b>.
         </div>
     </a>
     """, unsafe_allow_html=True)
@@ -935,6 +920,7 @@ elif st.session_state.paso_actual == 3:
         "Mercados",
         mercados_disponibles,
         default=st.session_state.datos_cliente.get('mercados', []),
+        placeholder="Elige uno o varios mercados",
         key="multiselect_mercados",
         label_visibility="collapsed"
     )
@@ -1028,7 +1014,7 @@ elif st.session_state.paso_actual == 4:
             fuera_de_mercado = int((~en_mercado).sum())
             df_disponibles = df_disponibles[en_mercado]
 
-        st.markdown("### 🏆 Proyectos disponibles según tus preferencias de inversión")
+        st.markdown("### Proyectos disponibles según tus preferencias de inversión")
         if ingresos_pasivos:
             criterio = ("Primero los que pagan rentas mensuales, después los trimestrales y por último los que "
                         "pagan al final; dentro de cada grupo, de mayor a menor rentabilidad anualizada.")
@@ -1206,7 +1192,7 @@ elif st.session_state.paso_actual == 4:
         [class*="st-key-kpi_"] div[data-testid="stVerticalBlock"] {{ gap: 0.15rem; }}
         .kpi-titulo {{ font-size: 12px; font-weight: 700; color: {COLOR_GRIS}; letter-spacing: 0.5px; }}
         .kpi-valor {{ font-size: 26px; font-weight: 800; color: {COLOR_NAVY}; line-height: 1.25; }}
-        .kpi-sub {{ font-size: 12px; color: {COLOR_GRIS_CLARO}; }}
+        .kpi-sub {{ font-size: 12px; color: {COLOR_GRIS}; }}
         .st-key-kpi_importe div[data-baseweb="input"] {{ min-height: 38px; }}
         .st-key-kpi_importe input {{ font-size: 22px; font-weight: 800; color: {COLOR_NAVY}; padding: 2px 8px; }}
         .st-key-kpi_pendiente button {{ padding: 2px 10px; min-height: 28px; font-size: 12px; }}
@@ -1318,7 +1304,7 @@ elif st.session_state.paso_actual == 4:
                         _olvidar_widgets(p)
                 importe_ajustado = importe_repartido + coste_estatus_p4
                 st.button(md(f"Usar {es(importe_ajustado, 0)} {simbolo_cliente_p4} como importe"),
-                          key="btn_ajustar_capital", on_click=_usar_repartido, args=(importe_ajustado,),
+                          key="btn_ajustar_capital_sec", on_click=_usar_repartido, args=(importe_ajustado,),
                           help="Cambia el importe a invertir para que coincida con lo que has repartido"
                                + (" más el coste del estatus" if coste_estatus_p4 > 0 else ""))
 
@@ -1569,7 +1555,7 @@ elif st.session_state.paso_actual == 5:
             <div class="tarjeta" style="border: 1px solid {COLOR_BORDE}; border-radius: 12px; padding: 14px 16px; background: #ffffff; min-height: 105px;">
                 <div class="tarjeta-titulo" style="font-size: 12px; font-weight: 700; color: {COLOR_GRIS}; letter-spacing: 0.5px;">{titulo}</div>
                 <div class="tarjeta-valor" style="font-size: 26px; font-weight: 800; color: {COLOR_NAVY}; margin: 4px 0;">{valor}</div>
-                <div class="tarjeta-sub" style="font-size: 12px; color: {COLOR_GRIS_CLARO};">{sub}</div>
+                <div class="tarjeta-sub" style="font-size: 12px; color: {COLOR_GRIS};">{sub}</div>
             </div>
             """
         
@@ -1579,11 +1565,11 @@ elif st.session_state.paso_actual == 5:
         precio_rnt = precio_rnt_actual()
         
         tarjetas_supuestos = [
-            ("💱 TIPO DE CAMBIO", f"{es(tipo_cambio, 4)}", "USD por 1 € · referencia BCE"),
+            ("TIPO DE CAMBIO", f"{es(tipo_cambio, 4)}", "USD por 1 € · referencia BCE"),
         ]
-        cols = st.columns(2)
-        for col, (titulo, valor, sub) in zip(cols, tarjetas_supuestos):
-            col.markdown(tarjeta(titulo, valor, sub), unsafe_allow_html=True)
+        for titulo, valor, sub in tarjetas_supuestos:
+            st.markdown(f"<div style='max-width:420px;'>{tarjeta(titulo, valor, sub)}</div>",
+                        unsafe_allow_html=True)
         
         def convertir(importe, desde, hacia):
             desde = 'USD' if str(desde).upper() in ('USD', 'USDT') else 'EUR'
@@ -1705,12 +1691,12 @@ elif st.session_state.paso_actual == 5:
         
         # ----- Tarjetas resumen -----
         tarjetas = [
-            ("🏠 INMUEBLES", f"{len(filas_tabla)}", "proyectos en cartera"),
-            ("💶 EN INMUEBLES", fmt(importe_inmuebles),
+            ("INMUEBLES", f"{len(filas_tabla)}", "proyectos en cartera"),
+            ("EN INMUEBLES", fmt(importe_inmuebles),
              fmt(convertir(importe_inmuebles, divisa_cliente, otra_divisa), otro_simbolo)),
-            ("⭐ COSTE DEL ESTATUS", fmt(coste_estatus), f"{es(rnt_estatus, 0)} RNT · {estatus}"),
-            ("💰 CAPITAL TOTAL", fmt(capital_total), "inmuebles + estatus"),
-            ("📈 RENT. ANUALIZADA", f"{es(rentabilidad_media, 2)} %", f"media ponderada · {estatus}"),
+            ("COSTE DEL ESTATUS", fmt(coste_estatus), f"{es(rnt_estatus, 0)} RNT · {estatus}"),
+            ("CAPITAL TOTAL", fmt(capital_total), "inmuebles + estatus"),
+            ("RENT. ANUALIZADA", f"{es(rentabilidad_media, 2)} %", f"media ponderada · {estatus}"),
         ]
         cols = st.columns(5)
         for col, (titulo, valor, sub) in zip(cols, tarjetas):
@@ -1887,7 +1873,7 @@ elif st.session_state.paso_actual == 5:
         # Reentel lo invierte todo en inmuebles; ReentelPro y SuperReentel invierten
         # lo que queda tras pagar el estatus, y el estatus rinde RENDIMIENTO_ESTATUS %.
         ESTATUS_COMPARATIVA = ['Reentel', 'ReentelPro', 'SuperReentel']
-        COLOR_ESTATUS = {'Reentel': COLOR_NAVY, 'ReentelPro': COLOR_GRIS_CLARO, 'SuperReentel': COLOR_AMBAR}
+        COLOR_ESTATUS = {'Reentel': COLOR_NAVY, 'ReentelPro': '#878d96', 'SuperReentel': COLOR_AMBAR}
         PLAZOS_COMPARATIVA = [6, 12, 24, 36, 60]
         
         reparto_estatus = {}
@@ -2025,7 +2011,7 @@ elif st.session_state.paso_actual == 5:
         )
         
         st.download_button(
-            label="📥 Descargar cartera (PDF)",
+            label="Descargar cartera en PDF",
             data=pdf_buffer,
             file_name=f"Cartera_{datos['nombre'].replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf",
             mime="application/pdf",
