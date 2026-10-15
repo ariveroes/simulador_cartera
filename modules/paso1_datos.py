@@ -22,17 +22,35 @@ def mostrar():
             value=st.session_state.datos_cliente.get('email', ''),
             key="input_email"
         )
-        telefono = st.text_input(
-            "¿Cuál es tu número de teléfono? *",
-            value=st.session_state.datos_cliente.get('telefono', ''),
-            placeholder="Ej.: +34 600 123 456",
-            key="input_telefono"
-        )
+        # Teléfono: país (bandera y prefijo, España por defecto) + número
+        opciones_prefijo = [etiqueta_prefijo(p) for p in PREFIJOS_TELEFONO]
+        prefijo_guardado = st.session_state.datos_cliente.get('telefono_pais')
+        with st.container(key="telefono"):
+            # Etiqueta común encima de las dos casillas (prefijo y número), con el mismo
+            # aspecto que las etiquetas de Streamlit
+            st.markdown("<div class='etiqueta-campo'>¿Cuál es tu número de teléfono? *</div>",
+                        unsafe_allow_html=True)
+            c_pref, c_num = st.columns([1.3, 2])
+            with c_pref:
+                pais_tel = st.selectbox(
+                    "País del teléfono",
+                    opciones_prefijo,
+                    index=_indice(opciones_prefijo, prefijo_guardado) or 0,
+                    key="select_prefijo",
+                    label_visibility="collapsed"
+                )
+            with c_num:
+                numero_tel = st.text_input(
+                    "Número de teléfono",
+                    value=st.session_state.datos_cliente.get('telefono_numero', ''),
+                    placeholder="600 123 456",
+                    key="input_telefono",
+                    label_visibility="collapsed"
+                )
         divisa = st.selectbox(
             "¿En qué divisa prefieres invertir? *",
             ["EUR", "USD"],
-            index=_indice(["EUR", "USD"], st.session_state.datos_cliente.get('divisa')),
-            placeholder="Selecciona una divisa",
+            index=_indice(["EUR", "USD"], st.session_state.datos_cliente.get('divisa')) or 0,
             key="select_divisa"
         )
     
@@ -40,8 +58,7 @@ def mostrar():
         ya_inversor = st.selectbox(
             "¿Eres ya inversor en Reental? *",
             ["No", "Sí"],
-            index=_indice(["No", "Sí"], st.session_state.datos_cliente.get('ya_inversor')),
-            placeholder="Selecciona una opción",
+            index=_indice(["No", "Sí"], st.session_state.datos_cliente.get('ya_inversor')) or 0,
             key="select_inversor"
         )
         capital = st.selectbox(
@@ -61,22 +78,25 @@ def mostrar():
     with col3:
         if st.button("Siguiente >", use_container_width=True, key="btn_paso1_next"):
             email_valido = bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", (email or "").strip()))
-            digitos_tel = re.sub(r"\D", "", telefono or "")
-            telefono_valido = (bool(re.match(r"^[\d\s().+-]+$", (telefono or "").strip()))
-                               and 6 <= len(digitos_tel) <= 15)
-            if not (nombre and email and telefono and divisa is not None and capital is not None
+            digitos_tel = re.sub(r"\D", "", numero_tel or "")
+            telefono_valido = (bool(re.match(r"^[\d\s().-]+$", (numero_tel or "").strip()))
+                               and 6 <= len(digitos_tel) <= 14)
+            prefijo = PREFIJOS_TELEFONO[opciones_prefijo.index(pais_tel)][2] if pais_tel else ""
+            if not (nombre and email and numero_tel and divisa is not None and capital is not None
                     and ya_inversor is not None):
                 st.error("Por favor completa todos los campos marcados con *")
             elif not email_valido:
                 st.error("Revisa el email: no parece una dirección válida.")
             elif not telefono_valido:
-                st.error("Revisa el teléfono: escribe solo números (puedes empezar por + y el prefijo del país).")
+                st.error("Revisa el teléfono: escribe solo el número, sin el prefijo (lo eliges a la izquierda).")
             else:
                 anteriores = st.session_state.datos_cliente
                 nuevos = {
                     'nombre': nombre.strip(),
                     'email': email.strip(),
-                    'telefono': telefono.strip(),
+                    'telefono': f"{prefijo} {numero_tel.strip()}",   # con prefijo (así se guarda en los leads)
+                    'telefono_pais': pais_tel,
+                    'telefono_numero': numero_tel.strip(),
                     'divisa': divisa,
                     'ya_inversor': ya_inversor,
                     'capital': capital,
