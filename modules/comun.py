@@ -23,6 +23,29 @@ from modules import leads
 # Enlace para agendar una reunión con el equipo (botón flotante, Paso 2 y Paso 5)
 URL_AGENDA = "https://api.leadconnectorhq.com/widget/booking/kAzM5NH9hFxtc88sTQKy"
 
+# ========== PREFIJOS TELEFÓNICOS (Paso 1) ==========
+# (bandera, código del país, prefijo). El primero es el que sale por defecto.
+PREFIJOS_TELEFONO = [
+    ("🇪🇸", "ESP", "+34"), ("🇵🇹", "PRT", "+351"), ("🇫🇷", "FRA", "+33"), ("🇮🇹", "ITA", "+39"),
+    ("🇩🇪", "DEU", "+49"), ("🇬🇧", "GBR", "+44"), ("🇮🇪", "IRL", "+353"), ("🇳🇱", "NLD", "+31"),
+    ("🇧🇪", "BEL", "+32"), ("🇱🇺", "LUX", "+352"), ("🇨🇭", "CHE", "+41"), ("🇦🇹", "AUT", "+43"),
+    ("🇦🇩", "AND", "+376"), ("🇲🇨", "MCO", "+377"), ("🇸🇪", "SWE", "+46"), ("🇳🇴", "NOR", "+47"),
+    ("🇩🇰", "DNK", "+45"), ("🇫🇮", "FIN", "+358"), ("🇵🇱", "POL", "+48"), ("🇬🇷", "GRC", "+30"),
+    ("🇺🇸", "USA", "+1"), ("🇨🇦", "CAN", "+1"), ("🇲🇽", "MEX", "+52"), ("🇨🇴", "COL", "+57"),
+    ("🇦🇷", "ARG", "+54"), ("🇨🇱", "CHL", "+56"), ("🇵🇪", "PER", "+51"), ("🇻🇪", "VEN", "+58"),
+    ("🇪🇨", "ECU", "+593"), ("🇺🇾", "URY", "+598"), ("🇵🇾", "PRY", "+595"), ("🇧🇴", "BOL", "+591"),
+    ("🇵🇦", "PAN", "+507"), ("🇨🇷", "CRI", "+506"), ("🇬🇹", "GTM", "+502"), ("🇩🇴", "DOM", "+1"),
+    ("🇧🇷", "BRA", "+55"), ("🇦🇪", "ARE", "+971"), ("🇸🇦", "SAU", "+966"), ("🇮🇱", "ISR", "+972"),
+    ("🇲🇦", "MAR", "+212"), ("🇿🇦", "ZAF", "+27"), ("🇦🇺", "AUS", "+61"), ("🇸🇬", "SGP", "+65"),
+    ("🇭🇰", "HKG", "+852"), ("🇯🇵", "JPN", "+81"), ("🇨🇳", "CHN", "+86"), ("🇮🇳", "IND", "+91"),
+]
+
+
+def etiqueta_prefijo(p):
+    """Texto del desplegable de prefijo: «🇪🇸 ESP (+34)»."""
+    return f"{p[0]} {p[1]} ({p[2]})"
+
+
 # ========== PALETA ==========
 # Paleta del informe mensual de Reental Wealth: ámbar, navy y fondo gris claro,
 # con la tipografía Fustat.
