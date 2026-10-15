@@ -487,67 +487,49 @@ def priorizar_rentas(df):
 
 def tabla_seleccionable(df_display, key):
     """
-    Muestra los proyectos para elegir y devuelve la lista de IDs marcados.
+    Muestra los proyectos para elegir, uno debajo de otro (en el ordenador y en el
+    móvil), y devuelve la lista de IDs marcados en el mismo orden.
 
-    - En el ordenador: una tabla con una casilla «Incluir» en cada fila.
-    - En el móvil: una tarjeta por proyecto con su casilla (la tabla no cabe).
-    Las dos vistas comparten la misma selección (st.session_state.sel_tablas[key]);
-    el CSS de estilos.py enseña una u otra según el ancho de la pantalla.
+    Cada tarjeta: casilla con el nombre del proyecto y, debajo, país, rentabilidad
+    anualizada y total, precio, tipo de rendimientos y enlace al dossier.
     """
     if df_display is None or len(df_display) == 0:
         return []
     
-    version = st.session_state.setdefault(f"_version_{key}", 0)
     marcados_antes = st.session_state.sel_tablas.get(key, set())
     
-    # ----- Ordenador: tabla -----
-    df_editor = df_display.copy()
-    df_editor.insert(0, 'Incluir', df_editor['ID'].isin(marcados_antes))
-    with st.container(key=f"vista_tabla_{key}"):
-        editado = st.data_editor(
-            df_editor,
-            hide_index=True,
-            key=f"{key}_{version}",
-            column_config={
-                **CONFIG_COLUMNAS_PASO4,
-                'Incluir': st.column_config.CheckboxColumn('Incluir', width=60, pinned=True),
-            },
-            disabled=[c for c in df_editor.columns if c != 'Incluir'],
-        )
-    marcados = editado.loc[editado['Incluir'] == True, 'ID'].tolist()
-    st.session_state.sel_tablas[key] = set(marcados)
+    def _pct(v):
+        try:
+            return f"{es(float(v), 2)} %" if v is not None and v == v else "—"
+        except (TypeError, ValueError):
+            return "—"
     
-    # ----- Móvil: tarjetas -----
-    def _marcar_desde_tarjeta(pid):
-        seleccion = set(st.session_state.sel_tablas.get(key, set()))
-        if st.session_state.get(f"tarjeta_{key}_{pid}"):
-            seleccion.add(pid)
-        else:
-            seleccion.discard(pid)
-        st.session_state.sel_tablas[key] = seleccion
-        # La tabla se vuelve a crear desde la selección para que no se desincronice
-        st.session_state[f"_version_{key}"] = st.session_state.get(f"_version_{key}", 0) + 1
-    
-    with st.container(key=f"vista_tarjetas_{key}"):
+    marcados = []
+    with st.container(key=f"lista_{key}"):
         for _, fila in df_display.iterrows():
             pid = fila['ID']
             clave_casilla = f"tarjeta_{key}_{pid}"
-            st.session_state[clave_casilla] = pid in marcados     # misma selección que la tabla
-            simbolo_rent = lambda v: f"{es(v, 2)} %" if v is not None and v == v else "—"
-            detalles = " · ".join(str(fila.get(c, '') or '') for c in ('Ubicación', 'Tipología de dividendo')
-                                  if str(fila.get(c, '') or '').strip() not in ('', '-'))
+            if clave_casilla not in st.session_state:
+                st.session_state[clave_casilla] = pid in marcados_antes
+            dossier = str(fila.get('Dossier', '') or '').strip()
+            enlace = (f"<a href='{dossier}' target='_blank' rel='noopener'>Ver dossier ↗</a>"
+                      if dossier.lower().startswith('http') else "—")
+            tipo = str(fila.get('Tipología de dividendo', '') or '').strip() or "—"
             with st.container(key=f"tm_{key}_{pid}"):
+                elegido = st.checkbox(f"{fila.get('Nombre del proyecto', pid)}", key=clave_casilla)
                 st.markdown(html_seguro(
-                    f"<div class='tm-nombre'>{fila.get('Nombre del proyecto', pid)}</div>"
-                    f"<div class='tm-sub'>{detalles}</div>"
-                    f"<div class='tm-datos'>"
-                    f"<div><span>Rent. anual</span><b>{simbolo_rent(fila.get('Rentabilidad Anualizada'))}</b></div>"
-                    f"<div><span>Rent. total</span><b>{simbolo_rent(fila.get('Rentabilidad Total'))}</b></div>"
+                    "<div class='tm-datos tm-proyecto'>"
+                    f"<div><span>País</span><b>{fila.get('Ubicación', '') or '—'}</b></div>"
+                    f"<div><span>Rent. anualizada</span><b>{_pct(fila.get('Rentabilidad Anualizada'))}</b></div>"
+                    f"<div><span>Rent. total</span><b>{_pct(fila.get('Rentabilidad Total'))}</b></div>"
                     f"<div><span>Precio</span><b>{fila.get('Precio', '—')}</b></div>"
-                    f"</div>"), unsafe_allow_html=True)
-                st.checkbox("Incluir en mi cartera", key=clave_casilla,
-                            on_change=_marcar_desde_tarjeta, args=(pid,))
+                    f"<div><span>Tipo de rendimientos</span><b class='tm-texto'>{tipo}</b></div>"
+                    f"<div><span>Dossier</span><b>{enlace}</b></div>"
+                    "</div>"), unsafe_allow_html=True)
+            if elegido:
+                marcados.append(pid)
     
+    st.session_state.sel_tablas[key] = set(marcados)
     return marcados
 
 
