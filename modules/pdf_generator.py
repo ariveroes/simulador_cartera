@@ -406,9 +406,9 @@ def _resumen(c, R):
             fy -= 20
 
     _parrafo(c, M, y - 8, ancho,
-             f"Tipo de cambio aplicado: 1 € = {_n(tc, 4)} $ (referencia BCE). Precio del RNT: "
-             f"{_n((R.get('precio_rnt') or 0), 4)} $ (precio de mercado). Las rentabilidades se ponderan por el % de la "
-             "cartera invertido en cada proyecto.", 7.5, TENUE)
+             f"Tipo de cambio aplicado: 1 € = {_n(tc, 4)} $ (referencia BCE). El coste del estatus se descuenta "
+             "del importe a invertir. Las rentabilidades se ponderan por el % de la cartera invertido en cada "
+             "proyecto.", 7.5, TENUE)
 
 
 def _reinversion(c, R):
@@ -558,7 +558,7 @@ def _activos(c, R, proyectos, con_barras):
     ancho = W - 2 * M
     oro = "#f5a623"
 
-    filas = [["Nombre", "Estado", "Ubicación", "Inversión", "Tokens", "Rent. total Reentel", f"Rent. total {ep}",
+    filas = [["Nombre", "Estado", "Ubicación", "Inversión", "Rent. total Reentel", f"Rent. total {ep}",
               "Rent. anual Reentel", f"Rent. anual {ep}", "Fin est."]]
     for p in proyectos:
         estado = _norm_estado(p.get("estado"))
@@ -568,14 +568,13 @@ def _activos(c, R, proyectos, con_barras):
             f"<font size='6.5' color='{color}'><b>{estado}</b></font>",
             p.get("ubicacion", "—"),
             _dinero(p.get("importe"), divisa),
-            _num_es(p.get("tokens")),
             _pct(p.get("rent_tot_rnt")),
             f"<font color='{oro}'><b>{_pct(p.get('rent_tot_est'))}</b></font>",
             _pct(p.get("rent_anu_rnt")),
             f"<font color='{oro}'><b>{_pct(p.get('rent_anu_est'))}</b></font>",
             p.get("fecha_fin") or "—",
         ])
-    alto = _tabla(c, M, y, filas, [ancho * k for k in (0.17, 0.11, 0.10, 0.10, 0.07, 0.09, 0.09, 0.09, 0.09, 0.09)])
+    alto = _tabla(c, M, y, filas, [ancho * k for k in (0.20, 0.11, 0.11, 0.13, 0.09, 0.09, 0.09, 0.09, 0.09)])
     y -= alto + 14
 
     if con_barras and proyectos:
@@ -627,7 +626,7 @@ def _ficha(c, R, p, x, y, w, h):
     lineas = [("Ubicación", p.get("ubicacion")), ("Inicio renta", p.get("fecha_inicio")),
               ("Fin estimado", p.get("fecha_fin")), ("Precio de compra", p.get("precio")),
               ("Inversión", _dinero(p.get("importe"), divisa)),
-              ("Tokens", _num_es(p.get("tokens")) if p.get("tokens") is not None else None), ("Dividendo", str(p.get("tipodiv") or "—").capitalize()),
+              ("Dividendo", str(p.get("tipodiv") or "—").capitalize()),
               ("Peso en la cartera", _pct(p.get("pct"), 1))]
     for etq, val in lineas:
         if not val:
