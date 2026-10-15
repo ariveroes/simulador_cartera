@@ -483,29 +483,67 @@ def priorizar_rentas(df):
 
 def tabla_seleccionable(df_display, key):
     """
-    Muestra una tabla con una casilla 'Incluir' en cada fila
-    y devuelve la lista de IDs de los proyectos marcados.
+    Muestra los proyectos para elegir y devuelve la lista de IDs marcados.
+
+    - En el ordenador: una tabla con una casilla «Incluir» en cada fila.
+    - En el móvil: una tarjeta por proyecto con su casilla (la tabla no cabe).
+    Las dos vistas comparten la misma selección (st.session_state.sel_tablas[key]);
+    el CSS de estilos.py enseña una u otra según el ancho de la pantalla.
     """
     if df_display is None or len(df_display) == 0:
         return []
     
-    df_editor = df_display.copy()
+    version = st.session_state.setdefault(f"_version_{key}", 0)
     marcados_antes = st.session_state.sel_tablas.get(key, set())
+    
+    # ----- Ordenador: tabla -----
+    df_editor = df_display.copy()
     df_editor.insert(0, 'Incluir', df_editor['ID'].isin(marcados_antes))
-    
-    editado = st.data_editor(
-        df_editor,
-        hide_index=True,
-        key=key,
-        column_config={
-            **CONFIG_COLUMNAS_PASO4,
-            'Incluir': st.column_config.CheckboxColumn('Incluir', width=60, pinned=True),
-        },
-        disabled=[c for c in df_editor.columns if c != 'Incluir'],
-    )
-    
+    with st.container(key=f"vista_tabla_{key}"):
+        editado = st.data_editor(
+            df_editor,
+            hide_index=True,
+            key=f"{key}_{version}",
+            column_config={
+                **CONFIG_COLUMNAS_PASO4,
+                'Incluir': st.column_config.CheckboxColumn('Incluir', width=60, pinned=True),
+            },
+            disabled=[c for c in df_editor.columns if c != 'Incluir'],
+        )
     marcados = editado.loc[editado['Incluir'] == True, 'ID'].tolist()
     st.session_state.sel_tablas[key] = set(marcados)
+    
+    # ----- Móvil: tarjetas -----
+    def _marcar_desde_tarjeta(pid):
+        seleccion = set(st.session_state.sel_tablas.get(key, set()))
+        if st.session_state.get(f"tarjeta_{key}_{pid}"):
+            seleccion.add(pid)
+        else:
+            seleccion.discard(pid)
+        st.session_state.sel_tablas[key] = seleccion
+        # La tabla se vuelve a crear desde la selección para que no se desincronice
+        st.session_state[f"_version_{key}"] = st.session_state.get(f"_version_{key}", 0) + 1
+    
+    with st.container(key=f"vista_tarjetas_{key}"):
+        for _, fila in df_display.iterrows():
+            pid = fila['ID']
+            clave_casilla = f"tarjeta_{key}_{pid}"
+            st.session_state[clave_casilla] = pid in marcados     # misma selección que la tabla
+            simbolo_rent = lambda v: f"{es(v, 2)} %" if v is not None and v == v else "—"
+            detalles = " · ".join(str(fila.get(c, '') or '') for c in ('Ubicación', 'Tipología de dividendo')
+                                  if str(fila.get(c, '') or '').strip() not in ('', '-'))
+            with st.container(key=f"tm_{key}_{pid}"):
+                st.markdown(html_seguro(
+                    f"<div class='tm-nombre'>{fila.get('Nombre del proyecto', pid)}</div>"
+                    f"<div class='tm-sub'>{detalles}</div>"
+                    f"<div class='tm-datos'>"
+                    f"<div><span>Rent. anual</span><b>{simbolo_rent(fila.get('Rentabilidad Anualizada'))}</b></div>"
+                    f"<div><span>Rent. total</span><b>{simbolo_rent(fila.get('Rentabilidad Total'))}</b></div>"
+                    f"<div><span>Precio</span><b>{fila.get('Precio', '—')}</b></div>"
+                    f"</div>"), unsafe_allow_html=True)
+                st.checkbox("Incluir en mi cartera", key=clave_casilla,
+                            on_change=_marcar_desde_tarjeta, args=(pid,))
+    
     return marcados
 
 
