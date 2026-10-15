@@ -103,6 +103,19 @@ def aplicar_estilos():
             .st-key-tabla_cartera div[data-baseweb="input"] {{ min-height: 44px !important; }}
         }}
 
+        /* ===== Botón flotante para agendar una reunión ===== */
+        a.cta-flotante, .stApp a.cta-flotante {{
+            position: fixed; right: 24px; bottom: 24px; z-index: 999991;
+            background: {COLOR_NAVY}; color: #ffffff !important; text-decoration: none;
+            font-weight: 700; font-size: 15px; line-height: 1.2;
+            padding: 14px 20px; border-radius: 999px;
+            box-shadow: 0 8px 24px rgba(31, 41, 55, 0.28);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }}
+        a.cta-flotante:hover {{ transform: translateY(-2px); box-shadow: 0 12px 28px rgba(31, 41, 55, 0.32); }}
+        a.cta-flotante:focus-visible {{ outline: 2px solid {COLOR_AMBAR}; outline-offset: 3px; }}
+        a.cta-flotante .cta-dudas {{ color: {COLOR_AMBAR}; }}
+
         /* ===== Tablas (ordenador) y tarjetas (móvil) con los mismos datos ===== */
         [class*="st-key-vista_tarjetas_"] {{ display: none; }}
         [class*="st-key-tm_"], .tm-tarjeta {{
@@ -141,6 +154,19 @@ def aplicar_estilos():
             /* El icono de enlace junto a los títulos se ve siempre en el móvil: se oculta */
             [data-testid="stHeaderActionElements"] {{ display: none !important; }}
             .etq-movil {{ display: block; }}
+            /* Botón para agendar: franja fina a todo el ancho abajo (encima de la barra de
+               «Atrás/Siguiente» si la hay). La página deja hueco al final para que nunca tape nada. */
+            a.cta-flotante, .stApp a.cta-flotante {{
+                left: 0; right: 0; bottom: 0; border-radius: 0; text-align: center;
+                font-size: 14px; padding: 11px 12px calc(11px + env(safe-area-inset-bottom));
+                box-shadow: 0 -4px 14px rgba(31, 41, 55, 0.18);
+            }}
+            a.cta-flotante:hover {{ transform: none; }}
+            .stApp:has([class*="_back"]) a.cta-flotante {{ bottom: 64px; padding-bottom: 11px; }}
+            [data-testid="stMainBlockContainer"]:has(a.cta-flotante) {{ padding-bottom: 72px !important; }}
+            [data-testid="stMainBlockContainer"]:has(a.cta-flotante):has([class*="_back"]) {{
+                padding-bottom: 140px !important;
+            }}
             /* Sin zoom automático del iPhone al escribir: casillas de al menos 16 px */
             .stApp input, .stApp textarea {{ font-size: 16px !important; }}
 
