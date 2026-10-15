@@ -1,12 +1,12 @@
 """
 SIMULADOR DE CARTERA INMOBILIARIA REENTAL - FASE 3 COMPLETA
-Streamlit App - Versión FASE 3 con Precios OTC Reales
+Streamlit App - Simulador de cartera inmobiliaria (Reental Wealth)
 
 Pasos:
 1. Datos cliente (nombre, email, capital, divisa)
 2. Estatus (Reentel, ReentelPro, SuperReentel)
 3. Parámetros (objetivo, mercados, distribución)
-4. Cartera (seleccionar proyectos + PRECIOS OTC)
+4. Cartera (proyectos disponibles ordenados según las preferencias + reparto)
 5. Resumen (tabla cartera + proyecciones + descargar PDF)
 """
 
@@ -224,7 +224,7 @@ def _proyectos_para_catalogo(df):
 OTC_WALLET_CUSTODIA = "0xce0719ec1bda336ba069c6961ad167767829301a"
 
 
-@st.cache_data(ttl=900, show_spinner="Consultando en la blockchain qué hay disponible en OTC…")
+@st.cache_data(ttl=900, show_spinner="Revisando proyectos disponibles…")
 def catalogo_otc(proyectos):
     """Lo disponible hoy en OTC, calculado con los MISMOS módulos que la herramienta
     OTC del compañero (otc_inventario.catalogo): stock propio de Reental en la
@@ -287,7 +287,7 @@ def cargar_ofertas_otc(df_proyectos=None):
     except Exception as e:
         print(f"❌ Error calculando la disponibilidad OTC: {e}")
         traceback.print_exc()
-        st.warning("⚠️ Ahora mismo no hemos podido cargar las ofertas del mercado secundario. "
+        st.warning("⚠️ Ahora mismo no hemos podido revisar todos los proyectos disponibles. "
                    "Inténtalo de nuevo en unos minutos.")
         return []
 
@@ -324,7 +324,7 @@ def cargar_ofertas_otc(df_proyectos=None):
 
     if res.get("error") == "falta_clave":
         print("❌ Falta la clave de Etherscan en los Secrets ([etherscan] api_key)")
-        st.warning("⚠️ Ahora mismo no hemos podido cargar las ofertas del mercado secundario. "
+        st.warning("⚠️ Ahora mismo no hemos podido revisar todos los proyectos disponibles. "
                    "Inténtalo de nuevo en unos minutos.")
     return ofertas
 
@@ -441,15 +441,13 @@ CONFIG_COLUMNAS_PASO4 = {
     'Ubicación': st.column_config.Column(width="small"),
     'Rentabilidad Total': st.column_config.NumberColumn('Rentabilidad total', format='%.2f%%', width=90),
     'Rentabilidad Anualizada': st.column_config.NumberColumn('Rentabilidad anualizada', format='%.2f%%', width=90),
-    'Precio OTC Más Bajo': st.column_config.TextColumn('Precio OTC', width=90),
-    'Tokens disponibles': st.column_config.NumberColumn('Tokens disponibles', format='%.2f', width=110),
+    'Precio': st.column_config.TextColumn('Precio', width=90, help="Precio de compra de un token"),
 }
 
 # ========== SUPUESTOS DE MERCADO POR DEFECTO (Paso 5) ==========
 # Se usan si no se puede leer el valor real. No son editables por el usuario.
 TIPO_CAMBIO_DEFECTO = 1.14      # USD por 1 €
 PRECIO_RNT_DEFECTO = 0.32       # USDT por 1 RNT
-STAKING_RNT = 3.5               # % anual del staking de RNT (fijo)
 # RNT necesarios para cada estatus
 RNT_POR_ESTATUS = {'SuperReentel': 28000, 'ReentelPro': 14000, 'Reentel': 0}
 
@@ -972,182 +970,108 @@ elif st.session_state.paso_actual == 4:
     st.markdown("")
     
     if st.session_state.df_proyectos is not None and len(st.session_state.df_proyectos) > 0:
-        # SEPARAR: Para Primera Emisión solo FINANCIÁNDOSE, para OTC todos
         df_proyectos_todos = st.session_state.df_proyectos.copy()
-        
-        # Filtrar solo FINANCIÁNDOSE para la sección de Primera Emisión
-        df_proyectos = df_proyectos_todos[
-            df_proyectos_todos['ESTADO'].str.upper() == 'FINANCIÁNDOSE'
-        ].copy()
-        
+
         # Obtener parámetros
         mercados_seleccionados = st.session_state.datos_cliente.get('mercados', [])
-        objetivo = st.session_state.datos_cliente.get('objetivo', '')
+        objetivo = st.session_state.datos_cliente.get('objetivo', '') or ''
         estatus = st.session_state.datos_cliente.get('estatus', None)
-        
-        criterios = {
-            'ubicaciones': mercados_seleccionados,
-            'duracion': 'Largo plazo' if 'maximizar' in objetivo.lower() else 'Corto plazo'
-        }
-        
-        # Cargar ofertas OTC + P2P
-        ofertas_otc_list = cargar_todas_ofertas_secundario(df_proyectos_todos)
-        ofertas_por_proy = agrupar_ofertas_por_proyecto(ofertas_otc_list)
+        estatus_p4 = estatus or 'Reentel'
+        ingresos_pasivos = 'ingresos' in objetivo.lower()
 
-        # Separar proyectos ACTIVOS (FINANCIÁNDOSE)
-        df_matchean = df_proyectos[df_proyectos['Ubicación'].isin(mercados_seleccionados)].copy()
-        df_no_matchean = df_proyectos[~df_proyectos['Ubicación'].isin(mercados_seleccionados)].copy()
-        
-        # Rankear
-        if len(df_matchean) > 0:
-            try:
-                df_matchean = rankear_proyectos(df_matchean, criterios, estatus)
-            except:
-                pass
-        
-        ingresos_pasivos = 'ingresos' in (objetivo or '').lower()
+        # ========== PROYECTOS DISPONIBLES (UNA SOLA LISTA) ==========
+        # Todo lo que se puede comprar hoy, sin distinguir de dónde sale:
+        #  - los proyectos que se están financiando, al precio de emisión;
+        #  - los que tienen tokens a la venta, a su precio más bajo (salvo los que
+        #    terminan en menos de MESES_MINIMOS_HASTA_FIN meses).
+        ofertas_por_proy = agrupar_ofertas_por_proyecto(cargar_todas_ofertas_secundario(df_proyectos_todos))
+
+        precio_por_id = {}      # precio de compra de un token, en la divisa del proyecto
+        origen_por_id = {}      # 'Emisión' o 'Mercado' (solo para uso interno)
+        filas_disponibles = []
+        for _, row in df_proyectos_todos.iterrows():
+            pid = row.get('ID')
+            if pid is None or str(pid).strip() == '' or (isinstance(pid, float) and pid != pid):
+                continue
+            div_proy = divisa_proyecto(row)
+            if str(row.get('ESTADO', '')).upper() == 'FINANCIÁNDOSE':
+                precio, origen = _num(row.get('Precio Emisión', 0)), 'Emisión'
+            else:
+                ofertas = (ofertas_por_proy.get(str(pid).lower())
+                           or ofertas_por_proy.get(str(row.get('Token Address', '')).lower()) or [])
+                precios = [convertir_divisa(_num(o.get('precio_venta'), 0.0), o.get('divisa', 'USD'), div_proy)
+                           for o in ofertas if _num(o.get('precio_venta'), 0.0) > 0]
+                if not precios or termina_pronto(row.get('fecha_fin_calculo')):
+                    continue
+                precio, origen = min(precios), 'Mercado'
+            if not precio or precio <= 0:
+                continue
+            precio_por_id[pid] = precio
+            origen_por_id[pid] = origen
+            filas_disponibles.append(row)
+
+        df_disponibles = pd.DataFrame(filas_disponibles)
+        fuera_de_mercado = 0
+        if len(df_disponibles) > 0 and mercados_seleccionados:
+            en_mercado = df_disponibles['Ubicación'].isin(mercados_seleccionados)
+            fuera_de_mercado = int((~en_mercado).sum())
+            df_disponibles = df_disponibles[en_mercado]
+
+        st.markdown("### 🏆 Proyectos disponibles según tus preferencias de inversión")
         if ingresos_pasivos:
-            df_matchean = priorizar_rentas(df_matchean)
-            df_no_matchean = priorizar_rentas(df_no_matchean)
-        
-        # IDs marcados en cualquiera de las tablas
+            criterio = ("Primero los que pagan rentas mensuales, después los trimestrales y por último los que "
+                        "pagan al final; dentro de cada grupo, de mayor a menor rentabilidad anualizada.")
+        else:
+            criterio = "De mayor a menor rentabilidad anualizada."
+
         ids_seleccionados = []
-        
-        # ========== TABLAS PRIMERA EMISIÓN ==========
-        st.markdown("### 📊 Proyectos disponibles en primera emisión (Reental)")
-        
-        if len(df_matchean) == 0:
-            st.info("No hay proyectos en primera emisión en los mercados que has elegido"
-                    + (". Debajo tienes otros proyectos que podrían interesarte." if len(df_no_matchean) > 0 else "."))
-        else:
-            df_display_matchean = preparar_proyectos_para_paso4(df_matchean, estatus)
-            df_display_matchean = aplicar_rentabilidad_ajustada(df_display_matchean, df_matchean, estatus)
-            ids_seleccionados += tabla_seleccionable(df_display_matchean, "tabla_primera_emision")
-        
-        if len(df_no_matchean) > 0:
-            st.markdown("#### Proyectos adicionales que podrían interesarte")
-            df_display_no_matchean = preparar_proyectos_para_paso4(df_no_matchean, estatus)
-            df_display_no_matchean = aplicar_rentabilidad_ajustada(df_display_no_matchean, df_no_matchean, estatus)
-            ids_seleccionados += tabla_seleccionable(df_display_no_matchean, "tabla_adicionales")
-        
-        # ========== TABLA OTC ==========
-        st.markdown("---")
-        st.markdown("### 💰 Proyectos disponibles en OTC (Mercado Secundario)")
-        
-        df_con_otc = pd.DataFrame()
-        
-        if ofertas_por_proy:
-            # Mapas de proyectos por ID y Token Address (incluidos cerrados)
-            proyectos_por_id = {}
-            proyectos_por_token = {}
-            for idx, row in df_proyectos_todos.iterrows():
-                proyecto_id = str(row.get('ID', '')).lower()
-                token_addr = str(row.get('Token Address', '')).lower()
-                if proyecto_id:
-                    proyectos_por_id[proyecto_id] = row
-                if token_addr:
-                    proyectos_por_token[token_addr] = row
-            
-            # Encontrar proyectos con ofertas
-            proyectos_con_otc = []
-            for clave_otc in ofertas_por_proy.keys():
-                proyecto_data = proyectos_por_id.get(clave_otc)
-                if proyecto_data is None:
-                    proyecto_data = proyectos_por_token.get(clave_otc)
-                if proyecto_data is not None:
-                    proyectos_con_otc.append(proyecto_data)
-            
-            if proyectos_con_otc:
-                df_con_otc = pd.DataFrame(proyectos_con_otc)
-                # En OTC no se muestran los que terminan en menos de MESES_MINIMOS_HASTA_FIN
-                # meses (en primera emisión sí se muestran todos)
-                if 'fecha_fin_calculo' in df_con_otc.columns:
-                    df_con_otc = df_con_otc[~df_con_otc['fecha_fin_calculo'].map(termina_pronto)]
-        
-        # Solo los mercados elegidos en el Paso 3
-        otc_fuera_de_mercado = 0
-        if len(df_con_otc) > 0 and mercados_seleccionados:
-            en_mercado = df_con_otc['Ubicación'].isin(mercados_seleccionados)
-            otc_fuera_de_mercado = int((~en_mercado).sum())
-            df_con_otc = df_con_otc[en_mercado]
-        
-        if len(df_con_otc) > 0:
-            n_otc = len(df_con_otc)
-            st.success(f"✅ {n_otc} proyecto{'s' if n_otc != 1 else ''} con tokens disponibles en el mercado secundario")
-            
-            try:
-                df_con_otc = rankear_proyectos(df_con_otc, criterios, estatus)
-            except:
-                pass
-            if ingresos_pasivos:
-                df_con_otc = priorizar_rentas(df_con_otc)
-            
-            # Precio OTC más bajo por proyecto, en la divisa del proyecto
-            precio_min_por_id = {}
-            for idx, row in df_con_otc.iterrows():
-                clave = str(row.get('ID', '')).lower() or str(row.get('Token Address', '')).lower()
-                div_proy = divisa_proyecto(row)
-                precios = []
-                for oferta in ofertas_por_proy.get(clave, []):
-                    try:
-                        precio = float(oferta.get('precio_venta', 0))
-                        if precio > 0:
-                            precios.append(convertir_divisa(precio, oferta.get('divisa', 'USD'), div_proy))
-                    except:
-                        pass
-                if precios:
-                    precio_min_por_id[row['ID']] = min(precios)
-            
+        if len(df_disponibles) > 0:
+            st.caption(f"Ordenados según tu objetivo de inversión. {criterio}")
+            df_display = preparar_proyectos_para_paso4(df_disponibles, estatus)
+            df_display = aplicar_rentabilidad_ajustada(df_display, df_disponibles, estatus, precio_por_id)
             simbolo_por_id = {row['ID']: ('$' if divisa_proyecto(row) == 'USD' else '€')
-                              for _, row in df_con_otc.iterrows()}
-            df_display_otc = preparar_proyectos_para_paso4(df_con_otc, estatus)
-            # Rentabilidad comprando a la oferta más barata
-            df_display_otc = aplicar_rentabilidad_ajustada(df_display_otc, df_con_otc, estatus, precio_min_por_id)
-            # Tokens disponibles: stock de Reental + todas las ofertas de terceros del proyecto
-            tokens_por_id = {}
-            for _, row in df_con_otc.iterrows():
-                clave = str(row.get('ID', '')).lower() or str(row.get('Token Address', '')).lower()
-                tokens_por_id[row['ID']] = round(sum(_num(o.get('n_tokens'), 0.0)
-                                                     for o in ofertas_por_proy.get(clave, [])), 2)
-            df_display_otc['Tokens disponibles'] = df_display_otc['ID'].map(tokens_por_id)
-            df_display_otc['Precio OTC Más Bajo'] = df_display_otc['ID'].map(
-                lambda pid: (f"{es(precio_min_por_id[pid], 2)} {simbolo_por_id.get(pid, '€')}"
-                             if pid in precio_min_por_id else "-")
-            )
-            ids_seleccionados += tabla_seleccionable(df_display_otc, "tabla_otc")
-        elif otc_fuera_de_mercado:
-            st.info("📭 Ahora mismo no hay tokens disponibles en el mercado secundario en los mercados que has elegido.")
+                              for _, row in df_disponibles.iterrows()}
+            df_display['Precio'] = df_display['ID'].map(
+                lambda pid: f"{es(precio_por_id[pid], 2)} {simbolo_por_id.get(pid, '€')}" if pid in precio_por_id else "-")
+            # Ranking según las preferencias
+            df_display = df_display.sort_values('Rentabilidad Anualizada', ascending=False,
+                                                na_position='last', kind='stable')
+            if ingresos_pasivos:
+                df_display = priorizar_rentas(df_display)
+            ids_seleccionados = tabla_seleccionable(df_display, "tabla_proyectos")
+            if fuera_de_mercado:
+                plural = 's' if fuera_de_mercado != 1 else ''
+                st.caption(f"Hay {fuera_de_mercado} proyecto{plural} más disponible{plural} en otros "
+                           "mercados. Puedes añadir esos mercados en el Paso 3.")
+        elif fuera_de_mercado:
+            st.info(f"Ahora mismo no hay proyectos disponibles en los mercados que has elegido. Hay "
+                    f"{fuera_de_mercado} en otros mercados: puedes añadirlos en el Paso 3.")
         else:
-            st.info("📭 Ahora mismo no hay tokens disponibles en el mercado secundario.")
-        if otc_fuera_de_mercado:
-            st.caption(f"Hay {otc_fuera_de_mercado} proyecto{'s' if otc_fuera_de_mercado != 1 else ''} más con tokens "
-                       "disponibles en otros mercados. Puedes añadir esos mercados en el Paso 3.")
-        
+            st.info("Ahora mismo no hay proyectos disponibles.")
+
         # ========== GUARDAR SELECCIÓN ==========
         ids_seleccionados = list(dict.fromkeys(ids_seleccionados))  # sin duplicados, en orden
-        
+
         for pid in list(st.session_state.cartera_selecciones.keys()):
             st.session_state.cartera_selecciones[pid]['seleccionado'] = pid in ids_seleccionados
         for pid in ids_seleccionados:
             if pid not in st.session_state.cartera_selecciones:
                 st.session_state.cartera_selecciones[pid] = {'seleccionado': True, 'porcentaje': 0}
-        
+
         filas_por_id = {row['ID']: row for _, row in df_proyectos_todos.iterrows()}
-        
+
         # ========== CONSTRUIR CARTERA ==========
         st.markdown("---")
         st.markdown("### Construye tu cartera")
 
-        MODOS_REPARTO = ["Por cantidad de tokens", "Por % de mi cartera", "Por igual"]
+        MODOS_REPARTO = ["Por igual", "Por % de mi cartera"]
         if st.session_state.get('modo_reparto') not in MODOS_REPARTO:
             st.session_state.modo_reparto = "Por igual"
-        if not isinstance(st.session_state.get('oferta_elegida'), dict):
-            st.session_state.oferta_elegida = {}
 
         proyectos_seleccionados = []
         divisa_cliente_p4 = (st.session_state.datos_cliente.get('divisa') or 'EUR').upper()
         simbolo_cliente_p4 = '€' if divisa_cliente_p4 == 'EUR' else '$'
-        ids_validos = [pid for pid in ids_seleccionados if pid in filas_por_id]
+        ids_validos = [pid for pid in ids_seleccionados if pid in filas_por_id and pid in precio_por_id]
         tokens_compra = st.session_state.tokens_compra
         for pid in ids_validos:
             tokens_compra.setdefault(pid, 0.0)
@@ -1162,35 +1086,13 @@ elif st.session_state.paso_actual == 4:
                           f"{simbolo_cliente_p4})")
             return texto
 
-        # ----- Opciones de compra de cada proyecto (la más barata primero) -----
-        opciones_por_id = {}
-        for pid in ids_validos:
-            row = filas_por_id[pid]
-            precio_em = _num(row.get('Precio Emisión', 0))
-            opciones = []
-            if str(row.get('ESTADO', '')).upper() == 'FINANCIÁNDOSE':
-                opciones.append({'tipo': 'Emisión', 'precio': precio_em,
-                                 'divisa': divisa_proyecto(row), 'n_tokens': None})
-            clave_otc = str(pid).lower() or str(row.get('Token Address', '')).lower()
-            for oferta in ofertas_por_proy.get(clave_otc, []):
-                precio = _num(oferta.get('precio_venta'), 0.0)
-                if precio > 0:
-                    opciones.append({'tipo': 'OTC', 'precio': precio,
-                                     'divisa': oferta.get('divisa', 'EUR'),
-                                     'n_tokens': _num(oferta.get('n_tokens'), 0.0)})
-            if not opciones:
-                opciones.append({'tipo': 'Emisión', 'precio': precio_em,
-                                 'divisa': divisa_proyecto(row), 'n_tokens': None})
-            opciones.sort(key=lambda o: convertir_divisa(o['precio'], o['divisa'], divisa_cliente_p4))
-            opciones_por_id[pid] = opciones
+        # Precio de compra de cada proyecto elegido (el de la tabla)
+        opcion_por_id = {pid: {'tipo': origen_por_id.get(pid, 'Emisión'), 'precio': precio_por_id[pid],
+                               'divisa': divisa_proyecto(filas_por_id[pid]), 'n_tokens': None}
+                         for pid in ids_validos}
 
         def _oferta(pid):
-            opciones = opciones_por_id[pid]
-            try:
-                i = int(st.session_state.oferta_elegida.get(pid, 0))
-            except (TypeError, ValueError):
-                i = 0
-            return opciones[i] if 0 <= i < len(opciones) else opciones[0]
+            return opcion_por_id[pid]
 
         def _precio_cliente(o):
             """Precio de un token en la divisa del cliente."""
@@ -1198,8 +1100,7 @@ elif st.session_state.paso_actual == 4:
 
         def _olvidar_widgets(pid):
             """Las casillas se vuelven a rellenar desde tokens_compra en la siguiente vuelta."""
-            for prefijo in ("tk_", "pct_"):
-                st.session_state.pop(f"{prefijo}{pid}", None)
+            st.session_state.pop(f"pct_{pid}", None)
 
         # ----- Estado de partida -----
         importe_total_p4 = importe_cliente(st.session_state.datos_cliente)
@@ -1248,26 +1149,12 @@ elif st.session_state.paso_actual == 4:
             for p in list(st.session_state.tokens_compra):
                 _olvidar_widgets(p)
 
-        # Reparto por igual respetando los tokens disponibles: si un proyecto no
-        # llega a su parte, se le asigna todo lo que hay y el resto se reparte
-        # entre los demás.
+        # Reparto por igual: el mismo importe en cada proyecto
         if modo == "Por igual" and ids_validos and importe_total_p4 > 0:
-            restante, abiertos, asignado = importe_total_p4, list(ids_validos), {}
-            while abiertos:
-                parte = restante / len(abiertos)
-                limitados = [p for p in abiertos if _oferta(p)['n_tokens'] is not None
-                             and _oferta(p)['n_tokens'] * _precio_cliente(_oferta(p)) < parte]
-                if not limitados:
-                    for p in abiertos:
-                        asignado[p] = parte
-                    break
-                for p in limitados:
-                    asignado[p] = _oferta(p)['n_tokens'] * _precio_cliente(_oferta(p))
-                    restante -= asignado[p]
-                    abiertos.remove(p)
+            parte = importe_total_p4 / len(ids_validos)
             for p in ids_validos:
                 precio = _precio_cliente(_oferta(p))
-                tokens_compra[p] = round(asignado.get(p, 0.0) / precio, 4) if precio else 0.0
+                tokens_compra[p] = parte / precio if precio else 0.0
 
         # ----- Cálculos a partir de los tokens -----
         filas_calc = []
@@ -1286,6 +1173,7 @@ elif st.session_state.paso_actual == 4:
         tokens_totales = sum(f[2] for f in filas_calc)
         rent_media = (sum((f[4]['anual'] or 0.0) * f[3] for f in filas_calc) / importe_repartido
                       if importe_repartido > 0 else 0.0)
+
 
         # ----- Estilos de esta sección -----
         st.markdown(f"""
@@ -1348,12 +1236,11 @@ elif st.session_state.paso_actual == 4:
             [class*="st-key-fila_"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {{
                 flex: 1 1 100% !important; min-width: 100% !important; width: 100% !important;
             }}
-            /* Cantidad y botón «Máx» en la misma línea */
-            [class*="st-key-fila_"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(3) {{
-                flex: 1 1 calc(100% - 76px) !important; min-width: calc(100% - 76px) !important; width: auto !important;
-            }}
+            /* Importe (o %) y reparto, uno al lado del otro */
+            [class*="st-key-fila_"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(3),
             [class*="st-key-fila_"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(4) {{
-                flex: 0 0 64px !important; min-width: 64px !important; width: 64px !important;
+                flex: 1 1 calc(50% - 0.5rem) !important; min-width: calc(50% - 0.5rem) !important;
+                width: calc(50% - 0.5rem) !important;
             }}
         }}
         </style>
@@ -1381,7 +1268,7 @@ elif st.session_state.paso_actual == 4:
             st.markdown(html_seguro(
                 f"<div class='kpi-titulo'>REPARTIDO</div>"
                 f"<div class='kpi-valor'>{es(importe_repartido, 0)} {simbolo_cliente_p4}</div>"
-                f"<div class='kpi-sub'>{es(tokens_totales, 2)} tokens · {len(ids_validos)} "
+                f"<div class='kpi-sub'>{len(ids_validos)} "
                 f"proyecto{'s' if len(ids_validos) != 1 else ''}</div>"), unsafe_allow_html=True)
 
         with k3, _kpi("pendiente"):
@@ -1410,7 +1297,7 @@ elif st.session_state.paso_actual == 4:
             st.markdown(html_seguro(
                 f"<div class='kpi-titulo'>RENT. ANUALIZADA</div>"
                 f"<div class='kpi-valor'>{es(rent_media, 2) + ' %' if importe_repartido > 0 else '—'}</div>"
-                f"<div class='kpi-sub'>estimada · {estatus_p4} · al precio elegido</div>"),
+                f"<div class='kpi-sub'>estimada · {estatus_p4} · al precio de compra</div>"),
                 unsafe_allow_html=True)
 
         # ----- 2) Barra de reparto -----
@@ -1456,9 +1343,8 @@ elif st.session_state.paso_actual == 4:
                      key="selector_modo", on_change=_cambiar_modo)
 
         # ----- 4) Tabla: una fila por proyecto -----
-        proyectos_sin_tokens = []
         if not ids_validos:
-            st.info("Marca en las tablas de arriba los proyectos que quieras incluir")
+            st.info("Marca en la tabla de arriba los proyectos que quieras incluir")
         else:
             def _contenedor(clave):
                 try:
@@ -1467,41 +1353,18 @@ elif st.session_state.paso_actual == 4:
                     return st.container()
 
             def _columnas():
-                anchos = [2.6, 2.5, 2.0, 0.7, 2.4]
+                anchos = [2.8, 2.2, 1.8, 2.6]
                 try:
                     return st.columns(anchos, vertical_alignment="center")
                 except TypeError:
                     return st.columns(anchos)
 
-            titulo_entrada = {"Por cantidad de tokens": "TOKENS A COMPRAR",
-                              "Por % de mi cartera": "% DE LA CARTERA",
-                              "Por igual": "TOKENS A COMPRAR"}[modo]
-
-            def _cambiar_oferta(pid, opciones):
-                anterior = _oferta(pid)
-                try:
-                    nueva_i = int(st.session_state[f"of_{pid}"])
-                except (TypeError, ValueError, KeyError):
-                    nueva_i = 0
-                nueva = opciones[nueva_i]
-                # Repartiendo por %, se mantiene el importe y se recalculan los tokens
-                if st.session_state.modo_reparto == "Por % de mi cartera" and _precio_cliente(nueva):
-                    importe = st.session_state.tokens_compra.get(pid, 0.0) * _precio_cliente(anterior)
-                    st.session_state.tokens_compra[pid] = importe / _precio_cliente(nueva)
-                st.session_state.oferta_elegida[pid] = nueva_i
-                _olvidar_widgets(pid)
-
-            def _guardar_tokens(pid):
-                st.session_state.tokens_compra[pid] = max(0.0, float(st.session_state.get(f"tk_{pid}") or 0.0))
+            titulo_entrada = "% DE TU CARTERA" if modo == "Por % de mi cartera" else "IMPORTE"
 
             def _guardar_pct(pid, precio_cliente, importe_total):
                 pct = max(0.0, float(st.session_state.get(f"pct_{pid}") or 0.0))
                 st.session_state.tokens_compra[pid] = (importe_total * pct / 100 / precio_cliente
                                                        if precio_cliente else 0.0)
-
-            def _maximo(pid, tokens_max):
-                st.session_state.tokens_compra[pid] = tokens_max
-                _olvidar_widgets(pid)
 
             def _dividendo_corto(texto):
                 t = str(texto or "").lower()
@@ -1523,20 +1386,19 @@ elif st.session_state.paso_actual == 4:
             with _contenedor("tabla_cartera"):
                 with _contenedor("cab_cartera"):
                     c = _columnas()
-                    for col, titulo in zip(c, ["PROYECTO", "PRECIO DE COMPRA", titulo_entrada, "", "% DE TU CARTERA"]):
-                        col.markdown(f"<div class='fila-cab'>{titulo or '&nbsp;'}</div>", unsafe_allow_html=True)
+                    for col, titulo in zip(c, ["PROYECTO", "PRECIO DE COMPRA", titulo_entrada, "REPARTO"]):
+                        col.markdown(f"<div class='fila-cab'>{titulo}</div>", unsafe_allow_html=True)
 
                 for n_fila, (pid, o, tokens, importe, rent) in enumerate(filas_calc):
                     row = filas_por_id[pid]
                     nombre = row['Nombre del proyecto']
-                    opciones = opciones_por_id[pid]
                     precio_cli = _precio_cliente(o)
                     pct = importe / importe_total_p4 * 100 if importe_total_p4 else 0.0
 
                     with _contenedor(f"fila_{'par' if n_fila % 2 else 'impar'}_{n_fila}"):
-                        c_nom, c_precio, c_entrada, c_max, c_pct = _columnas()
+                        c_nom, c_precio, c_entrada, c_pct = _columnas()
 
-                        # Proyecto + ubicación · dividendo · rentabilidad al precio elegido
+                        # Proyecto + ubicación · dividendo · rentabilidad al precio de compra
                         detalles = [str(row.get('Ubicación', '') or '')]
                         if col_tipo:
                             detalles.append(_dividendo_corto(row.get(col_tipo)))
@@ -1546,76 +1408,38 @@ elif st.session_state.paso_actual == 4:
                                        f"<div class='proy-sub'>{' · '.join(d for d in detalles if d)}</div>",
                                        unsafe_allow_html=True)
 
-                        # Precio: desplegable solo si hay varias ofertas
-                        etq_precio = "<div class='etq-movil'>PRECIO DE COMPRA</div>"
-                        if len(opciones) > 1:
-                            c_precio.markdown(etq_precio, unsafe_allow_html=True)
-                            if f"of_{pid}" not in st.session_state:
-                                st.session_state[f"of_{pid}"] = opciones.index(o)
-                            c_precio.selectbox(
-                                "Precio de compra", list(range(len(opciones))), key=f"of_{pid}",
-                                format_func=lambda i, opciones=opciones: (
-                                    _etiqueta(opciones[i]) + (f" · {es(opciones[i]['n_tokens'], 2)} tk"
-                                                              if opciones[i]['n_tokens'] is not None else "")),
-                                on_change=_cambiar_oferta, args=(pid, opciones), label_visibility="collapsed")
-                        else:
-                            c_precio.markdown(etq_precio + html_seguro(_etiqueta(o)), unsafe_allow_html=True)
+                        # Precio de compra de un token
+                        c_precio.markdown("<div class='etq-movil'>PRECIO DE COMPRA</div>"
+                                          + html_seguro(_etiqueta(o)), unsafe_allow_html=True)
 
-                        # Entrada según el modo de reparto + disponibles debajo
+                        # Por igual: el importe que le toca; por %: la casilla del %
                         with c_entrada:
                             st.markdown(f"<div class='etq-movil'>{titulo_entrada}</div>", unsafe_allow_html=True)
-                            if modo == "Por cantidad de tokens":
-                                if f"tk_{pid}" not in st.session_state:
-                                    st.session_state[f"tk_{pid}"] = round(tokens, 2)
-                                st.number_input("Tokens", min_value=0.0, step=1.0, format="%.2f",
-                                                key=f"tk_{pid}", on_change=_guardar_tokens, args=(pid,),
-                                                label_visibility="collapsed")
-                            elif modo == "Por % de mi cartera":
+                            if modo == "Por % de mi cartera":
                                 if f"pct_{pid}" not in st.session_state:
                                     st.session_state[f"pct_{pid}"] = round(pct, 1)
                                 st.number_input("%", min_value=0.0, max_value=100.0, step=1.0, format="%.1f",
                                                 key=f"pct_{pid}", on_change=_guardar_pct,
                                                 args=(pid, precio_cli, importe_total_p4),
                                                 label_visibility="collapsed")
+                                st.markdown(html_seguro(f"<div class='nota-gris'>{es(importe, 0)} "
+                                                        f"{simbolo_cliente_p4}</div>"), unsafe_allow_html=True)
                             else:
-                                st.markdown(f"<div class='proy-nombre'>{es(tokens, 2)} tokens</div>",
-                                            unsafe_allow_html=True)
-                            if o['n_tokens'] is not None:
-                                nota = f"de {es(o['n_tokens'], 2)} disponibles"
-                                if modo == "Por % de mi cartera":
-                                    nota = f"{es(tokens, 2)} tokens " + nota
-                                st.markdown(f"<div class='nota-gris'>{nota}</div>", unsafe_allow_html=True)
-                            elif modo == "Por % de mi cartera":
-                                st.markdown(f"<div class='nota-gris'>{es(tokens, 2)} tokens</div>",
-                                            unsafe_allow_html=True)
+                                st.markdown(html_seguro(f"<div class='proy-nombre'>{es(importe, 0)} "
+                                                        f"{simbolo_cliente_p4}</div>"), unsafe_allow_html=True)
 
-                        # Máx: todos los tokens disponibles, sin pasar del importe a invertir
-                        if o['n_tokens'] is not None and modo != "Por igual" and precio_cli:
-                            tokens_max = round(min(o['n_tokens'], importe_total_p4 / precio_cli), 4)
-                            c_max.button("Máx", key=f"max_{pid}", on_click=_maximo, args=(pid, tokens_max),
-                                         help=(f"Comprar {es(tokens_max, 2)} tokens: todos los disponibles "
-                                               "en esta oferta, sin pasar de tu importe a invertir"))
-
-                        # % de tu cartera: barrita + importe
-                        falta = o['n_tokens'] is not None and tokens > o['n_tokens'] + 0.01
-                        if falta:
-                            proyectos_sin_tokens.append(nombre)
-                        color_barra = COLOR_ROJO if falta else COLOR_AMBAR
-                        sub = (f"<span style='color:{COLOR_ROJO};'>⚠ faltan {es(tokens - o['n_tokens'], 2)} tk</span>"
-                               f" · {es(importe, 0)} {simbolo_cliente_p4}" if falta
-                               else f"{es(importe, 0)} {simbolo_cliente_p4}")
+                        # Reparto: barrita + %
                         c_pct.markdown(html_seguro(
-                            "<div class='etq-movil'>% DE TU CARTERA</div>"
+                            "<div class='etq-movil'>REPARTO</div>"
                             "<div style='display:flex;align-items:center;gap:8px;'>"
                             f"<div class='barra-pct' style='flex:1;'><div style='width:{min(pct, 100):.2f}%;"
-                            f"background:{color_barra};'></div></div>"
+                            f"background:{COLOR_AMBAR};'></div></div>"
                             f"<div style='font-weight:700;color:{COLOR_NAVY};min-width:52px;text-align:right;'>"
-                            f"{es(pct, 1)} %</div></div>"
-                            f"<div class='nota-gris'>{sub}</div>"), unsafe_allow_html=True)
+                            f"{es(pct, 1)} %</div></div>"), unsafe_allow_html=True)
 
                     # Datos para el Paso 5
                     st.session_state.precios_compra[pid] = {'precio': o['precio'], 'divisa': o['divisa'],
-                                                            'tipo': o['tipo'], 'n_tokens': o['n_tokens']}
+                                                            'tipo': o['tipo'], 'n_tokens': None}
                     st.session_state.cartera_selecciones.setdefault(pid, {'seleccionado': True})['porcentaje'] = pct
                     proyectos_seleccionados.append({
                         'id': pid, 'nombre': nombre, 'ubicacion': row['Ubicación'],
@@ -1624,11 +1448,7 @@ elif st.session_state.paso_actual == 4:
                     })
 
             if modo == "Por igual":
-                st.caption("Para ajustar algún proyecto a mano, elige «Por cantidad de tokens» "
-                           "o «Por % de mi cartera».")
-            if proyectos_sin_tokens:
-                st.warning(md(f"⚠ No hay tokens suficientes en: {', '.join(proyectos_sin_tokens)}. "
-                              "Baja la cantidad, pulsa «Máx» o elige otra oferta."))
+                st.caption("Para decidir tú cuánto invertir en cada proyecto, elige «Por % de mi cartera».")
 
         suma_porcentajes = 100 if (ids_validos and abs(pendiente) <= tolerancia) else (
             round(importe_repartido / importe_total_p4 * 100, 1) if importe_total_p4 else 0.0)
@@ -1636,15 +1456,15 @@ elif st.session_state.paso_actual == 4:
         st.markdown("")
         st.markdown("---")
         st.markdown("")
-        
+
         col1, col2, col3 = st.columns([1, 1, 1])
         with col1:
             if st.button("< Atrás", use_container_width=True, key="btn_paso4_back"):
                 st.session_state.paso_actual = 3
                 st.rerun()
-        
+
         with col3:
-            if len(proyectos_seleccionados) > 0 and suma_porcentajes == 100 and not proyectos_sin_tokens:
+            if len(proyectos_seleccionados) > 0 and suma_porcentajes == 100:
                 if st.button("Generar cartera >", use_container_width=True, key="btn_paso4_next"):
                     # Si queda una diferencia mínima por redondeo, el importe pasa a ser
                     # exactamente lo repartido para que los % sumen 100.
@@ -1723,14 +1543,12 @@ elif st.session_state.paso_actual == 5:
         st.markdown("### Supuestos de mercado")
         tipo_cambio = tipo_cambio_actual()
         precio_rnt = precio_rnt_actual()
-        staking_rnt = STAKING_RNT
         
         tarjetas_supuestos = [
             ("💱 TIPO DE CAMBIO", f"{es(tipo_cambio, 4)}", "USD por 1 € · referencia BCE"),
-            ("🪙 PRECIO DEL RNT", f"{es(precio_rnt, 4)} USDT", "pool RNT/USDT · SushiSwap"),
-            ("🔒 STAKING DE RNT", f"{es(staking_rnt, 2)} %", "rendimiento anual"),
+            ("🪙 PRECIO DEL RNT", f"{es(precio_rnt, 4)} $", "precio de mercado actual"),
         ]
-        cols = st.columns(3)
+        cols = st.columns(2)
         for col, (titulo, valor, sub) in zip(cols, tarjetas_supuestos):
             col.markdown(tarjeta(titulo, valor, sub), unsafe_allow_html=True)
         
@@ -1819,7 +1637,7 @@ elif st.session_state.paso_actual == 5:
             filas_tabla.append({
                 'Proyecto': proyecto['nombre'],
                 'Ubicación': row.get('Ubicación', ''),
-                'Precio de compra': f"{fmt(precio_conv)} ({tipo_precio})",
+                'Precio de compra': fmt(precio_conv),
                 'Tipo de dividendo': tipologia or '-',
                 'Tokens': round(_num(st.session_state.tokens_compra.get(proyecto_id), 0.0), 2),
                 'Rentabilidad anualizada': rent_anual,
@@ -1833,7 +1651,7 @@ elif st.session_state.paso_actual == 5:
                 'ubicacion': str(row.get('Ubicación', '') or ''),
                 'estado': str(row.get('ESTADO', '') or ''),
                 'tipodiv': tipologia or '-',
-                'precio': f"{fmt(precio_conv)} ({tipo_precio})",
+                'precio': fmt(precio_conv),
                 'tipo_precio': tipo_precio,
                 'pct': peso,
                 'importe': importe_inmuebles * peso / 100,
@@ -1991,10 +1809,7 @@ elif st.session_state.paso_actual == 5:
             
             rnt_est = RNT_POR_ESTATUS.get(est, 0)
             coste_est = convertir(rnt_est * precio_rnt, 'USD', divisa_cliente)
-            # Rendimiento del staking de los RNT del estatus durante el mismo plazo
-            ganancia_staking = coste_est * (staking_rnt / 100) * (MESES_COMPARATIVA / 12)
-            
-            ganancia = ganancia_inmuebles + ganancia_staking
+            ganancia = ganancia_inmuebles
             capital_total_est = importe_inmuebles + coste_est
             
             comparativa_pdf.append({
@@ -2015,22 +1830,20 @@ elif st.session_state.paso_actual == 5:
                 importe_inmuebles, rent_anual_media_pdf['Reentel'] / 100, meses) - importe_inmuebles
             g_est = CalculadoraCartera(estatus).calcular_proyeccion(
                 importe_inmuebles, rent_anual_media_pdf[estatus] / 100, meses) - importe_inmuebles
-            g_est_staking = g_est + coste_estatus * (staking_rnt / 100) * (meses / 12)
             escenarios_pdf.append({
                 'meses': meses,
                 'g_rnt': g_rnt,
                 'g_est': g_est,
-                'g_est_staking': g_est_staking,
+                'g_est_staking': g_est,     # ya no se suma el staking (se mantiene la clave para el PDF)
                 'rent_rnt': (g_rnt / importe_inmuebles * 100) if importe_inmuebles else 0,
-                'rent_est': (g_est_staking / capital_total * 100) if capital_total else 0,
+                'rent_est': (g_est / capital_total * 100) if capital_total else 0,
             })
         
         # ----- Gráfico y tabla: Reentel frente a un estatus superior -----
         # Si el cliente ya tiene un estatus superior se compara con el suyo; si es
         # Reentel, con SuperReentel (lo que ganaría subiendo de estatus).
-        # La ganancia del estatus superior incluye el staking de sus RNT (*).
         est_comp = estatus if estatus != 'Reentel' else 'SuperReentel'
-        nombre_comp = f"{est_comp}*"
+        nombre_comp = est_comp
         rent_rnt_web = media_cartera('Reentel', 'anual') / 100
         rent_comp_web = media_cartera(est_comp, 'anual') / 100
         coste_comp = convertir(RNT_POR_ESTATUS.get(est_comp, 0) * precio_rnt, 'USD', divisa_cliente)
@@ -2041,7 +1854,7 @@ elif st.session_state.paso_actual == 5:
             g_rnt = CalculadoraCartera('Reentel').calcular_proyeccion(
                 importe_inmuebles, rent_rnt_web, meses) - importe_inmuebles
             g_comp = (CalculadoraCartera(est_comp).calcular_proyeccion(importe_inmuebles, rent_comp_web, meses)
-                      - importe_inmuebles + coste_comp * (staking_rnt / 100) * (meses / 12))
+                      - importe_inmuebles)
             escenarios_web.append({
                 'meses': meses, 'g_rnt': g_rnt, 'g_comp': g_comp,
                 'r_rnt': (g_rnt / importe_inmuebles * 100) if importe_inmuebles else 0,
@@ -2121,9 +1934,7 @@ elif st.session_state.paso_actual == 5:
             f"<div style='border:1px solid {COLOR_BORDE}; border-radius:10px; overflow-x:auto; margin-top:6px;'>"
             f"<table class='tabla-comp' style='width:100%; border-collapse:collapse; font-size:14px; margin:0;'>"
             f"{''.join(filas_html)}</table>"
-            f"</div>"
-            f"<div style='font-size:12.5px; color:{COLOR_GRIS}; margin:8px 2px 0 2px;'>"
-            f"* Incluye los beneficios estimados del staking.</div>"), unsafe_allow_html=True)
+            f"</div>"), unsafe_allow_html=True)
         
         # Mensaje destacado
         ult = escenarios_web[-1]
@@ -2159,7 +1970,6 @@ elif st.session_state.paso_actual == 5:
             'estatus': estatus,
             'tipo_cambio': tipo_cambio,
             'precio_rnt': precio_rnt,
-            'staking': staking_rnt,
             'rnt_estatus': rnt_estatus,
             'n_inmuebles': len(filas_tabla),
             'importe_inmuebles': importe_inmuebles,
