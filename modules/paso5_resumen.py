@@ -33,20 +33,6 @@ def mostrar():
             except:
                 return 0.0
         
-        # ========== 1) INVERSOR ==========
-        st.markdown("### Inversor")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.write(f"**Titular:** {datos.get('nombre', 'N/A')}")
-            st.write(f"**Email:** {datos.get('email', 'N/A')}")
-            st.write(f"**Teléfono:** {datos.get('telefono', 'N/A')}")
-            st.write(f"**Estatus elegido:** {estatus}")
-        with col2:
-            st.write(f"**Capital a invertir:** {capital_mostrado(datos, simbolo)}")
-            st.write(f"**Objetivo:** {datos.get('objetivo', 'N/A')}")
-        
-        st.markdown("---")
-        
         # Tarjeta de resumen (se usa en supuestos y en la cartera)
         def tarjeta(titulo, valor, sub):
             valor, sub = html_seguro(valor), html_seguro(sub)
