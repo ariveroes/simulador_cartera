@@ -391,7 +391,7 @@ def _resumen(c, R):
         x = M + i * (mitad + 12)
         _caja(c, x, y, mitad, 100)
         _pastilla(c, x + 16, y + 74, nombre, fondo_badge, color_badge, 8.5)
-        ganancia = esc36.get("g_rnt") if clave == "Reentel" else esc36.get("g_est_staking")
+        ganancia = esc36.get("g_rnt") if clave == "Reentel" else esc36.get("g_est")
         filas = [("Rentabilidad anualizada media", _pct(rent_anual.get(clave))),
                  ("Rentabilidad total cartera", _pct(rent_total.get(clave))),
                  (f"Ganancia a {esc36.get('meses', 36)} meses", _dinero(ganancia, divisa))]
@@ -407,7 +407,7 @@ def _resumen(c, R):
 
     _parrafo(c, M, y - 8, ancho,
              f"Tipo de cambio aplicado: 1 € = {_n(tc, 4)} $ (referencia BCE). Precio del RNT: "
-             f"{_n((R.get('precio_rnt') or 0), 4)} USDT (pool RNT/USDT). Las rentabilidades se ponderan por el % de la "
+             f"{_n((R.get('precio_rnt') or 0), 4)} $ (precio de mercado). Las rentabilidades se ponderan por el % de la "
              "cartera invertido en cada proyecto.", 7.5, TENUE)
 
 
@@ -423,8 +423,7 @@ def _reinversion(c, R):
 
     series = [("Ganancia Reentel", [e["g_rnt"] for e in esc], AZUL2)]
     if ep != "Reentel":
-        series += [(f"Ganancia {ep}", [e["g_est"] for e in esc], ORO),
-                   (f"Ganancia {ep} incl. staking", [e["g_est_staking"] for e in esc], VERDE)]
+        series += [(f"Ganancia {ep}", [e["g_est"] for e in esc], ORO)]
 
     alto_graf = 205
     y -= alto_graf + 34
@@ -471,9 +470,7 @@ def _reinversion(c, R):
              ["<b>Ganancia Reentel</b>"] + [_dinero(e["g_rnt"], divisa) for e in esc]]
     if ep != "Reentel":
         filas += [[f"<font color='{oro}'><b>Ganancia {ep} </b></font>"] +
-                  [f"<font color='{oro}'><b>{_dinero(e['g_est'], divisa)}</b></font>" for e in esc],
-                  [f"<font color='{verde}'><b>Ganancia {ep} (incl. staking) </b></font>"] +
-                  [f"<font color='{verde}'><b>{_dinero(e['g_est_staking'], divisa)}</b></font>" for e in esc]]
+                  [f"<font color='{oro}'><b>{_dinero(e['g_est'], divisa)}</b></font>" for e in esc]]
     filas += [["Rent. acumulada Reentel"] + [_pct(e["rent_rnt"]) for e in esc]]
     if ep != "Reentel":
         filas += [[f"<font color='{oro}'>Rent. acumulada {ep} </font>"] +
@@ -488,7 +485,7 @@ def _reinversion(c, R):
     _caja(c, M, y - 34, ancho, 34, fill=C("#241f17"), stroke=C("#5a4520"))
     if ep != "Reentel":
         msg = (f"Con <font color='{oro}'><b>{ep}</b></font>, la ganancia a {ult['meses']} meses alcanza "
-               f"<font color='{oro}'><b>{_dinero(ult['g_est_staking'], divisa)}</b></font> (incl. staking) vs "
+               f"<font color='{oro}'><b>{_dinero(ult['g_est'], divisa)}</b></font> vs "
                f"{_dinero(ult['g_rnt'], divisa)} del estatus base. Rentabilidad acumulada: "
                f"<font color='{oro}'><b>{_pct(ult['rent_est'])}</b></font> vs {_pct(ult['rent_rnt'])}.")
     else:
@@ -537,15 +534,9 @@ def _analisis_2(c, R):
     y = _cabecera(c, "II ANÁLISIS CARTERA PROPUESTA")
     ancho = W - 2 * M
     rep = R.get("repartos", {})
-    tipo_precio = {}
-    for p in R.get("proyectos", []):
-        k = "Mercado secundario (OTC)" if p.get("tipo_precio") == "OTC" else "Primera emisión"
-        tipo_precio[k] = tipo_precio.get(k, 0) + (p.get("pct") or 0)
-
     tarjetas = [("Tipología de dividendos", rep.get("Tipología de dividendo")),
                 ("Distribución por región", rep.get("Distribución geográfica")),
-                ("Divisa del inmueble", rep.get("Divisa del inmueble")),
-                ("Origen del precio de compra", tipo_precio)]
+                ("Divisa del inmueble", rep.get("Divisa del inmueble"))]
     mitad = (ancho - 14) / 2
     alto = (y - 40 - 14) / 2
     for i, (titulo, reparto) in enumerate(tarjetas):
