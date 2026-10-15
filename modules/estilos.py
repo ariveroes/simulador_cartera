@@ -156,6 +156,13 @@ def aplicar_estilos():
         .tm-sub {{ font-size: 13px; color: {COLOR_GRIS}; margin: 2px 0 8px 0; }}
         .tm-datos {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 12px; }}
         .tm-datos.dos {{ grid-template-columns: repeat(2, 1fr); }}
+        /* Tarjetas de selección de proyectos (Paso 4): nombre junto a la casilla y datos debajo */
+        [class*="st-key-tm_"] [data-testid="stCheckbox"] label p {{
+            font-size: 17px; font-weight: 700; color: {COLOR_NAVY};
+        }}
+        .tm-proyecto {{ grid-template-columns: repeat(6, minmax(0, 1fr)); padding-left: 28px; margin-top: 2px; }}
+        .tm-proyecto .tm-texto {{ font-size: 14px; font-weight: 600; }}
+        .tm-proyecto a {{ font-weight: 700; text-decoration: none; }}
         .tm-datos div {{ display: flex; flex-direction: column; }}
         .tm-datos span {{ font-size: 11px; font-weight: 700; color: {COLOR_GRIS}; letter-spacing: 0.3px;
                          text-transform: uppercase; }}
@@ -188,6 +195,8 @@ def aplicar_estilos():
             /* Sin zoom automático del iPhone al escribir: casillas de al menos 16 px */
             .stApp input, .stApp textarea {{ font-size: 16px !important; }}
 
+            /* Tarjetas de proyectos: datos en dos columnas */
+            .tm-proyecto {{ grid-template-columns: repeat(2, minmax(0, 1fr)); padding-left: 0; }}
             /* Tablas → tarjetas */
             [class*="st-key-vista_tabla_"] {{ display: none; }}
             [class*="st-key-vista_tarjetas_"] {{ display: block; }}
