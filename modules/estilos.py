@@ -103,18 +103,43 @@ def aplicar_estilos():
             .st-key-tabla_cartera div[data-baseweb="input"] {{ min-height: 44px !important; }}
         }}
 
-        /* ===== Botón flotante para agendar una reunión ===== */
+        /* ===== Botón para agendar una reunión: círculo flotante arriba a la derecha ===== */
         a.cta-flotante, .stApp a.cta-flotante {{
-            position: fixed; right: 24px; bottom: 24px; z-index: 999991;
-            background: {COLOR_NAVY}; color: #ffffff !important; text-decoration: none;
-            font-weight: 700; font-size: 15px; line-height: 1.2;
-            padding: 14px 20px; border-radius: 999px;
-            box-shadow: 0 8px 24px rgba(31, 41, 55, 0.28);
-            transition: transform 0.15s ease, box-shadow 0.15s ease;
+            position: fixed; top: 76px; right: 28px; z-index: 999991;
+            display: flex; align-items: center; gap: 10px; text-decoration: none;
         }}
-        a.cta-flotante:hover {{ transform: translateY(-2px); box-shadow: 0 12px 28px rgba(31, 41, 55, 0.32); }}
-        a.cta-flotante:focus-visible {{ outline: 2px solid {COLOR_AMBAR}; outline-offset: 3px; }}
-        a.cta-flotante .cta-dudas {{ color: {COLOR_AMBAR}; }}
+        a.cta-flotante .cta-texto {{
+            background: #ffffff; color: {COLOR_NAVY}; border: 1px solid {COLOR_BORDE};
+            border-radius: 999px; padding: 9px 16px; font-size: 14px; font-weight: 600; line-height: 1.2;
+            box-shadow: 0 6px 18px rgba(31, 41, 55, 0.14); white-space: nowrap;
+            transition: transform 0.2s ease;
+        }}
+        a.cta-flotante .cta-dudas {{ color: {COLOR_AMBAR_OSCURO}; font-weight: 800; }}
+        a.cta-flotante .cta-corta {{ display: none; }}
+        a.cta-flotante .cta-circulo {{
+            position: relative; width: 58px; height: 58px; border-radius: 50%; flex: 0 0 58px;
+            background: {COLOR_AMBAR}; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 10px 24px rgba(252, 163, 17, 0.45);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }}
+        a.cta-flotante .cta-circulo svg {{ width: 28px; height: 28px; }}
+        /* Onda suave alrededor del círculo para llamar la atención */
+        a.cta-flotante .cta-circulo::after {{
+            content: ""; position: absolute; inset: 0; border-radius: 50%;
+            border: 2px solid {COLOR_AMBAR}; animation: cta-onda 2.6s ease-out infinite;
+        }}
+        @keyframes cta-onda {{
+            0% {{ transform: scale(1); opacity: 0.7; }}
+            70% {{ transform: scale(1.45); opacity: 0; }}
+            100% {{ transform: scale(1.45); opacity: 0; }}
+        }}
+        a.cta-flotante:hover .cta-circulo {{ transform: scale(1.06); box-shadow: 0 14px 30px rgba(252, 163, 17, 0.55); }}
+        a.cta-flotante:hover .cta-texto {{ transform: translateX(-3px); }}
+        a.cta-flotante:focus-visible {{ outline: none; }}
+        a.cta-flotante:focus-visible .cta-circulo {{ outline: 3px solid {COLOR_NAVY}; outline-offset: 3px; }}
+        @media (prefers-reduced-motion: reduce) {{
+            a.cta-flotante .cta-circulo::after {{ animation: none; opacity: 0; }}
+        }}
 
         /* ===== Tablas (ordenador) y tarjetas (móvil) con los mismos datos ===== */
         [class*="st-key-vista_tarjetas_"] {{ display: none; }}
@@ -154,19 +179,12 @@ def aplicar_estilos():
             /* El icono de enlace junto a los títulos se ve siempre en el móvil: se oculta */
             [data-testid="stHeaderActionElements"] {{ display: none !important; }}
             .etq-movil {{ display: block; }}
-            /* Botón para agendar: franja fina a todo el ancho abajo (encima de la barra de
-               «Atrás/Siguiente» si la hay). La página deja hueco al final para que nunca tape nada. */
-            a.cta-flotante, .stApp a.cta-flotante {{
-                left: 0; right: 0; bottom: 0; border-radius: 0; text-align: center;
-                font-size: 14px; padding: 11px 12px calc(11px + env(safe-area-inset-bottom));
-                box-shadow: 0 -4px 14px rgba(31, 41, 55, 0.18);
-            }}
-            a.cta-flotante:hover {{ transform: none; }}
-            .stApp:has([class*="_back"]) a.cta-flotante {{ bottom: 64px; padding-bottom: 11px; }}
-            [data-testid="stMainBlockContainer"]:has(a.cta-flotante) {{ padding-bottom: 72px !important; }}
-            [data-testid="stMainBlockContainer"]:has(a.cta-flotante):has([class*="_back"]) {{
-                padding-bottom: 140px !important;
-            }}
+            /* Botón para agendar en el móvil: solo el círculo (como en las apps), sin la burbuja
+               de texto, que taparía el contenido al desplazarse */
+            a.cta-flotante, .stApp a.cta-flotante {{ top: 56px; right: 12px; }}
+            a.cta-flotante .cta-circulo {{ width: 54px; height: 54px; flex-basis: 54px; }}
+            a.cta-flotante .cta-circulo svg {{ width: 26px; height: 26px; }}
+            a.cta-flotante .cta-texto {{ display: none; }}
             /* Sin zoom automático del iPhone al escribir: casillas de al menos 16 px */
             .stApp input, .stApp textarea {{ font-size: 16px !important; }}
 
