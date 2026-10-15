@@ -2041,6 +2041,10 @@ elif st.session_state.paso_actual == 5:
             f"{fmt(ult['g_rnt'])} con Reentel. Rentabilidad acumulada: "
             f"<b style='color:{COLOR_AMBAR_OSCURO};'>{es(ult['r_comp'], 2)} %</b> frente a "
             f"{es(ult['r_rnt'], 2)} %.</div>"), unsafe_allow_html=True)
+        st.markdown(f"<div style='font-size:12.5px; color:{COLOR_GRIS}; margin:8px 2px 0 2px;'>"
+                    f"El cálculo considera la reinversión de los beneficios obtenidos, beneficiándose "
+                    f"del interés compuesto. Las cifras son estimaciones y no garantizan resultados "
+                    f"futuros.</div>", unsafe_allow_html=True)
         
         st.markdown("---")
         
