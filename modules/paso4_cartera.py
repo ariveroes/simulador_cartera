@@ -61,6 +61,11 @@ def mostrar():
             df_otros = df_disponibles[~en_mercado]
             df_disponibles = df_disponibles[en_mercado]
         fuera_de_mercado = len(df_otros)
+        # Para el Paso 5: proyectos disponibles y su precio de compra (por si conviene
+        # sugerir otros con los que el estatus saque más beneficio)
+        st.session_state.candidatos_estatus = (
+            [{'id': pid, 'precio': precio_por_id[pid], 'en_mercado': True} for pid in df_disponibles.get('ID', [])]
+            + [{'id': pid, 'precio': precio_por_id[pid], 'en_mercado': False} for pid in df_otros.get('ID', [])])
 
         st.markdown("### Proyectos disponibles según tus preferencias de inversión")
         if ingresos_pasivos:
