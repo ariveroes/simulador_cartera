@@ -167,15 +167,18 @@ def mostrar():
             })
         
         # ----- Tarjetas resumen -----
-        # Ordenador: dos filas de tres (importes arriba, rentabilidades abajo). Móvil: de dos en dos.
+        # Móvil (de dos en dos): capital total | inmuebles; en inmuebles | en estatus;
+        # rent. total | rent. anualizada. En ordenador (de tres en tres) estilos.py las
+        # reordena: importes arriba; nº de inmuebles y rentabilidades abajo.
         tarjetas = [
             ("CAPITAL TOTAL", fmt(capital_total), "inmuebles + estatus"),
+            ("INMUEBLES", f"{len(filas_tabla)}", "proyectos en cartera"),
             ("EN INMUEBLES", fmt(importe_inmuebles),
              fmt(convertir(importe_inmuebles, divisa_cliente, otra_divisa), otro_simbolo)),
-            ("EN ESTATUS", fmt(coste_estatus), f"{estatus} · a plazo fijo durante 2 años"),
-            ("INMUEBLES", f"{len(filas_tabla)}", "proyectos en cartera"),
-            ("RENT. ANUALIZADA", f"{es(rentabilidad_media, 2)} %", f"media ponderada · {estatus}"),
+            (("EN ESTATUS", fmt(coste_estatus), f"{estatus} · a plazo fijo durante 2 años") if coste_estatus > 0
+             else ("EN ESTATUS", "—", "Sin estatus (Reentel)")),
             ("RENT. TOTAL", f"{es(rentabilidad_total_media, 2)} %", f"media ponderada · {estatus}"),
+            ("RENT. ANUALIZADA", f"{es(rentabilidad_media, 2)} %", f"media ponderada · {estatus}"),
         ]
         with st.container(key="kpis_resumen"):
             cols = st.columns(6)
@@ -384,14 +387,19 @@ def mostrar():
             return (ganancia_inmobiliaria(r['inmuebles'], r['rent'], meses, est)
                     + ganancia_estatus(r['coste'], meses))
         
-        partes = [f"con <b>Reentel</b> todo va a inmuebles"]
-        for est in ESTATUS_COMPARATIVA[1:]:
-            r = reparto_estatus[est]
-            partes.append(f"con <b style='color:{COLOR_AMBAR_OSCURO if est == 'SuperReentel' else COLOR_NAVY};'>"
-                          f"{est}</b>, {fmt(r['inmuebles'])} van a inmuebles y {fmt(r['coste'])} al estatus")
+        # Texto: solo el estatus elegido frente a Reentel (la gráfica muestra los tres)
+        color_est = COLOR_AMBAR_OSCURO if estatus == 'SuperReentel' else COLOR_NAVY
+        if estatus != 'Reentel':
+            r = reparto_estatus[estatus]
+            texto_reparto = (f"Con el mismo importe total (<b>{fmt(capital_total)}</b>): con <b>Reentel</b> todo va "
+                             f"a inmuebles; con <b style='color:{color_est};'>{estatus}</b>, {fmt(r['inmuebles'])} "
+                             f"van a inmuebles y {fmt(r['coste'])} al estatus.")
+        else:
+            texto_reparto = (f"Sin estatus (<b>Reentel</b>), todo tu importe (<b>{fmt(capital_total)}</b>) va a "
+                             f"inmuebles. La gráfica muestra la ganancia final con cada estatus.")
         st.markdown(html_seguro(
-            f"<div style='font-size:14px; color:{COLOR_NAVY}; margin:2px 0 10px 0;'>Con el mismo importe total "
-            f"(<b>{fmt(capital_total)}</b>): " + "; ".join(partes) + ".</div>"), unsafe_allow_html=True)
+            f"<div style='font-size:14px; color:{COLOR_NAVY}; margin:2px 0 10px 0;'>{texto_reparto}</div>"),
+            unsafe_allow_html=True)
         
         orden_series = [f"Ganancia final {est}" for est in ESTATUS_COMPARATIVA]
         orden_plazos = [f"{m} meses" for m in PLAZOS_COMPARATIVA]
@@ -434,14 +442,31 @@ def mostrar():
         st.altair_chart((barras + etiquetas).properties(height=360).configure_view(stroke=None),
                         use_container_width=True)
         
-        # Mensaje destacado (a 36 meses)
+        # Mensaje destacado (a 36 meses): el estatus elegido frente a Reentel
         g36 = {est: ganancia_final(est, MESES_COMPARATIVA) for est in ESTATUS_COMPARATIVA}
+        if estatus != 'Reentel':
+            mensaje = (f"A {MESES_COMPARATIVA} meses, la ganancia final es de <b>{fmt(g36['Reentel'])}</b> con "
+                       f"Reentel y <b style='color:{color_est};'>{fmt(g36[estatus])}</b> con {estatus}")
+            diferencia = g36[estatus] - g36['Reentel']
+            mensaje += (f": <b>{fmt(diferencia)} más</b>, sin invertir ni un solo {simbolo} más."
+                        if diferencia > 0 else ".")
+        else:
+            mensaje = (f"A {MESES_COMPARATIVA} meses, la ganancia final con Reentel es de "
+                       f"<b>{fmt(g36['Reentel'])}</b>.")
+            # Si un estatus le saldría claramente mejor con el mismo importe, se le dice
+            posibles = [e for e in ESTATUS_COMPARATIVA[1:] if reparto_estatus[e]['inmuebles'] > 0]
+            if posibles:
+                mejor = max(posibles, key=lambda e: g36[e])
+                extra = g36[mejor] - g36['Reentel']
+                if extra > max(50.0, g36['Reentel'] * 0.03):
+                    color_mejor = COLOR_AMBAR_OSCURO if mejor == 'SuperReentel' else COLOR_NAVY
+                    mensaje += (f"<br><br>Has elegido continuar sin estatus. Sin embargo, con el importe de "
+                                f"inversión considerado podrías conseguir hasta <b>{fmt(extra)} más</b> en el "
+                                f"mismo periodo, sin invertir ni un solo {simbolo} más, solo eligiendo el estatus "
+                                f"<b style='color:{color_mejor};'>{mejor}</b>.")
         st.markdown(html_seguro(
             f"<div style='background:{COLOR_AMBAR_CLARO}; border:1px solid {COLOR_AMBAR}; border-radius:10px; "
-            f"padding:14px 18px; margin-top:16px; color:{COLOR_NAVY}; font-size:15px;'>"
-            f"A {MESES_COMPARATIVA} meses, la ganancia final es de <b>{fmt(g36['Reentel'])}</b> con Reentel, "
-            f"<b>{fmt(g36['ReentelPro'])}</b> con ReentelPro y "
-            f"<b style='color:{COLOR_AMBAR_OSCURO};'>{fmt(g36['SuperReentel'])}</b> con SuperReentel.</div>"),
+            f"padding:14px 18px; margin-top:16px; color:{COLOR_NAVY}; font-size:15px;'>{mensaje}</div>"),
             unsafe_allow_html=True)
         st.markdown(f"<div style='font-size:12.5px; color:{COLOR_GRIS}; margin:8px 2px 0 2px;'>"
                     f"La ganancia final incluye la de los inmuebles y la del estatus (un rendimiento estimado del "
