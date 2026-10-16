@@ -459,6 +459,7 @@ def mostrar():
         
         # Mensaje destacado (a 36 meses): el estatus elegido frente a Reentel
         g36 = {est: ganancia_final(est, MESES_COMPARATIVA) for est in ESTATUS_COMPARATIVA}
+        hay_sugeridos = False
         if estatus != 'Reentel':
             mensaje = (f"A {MESES_COMPARATIVA} meses, la ganancia final es de <b style='color:{color_est};'>"
                        f"{fmt(g36[estatus])}</b> con {estatus} y <b>{fmt(g36['Reentel'])}</b> con Reentel")
@@ -467,6 +468,42 @@ def mostrar():
             mensaje += (f" → <b>{fmt(diferencia)} más</b>, <b style='color:{COLOR_AMBAR_OSCURO};'>sin invertir ni "
                         f"un solo {moneda} más</b>."
                         if diferencia > 0 else ".")
+            if diferencia <= 0:
+                # El estatus no compensa con estos proyectos: se sugieren otros disponibles con los
+                # que sí (más ganancia a 36 meses con el estatus que con Reentel, con el mismo importe)
+                from modules.rentabilidad_compra import ganancia_proyecto, rentabilidad_ajustada as _rent_aj
+                ids_cartera = {p['id'] for p in proyectos_cartera}
+                coste_e = reparto_estatus[estatus]['coste']
+                sugeridos = []
+                for cand in st.session_state.get('candidatos_estatus', []):
+                    if cand['id'] in ids_cartera or capital_total - coste_e <= 0:
+                        continue
+                    fila_c = df_proy[df_proy['ID'] == cand['id']]
+                    if len(fila_c) == 0:
+                        continue
+                    row_c = fila_c.iloc[0]
+                    g_e = (ganancia_proyecto(capital_total - coste_e, row_c, estatus, cand['precio'], MESES_COMPARATIVA)
+                           + ganancia_estatus(coste_e, MESES_COMPARATIVA))
+                    g_r = ganancia_proyecto(capital_total, row_c, 'Reentel', cand['precio'], MESES_COMPARATIVA)
+                    if g_e > g_r:
+                        sugeridos.append((not cand['en_mercado'], -g_e, row_c, cand['precio']))
+                sugeridos = sorted(sugeridos, key=lambda x: (x[0], x[1]))[:3]
+                if sugeridos:
+                    filas_sug = ""
+                    for _, _, row_c, precio_c in sugeridos:
+                        anual_c = _rent_aj(row_c, estatus, precio_c)['anual']
+                        dossier_c = str(row_c.get('dossier', '') or '').strip()
+                        enlace_c = (f" · <a href='{dossier_c}' target='_blank' rel='noopener' "
+                                    f"style='color:{COLOR_AMBAR_OSCURO};'>Ver dossier ↗</a>"
+                                    if dossier_c.lower().startswith('http') else "")
+                        filas_sug += (f"<li style='margin:4px 0;'><b>{row_c.get('Nombre del proyecto', '')}</b> · "
+                                      f"{row_c.get('Ubicación', '')} · "
+                                      f"{es(anual_c, 2) + ' % anual con ' + estatus if anual_c is not None else ''}"
+                                      f"{enlace_c}</li>")
+                    mensaje += (f"<br><br>Hay otros proyectos disponibles con los que tu estatus te permitiría "
+                                f"conseguir mayor beneficio:<ul style='margin:6px 0 0 0; padding-left:20px;'>"
+                                f"{filas_sug}</ul>")
+                    hay_sugeridos = True
         else:
             mensaje = (f"A {MESES_COMPARATIVA} meses, la ganancia final con Reentel es de "
                        f"<b>{fmt(g36['Reentel'])}</b>.")
@@ -486,6 +523,11 @@ def mostrar():
             f"<div style='background:{COLOR_AMBAR_CLARO}; border:1px solid {COLOR_AMBAR}; border-radius:10px; "
             f"padding:14px 18px; margin-top:16px; color:{COLOR_NAVY}; font-size:15px;'>{mensaje}</div>"),
             unsafe_allow_html=True)
+        if hay_sugeridos:
+            c_sug, _ = st.columns([1, 2])
+            if c_sug.button("Volver al Paso 4 para añadirlos", key="btn_volver_p4_sec", use_container_width=True):
+                st.session_state.paso_actual = 4
+                st.rerun()
         st.markdown(f"<div style='font-size:12.5px; color:{COLOR_GRIS}; margin:8px 2px 0 2px;'>"
                     f"La ganancia final incluye la de los inmuebles y la del estatus (un rendimiento estimado del "
                     f"{es(RENDIMIENTO_ESTATUS, 1)} % anual sobre el importe en estatus). El cálculo considera la reinversión de "
