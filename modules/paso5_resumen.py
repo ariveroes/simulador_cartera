@@ -460,6 +460,7 @@ def mostrar():
         # Mensaje destacado (a 36 meses): el estatus elegido frente a Reentel
         g36 = {est: ganancia_final(est, MESES_COMPARATIVA) for est in ESTATUS_COMPARATIVA}
         hay_sugeridos = False
+        ofrecer_super = False
         if estatus != 'Reentel':
             mensaje = (f"A {MESES_COMPARATIVA} meses, la ganancia final es de <b style='color:{color_est};'>"
                        f"{fmt(g36[estatus])}</b> con {estatus} y <b>{fmt(g36['Reentel'])}</b> con Reentel")
@@ -504,6 +505,16 @@ def mostrar():
                                 f"conseguir mayor beneficio:<ul style='margin:6px 0 0 0; padding-left:20px;'>"
                                 f"{filas_sug}</ul>")
                     hay_sugeridos = True
+            # Eligió ReentelPro y SuperReentel le daría claramente más con el mismo importe
+            if (estatus == 'ReentelPro' and reparto_estatus['SuperReentel']['inmuebles'] > 0
+                    and not st.session_state.get('oferta_super_rechazada')):
+                extra_sr = g36['SuperReentel'] - g36['ReentelPro']
+                if extra_sr > max(50.0, g36['ReentelPro'] * 0.03):
+                    mensaje += (f"<br><br>Con el estatus <b style='color:{COLOR_AMBAR_OSCURO};'>SuperReentel</b> "
+                                f"podrías conseguir hasta <b>{fmt(extra_sr)} más</b> que con ReentelPro, "
+                                f"<b style='color:{COLOR_AMBAR_OSCURO};'>sin invertir ni un solo {moneda} más</b>."
+                                f"<br><br><b>¿Quieres subir tu estatus a SuperReentel?</b>")
+                    ofrecer_super = True
         else:
             mensaje = (f"A {MESES_COMPARATIVA} meses, la ganancia final con Reentel es de "
                        f"<b>{fmt(g36['Reentel'])}</b>.")
@@ -523,6 +534,22 @@ def mostrar():
             f"<div style='background:{COLOR_AMBAR_CLARO}; border:1px solid {COLOR_AMBAR}; border-radius:10px; "
             f"padding:14px 18px; margin-top:16px; color:{COLOR_NAVY}; font-size:15px;'>{mensaje}</div>"),
             unsafe_allow_html=True)
+        if ofrecer_super:
+            def _subir_a_super():
+                # Pasa a SuperReentel sin salir del Paso 5. Los % de la cartera se mantienen;
+                # en el Paso 4 los importes se ajustan a lo que queda para inmuebles.
+                nuevo_inm = reparto_estatus['SuperReentel']['inmuebles']
+                factor = nuevo_inm / importe_inmuebles if importe_inmuebles else 1.0
+                for p in list(st.session_state.tokens_compra):
+                    st.session_state.tokens_compra[p] *= factor
+                    st.session_state.pop(f"pct_{p}", None)
+                st.session_state.datos_cliente['estatus'] = 'SuperReentel'
+            c_si, c_no, _ = st.columns([1, 1.3, 0.7])
+            c_si.button("Sí, sube mi estatus", key="btn_subir_super", on_click=_subir_a_super,
+                        use_container_width=True)
+            c_no.button(f"No, me quedo como estoy ({estatus})", key="btn_quedarme_sec",
+                        on_click=lambda: st.session_state.update(oferta_super_rechazada=True),
+                        use_container_width=True)
         if hay_sugeridos:
             c_sug, _ = st.columns([1, 2])
             if c_sug.button("Volver al Paso 4 para añadirlos", key="btn_volver_p4_sec", use_container_width=True):
@@ -636,6 +663,7 @@ def mostrar():
                 st.session_state.tokens_manual = False
                 st.session_state.modo_reparto = "Por igual"
                 st.session_state.pop('input_importe', None)
+                st.session_state.pop('oferta_super_rechazada', None)
                 st.rerun()
     else:
         st.error("No hay cartera para mostrar")
