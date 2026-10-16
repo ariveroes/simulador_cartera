@@ -408,7 +408,7 @@ def mostrar():
             with _kpi("estatus"):
                 if coste_estatus_p4 > 0:
                     valor_est = f"{es(coste_estatus_p4, 0)} {simbolo_cliente_p4}"
-                    sub_est = f"{estatus_p4} · a plazo fijo durante 2 años"
+                    sub_est = f"{estatus_p4} · permanencia de 2 años"
                 else:
                     valor_est, sub_est = "—", "Sin estatus (Reentel)"
                 st.markdown(html_seguro(
