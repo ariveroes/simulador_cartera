@@ -8,7 +8,7 @@ def mostrar():
     st.markdown("## Paso 2: Define tu estrategia de inversión")
     st.markdown("")
     
-    # Objetivo: dos tarjetas una encima de otra, como las del estatus
+    # Objetivo: dos tarjetas, como las del estatus
     st.markdown("**¿Cuál es tu objetivo de inversión?** *")
     guardado = st.session_state.datos_cliente.get('objetivo')
     if guardado and 'ingresos' in guardado.lower():
@@ -16,15 +16,15 @@ def mostrar():
     elif guardado and 'rentabilidad' in guardado.lower():
         guardado = OBJETIVOS[0][0]
     objetivo = guardado
-    c_obj, _ = st.columns([2, 1])
-    with c_obj:
-        for n, (titulo, texto) in enumerate(OBJETIVOS):
+    # Ordenador: uno al lado del otro. Móvil: uno encima del otro.
+    for n, (col, (titulo, texto)) in enumerate(zip(st.columns(2), OBJETIVOS)):
+        with col:
             elegido = objetivo == titulo
             marca = (f"<span style='font-size:12px; font-weight:700; color:{COLOR_AMBAR_OSCURO}; "
                      f"white-space:nowrap;'>✓ Elegido</span>" if elegido else "")
             st.markdown(
                 f"<div class='tarjeta-objetivo' style='border:{'2px' if elegido else '1px'} solid "
-                f"{COLOR_AMBAR if elegido else COLOR_BORDE}; border-radius:14px; padding:16px 20px; "
+                f"{COLOR_AMBAR if elegido else COLOR_BORDE}; border-radius:14px; padding:16px 20px; min-height:132px; "
                 f"background-color:{COLOR_AMBAR_CLARO if elegido else '#ffffff'};'>"
                 f"<div style='display:flex; justify-content:space-between; align-items:center; gap:12px; "
                 f"margin-bottom:6px;'><span style='color:{COLOR_NAVY}; font-weight:800; font-size:17px;'>"
@@ -36,8 +36,6 @@ def mostrar():
                          key=f"btn_objetivo_{n}{'' if elegido else '_sec'}", use_container_width=True):
                 st.session_state.datos_cliente['objetivo'] = titulo
                 st.rerun()
-            if n == 0:
-                st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
     
     st.markdown("")
     st.markdown("**Selecciona los mercados de interés:** *")
