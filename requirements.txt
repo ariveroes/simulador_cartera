@@ -11,3 +11,4 @@ Pillow>=11.0.0
 matplotlib>=3.8.0
 plotly>=5.0.0
 kaleido>=0.2.1
+phonenumbers>=8.13.0
