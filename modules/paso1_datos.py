@@ -31,7 +31,7 @@ def mostrar():
             # aspecto que las etiquetas de Streamlit
             st.markdown("<div class='etiqueta-campo'>¿Cuál es tu número de teléfono? *</div>",
                         unsafe_allow_html=True)
-            c_pref, c_num = st.columns([0.8, 2])
+            c_pref, c_num = st.columns([0.6, 2])
             with c_pref:
                 # Búsqueda por texto exacto: «+44» muestra solo los países con +44 y
                 # «reino» muestra Reino Unido (en versiones antiguas de Streamlit no existe
@@ -48,17 +48,20 @@ def mostrar():
                     **busqueda
                 )
             pais_fila = PREFIJOS_TELEFONO[opciones_prefijo.index(pais_tel)] if pais_tel else PREFIJOS_TELEFONO[0]
-            # Con el país ya elegido, la casilla solo muestra el prefijo: «(+34)». El nombre
-            # del país aparece en el desplegable al buscar.
+            # Con el país ya elegido, la casilla solo muestra las iniciales y el prefijo:
+            # «ESP (+34)»; en el móvil, la bandera y el prefijo: «🇪🇸 (+34)» (en Windows las
+            # banderas no se ven bien). El nombre del país aparece en el desplegable al buscar.
             st.markdown(f"""<style>
                 .st-key-select_prefijo [data-testid="stSelectbox"] {{ position: relative; }}
                 .st-key-select_prefijo:not(:focus-within) input {{ color: transparent !important; }}
                 .st-key-select_prefijo:not(:focus-within) [data-testid="stSelectbox"]::after {{
-                    content: "({pais_fila[2]})"; position: absolute; left: 9px; top: 50%;
+                    content: "{pais_fila[4]} ({pais_fila[2]})"; position: absolute; left: 9px; top: 50%;
                     transform: translateY(-50%); pointer-events: none; font-size: 14px;
                 }}
                 @media (max-width: 640px) {{
-                    .st-key-select_prefijo [data-testid="stSelectbox"]::after {{ font-size: 16px; }}
+                    .st-key-select_prefijo:not(:focus-within) [data-testid="stSelectbox"]::after {{
+                        font-size: 16px; content: "{pais_fila[0]} ({pais_fila[2]})";
+                    }}
                 }}
                 </style>""", unsafe_allow_html=True)
             with c_num:
