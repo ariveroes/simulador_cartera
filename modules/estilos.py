@@ -167,6 +167,16 @@ def aplicar_estilos():
             .st-key-kpis_resumen [data-testid="stColumn"]:nth-child(6) {{ order: 6; }}
             .st-key-kpis_resumen [data-testid="stMarkdownContainer"] {{ margin-bottom: 0 !important; }}
         }}
+        /* Tarjetas de resumen del Paso 5: todas las de una misma fila con la misma altura */
+        .st-key-kpis_resumen [data-testid="stHorizontalBlock"] {{ align-items: stretch !important; }}
+        .st-key-kpis_resumen [data-testid="stColumn"] *:has(.tarjeta),
+        .st-key-kpis_resumen .tarjeta {{ height: 100%; box-sizing: border-box; }}
+        .st-key-kpis_resumen [data-testid="stMarkdownContainer"] {{ margin-bottom: 0 !important; }}
+        @media (max-width: 640px) {{
+            .st-key-kpis_resumen .tarjeta {{ margin-bottom: 0 !important; }}
+            .st-key-kpis_resumen [data-testid="stHorizontalBlock"] {{ row-gap: 0.75rem !important; }}
+            .st-key-kpis_resumen {{ margin-bottom: 0.75rem; }}
+        }}
 
         /* ===== Tablas (ordenador) y tarjetas (móvil) con los mismos datos ===== */
         [class*="st-key-vista_tarjetas_"] {{ display: none; }}
