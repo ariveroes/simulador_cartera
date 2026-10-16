@@ -2,6 +2,7 @@
 PASO 1 - Datos del cliente (nombre, email, teléfono, divisa, capital).
 """
 from modules.comun import *  # noqa: F401,F403  (constantes, colores y funciones comunes)
+import inspect
 
 
 def mostrar():
@@ -32,21 +33,70 @@ def mostrar():
                         unsafe_allow_html=True)
             c_pref, c_num = st.columns([1.3, 2])
             with c_pref:
+                # Búsqueda por texto exacto: «+44» muestra solo los países con +44 y
+                # «reino» muestra Reino Unido (en versiones antiguas de Streamlit no existe
+                # esta opción y se usa la búsqueda por defecto)
+                busqueda = ({"filter_mode": "contains"}
+                            if "filter_mode" in inspect.signature(st.selectbox).parameters else {})
                 pais_tel = st.selectbox(
                     "País del teléfono",
                     opciones_prefijo,
                     index=_indice(opciones_prefijo, prefijo_guardado) or 0,
                     key="select_prefijo",
-                    label_visibility="collapsed"
+                    placeholder="País o prefijo",
+                    label_visibility="collapsed",
+                    **busqueda
                 )
+            pais_fila = PREFIJOS_TELEFONO[opciones_prefijo.index(pais_tel)] if pais_tel else PREFIJOS_TELEFONO[0]
             with c_num:
                 numero_tel = st.text_input(
                     "Número de teléfono",
                     value=st.session_state.datos_cliente.get('telefono_numero', ''),
-                    placeholder="600 123 456",
+                    placeholder=ejemplo_telefono(pais_fila),   # ejemplo con el formato del país
                     key="input_telefono",
                     label_visibility="collapsed"
                 )
+            # Al tocar el desplegable del país se vacía la casilla: lo que escribas
+            # sustituye al país anterior en vez de meterse en medio. Si no escribes nada
+            # y sales, se mantiene el país que había.
+            with st.container(key="js_prefijo"):
+                _script = """
+                <script>
+                (function () {
+                    const doc = window.parent.document;
+                    if (doc.__prefijoVacia) return;
+                    doc.__prefijoVacia = true;
+                    const win = window.parent;
+                    const fijar = Object.getOwnPropertyDescriptor(win.HTMLInputElement.prototype, 'value').set;
+                    const vaciar = (input) => {
+                        if (!input || !input.value) return;
+                        fijar.call(input, '');
+                        input.dispatchEvent(new win.Event('input', { bubbles: true }));
+                    };
+                    // Solo cuando la persona toca la casilla (no cuando Streamlit le
+                    // devuelve el foco tras elegir un país)
+                    let tocado = false;
+                    doc.addEventListener('pointerdown', (e) => {
+                        const caja = e.target.closest && e.target.closest('.st-key-select_prefijo');
+                        if (!caja) return;
+                        const input = caja.querySelector('input');
+                        if (doc.activeElement === input) setTimeout(() => vaciar(input), 0);
+                        else tocado = true;
+                    }, true);
+                    doc.addEventListener('focusin', (e) => {
+                        const input = e.target;
+                        if (!tocado || !input.matches || !input.matches('.st-key-select_prefijo input')) return;
+                        tocado = false;
+                        vaciar(input);
+                    }, true);
+                })();
+                </script>
+                """
+                if hasattr(st, "iframe"):
+                    st.iframe(_script, height=1)
+                else:
+                    import streamlit.components.v1 as _componentes
+                    _componentes.html(_script, height=0)
         divisa = st.selectbox(
             "¿En qué divisa prefieres invertir? *",
             ["EUR", "USD"],
@@ -78,23 +128,23 @@ def mostrar():
     with col3:
         if st.button("Siguiente >", use_container_width=True, key="btn_paso1_next"):
             email_valido = bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", (email or "").strip()))
-            digitos_tel = re.sub(r"\D", "", numero_tel or "")
-            telefono_valido = (bool(re.match(r"^[\d\s().-]+$", (numero_tel or "").strip()))
-                               and 6 <= len(digitos_tel) <= 14)
-            prefijo = PREFIJOS_TELEFONO[opciones_prefijo.index(pais_tel)][2] if pais_tel else ""
+            # Teléfono: se comprueba con el formato del país elegido (España 9 cifras, México 10…)
+            telefono_valido, telefono_completo, cifras_pais = validar_telefono(numero_tel, pais_fila)
             if not (nombre and email and numero_tel and divisa is not None and capital is not None
                     and ya_inversor is not None):
                 st.error("Por favor completa todos los campos marcados con *")
             elif not email_valido:
                 st.error("Revisa el email: no parece una dirección válida.")
             elif not telefono_valido:
-                st.error("Revisa el teléfono: escribe solo el número, sin el prefijo (lo eliges a la izquierda).")
+                st.error(f"Revisa el teléfono: no parece un número válido de {pais_fila[3]}"
+                         + (f" (allí los números tienen {cifras_pais} cifras)" if cifras_pais else "")
+                         + ". Escríbelo sin el prefijo, que se elige a la izquierda.")
             else:
                 anteriores = st.session_state.datos_cliente
                 nuevos = {
                     'nombre': nombre.strip(),
                     'email': email.strip(),
-                    'telefono': f"{prefijo} {numero_tel.strip()}",   # con prefijo (así se guarda en los leads)
+                    'telefono': telefono_completo,   # con prefijo, p. ej. «+34 600 12 34 56» (así se guarda en los leads)
                     'telefono_pais': pais_tel,
                     'telefono_numero': numero_tel.strip(),
                     'divisa': divisa,
