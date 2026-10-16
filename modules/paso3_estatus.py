@@ -7,9 +7,14 @@ from modules.comun import *  # noqa: F401,F403  (constantes, colores y funciones
 def mostrar():
     st.markdown("## Paso 3: ¿Qué estatus quieres considerar?")
     st.markdown(f"<p style='color:{COLOR_NAVY}; font-size:16px; line-height:1.6; "
-                f"margin:4px 0 18px 0;'>El Estatus eleva tu categoría en Reental y multiplica los beneficios "
+                f"margin:4px 0 10px 0;'>El Estatus eleva tu categoría en Reental y multiplica los beneficios "
                 f"de tu capital. Está diseñado para inversores que buscan maximizar sus rendimientos, dándote "
-                f"acceso prioritario a las mejores oportunidades inmobiliarias.</p>", unsafe_allow_html=True)
+                f"acceso prioritario a las mejores oportunidades inmobiliarias.</p>"
+                f"<p style='color:{COLOR_NAVY}; font-size:16px; line-height:1.6; margin:0 0 18px 0;'>"
+                f"Para conseguir el estatus, solo necesitas destinar el importe correspondiente, con una permanencia "
+                f"de 2 años. Ese dinero sigue siendo tuyo y te genera una remuneración mensual. Y lo mejor: te da "
+                f"acceso a una mayor rentabilidad en tus inversiones inmobiliarias y acceso preferente a los "
+                f"proyectos.</p>", unsafe_allow_html=True)
     
     estatus_seleccionado = st.session_state.datos_cliente.get('estatus', None)
     
@@ -20,6 +25,19 @@ def mostrar():
                                   "inmobiliarias y acceder a los proyectos tras los SuperReentel."),
         ('Reentel', 'btn_reen', "Por ahora no quiero estatus."),
     ]
+    # Importe de cada estatus al precio actual del RNT, en la divisa del cliente (redondeado)
+    divisa_p3 = st.session_state.datos_cliente.get('divisa') or 'EUR'
+    simbolo_p3 = '€' if str(divisa_p3).upper() == 'EUR' else '$'
+
+    def _importe_estatus(est):
+        if est == 'Reentel':
+            return "Sin permanencia"
+        try:
+            valor = coste_estatus_cliente({'estatus': est, 'divisa': divisa_p3})
+            return f"{es(round(valor, -2), 0)} {simbolo_p3}" if valor else ""
+        except Exception:
+            return ""
+
     for col, (nombre_est, clave, texto) in zip(st.columns(3), OPCIONES_ESTATUS):
         elegido = estatus_seleccionado == nombre_est
         with col:
@@ -32,7 +50,8 @@ def mostrar():
                 f"border-radius:14px; padding:18px 20px; min-height:170px; "
                 f"background-color:{COLOR_AMBAR_CLARO if elegido else '#ffffff'};'>"
                 f"<div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;'>"
-                f"<span style='color:{COLOR_NAVY}; font-weight:800; font-size:17px;'>{nombre_est}</span>{marca}</div>"
+                f"<span style='color:{COLOR_NAVY}; font-weight:800; font-size:17px;'>{nombre_est}"
+                f"{' · ' + html_seguro(_importe_estatus(nombre_est)) if _importe_estatus(nombre_est) else ''}</span>{marca}</div>"
                 f"<div style='color:{COLOR_NAVY}; font-size:15px; line-height:1.55;'>{texto}</div></div>",
                 unsafe_allow_html=True)
             # El elegido lleva el botón relleno; los demás, de contorno
