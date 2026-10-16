@@ -460,10 +460,10 @@ def mostrar():
         # Mensaje destacado (a 36 meses): el estatus elegido frente a Reentel
         g36 = {est: ganancia_final(est, MESES_COMPARATIVA) for est in ESTATUS_COMPARATIVA}
         if estatus != 'Reentel':
-            mensaje = (f"A {MESES_COMPARATIVA} meses, la ganancia final es de <b>{fmt(g36['Reentel'])}</b> con "
-                       f"Reentel y <b style='color:{color_est};'>{fmt(g36[estatus])}</b> con {estatus}")
+            mensaje = (f"A {MESES_COMPARATIVA} meses, la ganancia final es de <b style='color:{color_est};'>"
+                       f"{fmt(g36[estatus])}</b> con {estatus} y <b>{fmt(g36['Reentel'])}</b> con Reentel")
             diferencia = g36[estatus] - g36['Reentel']
-            mensaje += (f": <b>{fmt(diferencia)} más</b>, sin invertir ni un solo {simbolo} más."
+            mensaje += (f" → <b>{fmt(diferencia)} más</b>, sin invertir ni un solo {simbolo} más."
                         if diferencia > 0 else ".")
         else:
             mensaje = (f"A {MESES_COMPARATIVA} meses, la ganancia final con Reentel es de "
@@ -475,10 +475,10 @@ def mostrar():
                 extra = g36[mejor] - g36['Reentel']
                 if extra > max(50.0, g36['Reentel'] * 0.03):
                     color_mejor = COLOR_AMBAR_OSCURO if mejor == 'SuperReentel' else COLOR_NAVY
-                    mensaje += (f"<br><br>Has elegido continuar sin estatus. Sin embargo, con el importe de "
-                                f"inversión considerado podrías conseguir hasta <b>{fmt(extra)} más</b> en el "
-                                f"mismo periodo, sin invertir ni un solo {simbolo} más, solo eligiendo el estatus "
-                                f"<b style='color:{color_mejor};'>{mejor}</b>.")
+                    moneda = "euro" if divisa_cliente == 'EUR' else "dólar"
+                    mensaje += (f"<br><br>En el Paso 3, elegiste continuar sin estatus. Sin embargo, podrías "
+                                f"conseguir hasta <b>{fmt(extra)} más</b> <i>sin invertir ni un solo {moneda} más</i>, "
+                                f"solo eligiendo el estatus de <b style='color:{color_mejor};'>{mejor}</b>.")
         st.markdown(html_seguro(
             f"<div style='background:{COLOR_AMBAR_CLARO}; border:1px solid {COLOR_AMBAR}; border-radius:10px; "
             f"padding:14px 18px; margin-top:16px; color:{COLOR_NAVY}; font-size:15px;'>{mensaje}</div>"),
