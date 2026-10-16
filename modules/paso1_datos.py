@@ -31,7 +31,7 @@ def mostrar():
             # aspecto que las etiquetas de Streamlit
             st.markdown("<div class='etiqueta-campo'>¿Cuál es tu número de teléfono? *</div>",
                         unsafe_allow_html=True)
-            c_pref, c_num = st.columns([1.3, 2])
+            c_pref, c_num = st.columns([0.8, 2])
             with c_pref:
                 # Búsqueda por texto exacto: «+44» muestra solo los países con +44 y
                 # «reino» muestra Reino Unido (en versiones antiguas de Streamlit no existe
@@ -43,11 +43,24 @@ def mostrar():
                     opciones_prefijo,
                     index=_indice(opciones_prefijo, prefijo_guardado) or 0,
                     key="select_prefijo",
-                    placeholder="País o prefijo",
+                    placeholder="Buscar",
                     label_visibility="collapsed",
                     **busqueda
                 )
             pais_fila = PREFIJOS_TELEFONO[opciones_prefijo.index(pais_tel)] if pais_tel else PREFIJOS_TELEFONO[0]
+            # Con el país ya elegido, la casilla solo muestra el prefijo: «(+34)». El nombre
+            # del país aparece en el desplegable al buscar.
+            st.markdown(f"""<style>
+                .st-key-select_prefijo [data-testid="stSelectbox"] {{ position: relative; }}
+                .st-key-select_prefijo:not(:focus-within) input {{ color: transparent !important; }}
+                .st-key-select_prefijo:not(:focus-within) [data-testid="stSelectbox"]::after {{
+                    content: "({pais_fila[2]})"; position: absolute; left: 9px; top: 50%;
+                    transform: translateY(-50%); pointer-events: none; font-size: 14px;
+                }}
+                @media (max-width: 640px) {{
+                    .st-key-select_prefijo [data-testid="stSelectbox"]::after {{ font-size: 16px; }}
+                }}
+                </style>""", unsafe_allow_html=True)
             with c_num:
                 numero_tel = st.text_input(
                     "Número de teléfono",
@@ -82,6 +95,15 @@ def mostrar():
                         const input = caja.querySelector('input');
                         if (doc.activeElement === input) setTimeout(() => vaciar(input), 0);
                         else tocado = true;
+                    }, true);
+                    // Al elegir un país de la lista se quita el foco de la casilla, para
+                    // que vuelva a verse solo el prefijo
+                    doc.addEventListener('click', (e) => {
+                        if (!e.target.closest || !e.target.closest('[role="option"]')) return;
+                        const input = doc.querySelector('.st-key-select_prefijo input');
+                        if (input && doc.activeElement === input) {
+                            setTimeout(() => input.blur(), 80); setTimeout(() => input.blur(), 400);
+                        }
                     }, true);
                     doc.addEventListener('focusin', (e) => {
                         const input = e.target;
