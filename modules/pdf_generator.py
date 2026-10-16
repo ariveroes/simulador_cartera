@@ -407,7 +407,7 @@ def _resumen(c, R):
 
     _parrafo(c, M, y - 8, ancho,
              f"Tipo de cambio aplicado: 1 € = {_n(tc, 4)} $ (referencia BCE). Lo que va al estatus sigue siendo del cliente: "
-             "queda inmovilizado 2 años y genera su propio rendimiento. Las rentabilidades se ponderan por el % de la cartera invertido en cada "
+             "tiene una permanencia de 2 años y genera su propio rendimiento. Las rentabilidades se ponderan por el % de la cartera invertido en cada "
              "proyecto.", 7.5, TENUE)
 
 
