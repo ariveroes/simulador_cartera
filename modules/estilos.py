@@ -261,7 +261,7 @@ def aplicar_estilos():
             [class*="st-key-vista_tarjetas_"] {{ display: block; }}
 
             /* Paso 2: sin hueco vacío en las tarjetas cortas */
-            .tarjeta-estatus {{ min-height: 0 !important; }}
+            .tarjeta-estatus, .tarjeta-objetivo {{ min-height: 0 !important; }}
 
             /* Filas de navegación: sin huecos vacíos */
             [data-testid="stHorizontalBlock"]:has([class*="_back"]) > [data-testid="stColumn"]:not(:has(button)) {{
