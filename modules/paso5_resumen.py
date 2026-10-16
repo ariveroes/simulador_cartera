@@ -463,7 +463,9 @@ def mostrar():
             mensaje = (f"A {MESES_COMPARATIVA} meses, la ganancia final es de <b style='color:{color_est};'>"
                        f"{fmt(g36[estatus])}</b> con {estatus} y <b>{fmt(g36['Reentel'])}</b> con Reentel")
             diferencia = g36[estatus] - g36['Reentel']
-            mensaje += (f" → <b>{fmt(diferencia)} más</b>, sin invertir ni un solo {simbolo} más."
+            moneda = "euro" if divisa_cliente == 'EUR' else "dólar"
+            mensaje += (f" → <b>{fmt(diferencia)} más</b>, <b style='color:{COLOR_AMBAR_OSCURO};'>sin invertir ni "
+                        f"un solo {moneda} más</b>."
                         if diferencia > 0 else ".")
         else:
             mensaje = (f"A {MESES_COMPARATIVA} meses, la ganancia final con Reentel es de "
@@ -477,7 +479,8 @@ def mostrar():
                     color_mejor = COLOR_AMBAR_OSCURO if mejor == 'SuperReentel' else COLOR_NAVY
                     moneda = "euro" if divisa_cliente == 'EUR' else "dólar"
                     mensaje += (f"<br><br>En el Paso 3, elegiste continuar sin estatus. Sin embargo, podrías "
-                                f"conseguir hasta <b>{fmt(extra)} más</b> <i>sin invertir ni un solo {moneda} más</i>, "
+                                f"conseguir hasta <b>{fmt(extra)} más</b> <b style='color:{COLOR_AMBAR_OSCURO};'>sin invertir "
+                                f"ni un solo {moneda} más</b>, "
                                 f"solo eligiendo el estatus de <b style='color:{color_mejor};'>{mejor}</b>.")
         st.markdown(html_seguro(
             f"<div style='background:{COLOR_AMBAR_CLARO}; border:1px solid {COLOR_AMBAR}; border-radius:10px; "
