@@ -11,7 +11,7 @@ def mostrar():
                 f"de tu capital. Está diseñado para inversores que buscan maximizar sus rendimientos, dándote "
                 f"acceso prioritario a las mejores oportunidades inmobiliarias.</p>"
                 f"<p style='color:{COLOR_NAVY}; font-size:16px; line-height:1.6; margin:0 0 18px 0;'>"
-                f"Para conseguir el estatus, solo necesitas destinar el importe correspondiente, con una permanencia "
+                f"Para conseguir el estatus, mantienes el importe indicado en cada opción durante una permanencia "
                 f"de 2 años. Ese dinero sigue siendo tuyo y te genera una remuneración mensual. Y lo mejor: te da "
                 f"acceso a una mayor rentabilidad en tus inversiones inmobiliarias y acceso preferente a los "
                 f"proyectos.</p>", unsafe_allow_html=True)
