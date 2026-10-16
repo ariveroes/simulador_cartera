@@ -108,7 +108,7 @@ def aplicar_estilos():
         .st-key-telefono [data-testid="stMarkdownContainer"] {{ margin-bottom: 0 !important; }}
 
         /* Marco invisible que sube la página al cambiar de paso */
-        .st-key-subir_arriba {{ height: 0 !important; overflow: hidden; margin: 0 !important; }}
+        .st-key-subir_arriba, .st-key-js_prefijo {{ height: 0 !important; overflow: hidden; margin: 0 !important; }}
 
         /* ===== Botón para agendar una reunión: círculo flotante arriba a la derecha ===== */
         a.cta-flotante, .stApp a.cta-flotante {{
