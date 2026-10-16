@@ -55,11 +55,12 @@ def mostrar():
             filas_disponibles.append(row)
 
         df_disponibles = pd.DataFrame(filas_disponibles)
-        fuera_de_mercado = 0
+        df_otros = df_disponibles.iloc[0:0]          # proyectos de mercados no elegidos en el Paso 2
         if len(df_disponibles) > 0 and mercados_seleccionados:
             en_mercado = df_disponibles['Ubicación'].isin(mercados_seleccionados)
-            fuera_de_mercado = int((~en_mercado).sum())
+            df_otros = df_disponibles[~en_mercado]
             df_disponibles = df_disponibles[en_mercado]
+        fuera_de_mercado = len(df_otros)
 
         st.markdown("### Proyectos disponibles según tus preferencias de inversión")
         if ingresos_pasivos:
@@ -68,13 +69,12 @@ def mostrar():
         else:
             criterio = "De mayor a menor rentabilidad anualizada."
 
-        ids_seleccionados = []
-        if len(df_disponibles) > 0:
-            st.caption(f"Ordenados según tu objetivo de inversión. {criterio}")
-            df_display = preparar_proyectos_para_paso4(df_disponibles, estatus)
-            df_display = aplicar_rentabilidad_ajustada(df_display, df_disponibles, estatus, precio_por_id)
+        def _lista(df_sub, clave):
+            """Tarjetas para elegir proyectos, ordenadas según el objetivo. Devuelve los IDs marcados."""
+            df_display = preparar_proyectos_para_paso4(df_sub, estatus)
+            df_display = aplicar_rentabilidad_ajustada(df_display, df_sub, estatus, precio_por_id)
             simbolo_por_id = {row['ID']: ('$' if divisa_proyecto(row) == 'USD' else '€')
-                              for _, row in df_disponibles.iterrows()}
+                              for _, row in df_sub.iterrows()}
             df_display['Precio'] = df_display['ID'].map(
                 lambda pid: f"{es(precio_por_id[pid], 2)} {simbolo_por_id.get(pid, '€')}" if pid in precio_por_id else "-")
             # Ranking según las preferencias
@@ -83,19 +83,26 @@ def mostrar():
             if ingresos_pasivos:
                 df_display = priorizar_rentas(df_display)
             # Enlace al dossier comercial (columna CQ del Master)
-            if 'dossier' in df_disponibles.columns:
-                dossier_por_id = dict(zip(df_disponibles['ID'], df_disponibles['dossier']))
+            if 'dossier' in df_sub.columns:
+                dossier_por_id = dict(zip(df_sub['ID'], df_sub['dossier']))
                 df_display['Dossier'] = df_display['ID'].map(dossier_por_id).fillna('')
-            ids_seleccionados = tabla_seleccionable(df_display, "tabla_proyectos")
-            if fuera_de_mercado:
-                plural = 's' if fuera_de_mercado != 1 else ''
-                st.caption(f"Hay {fuera_de_mercado} proyecto{plural} más disponible{plural} en otros "
-                           "mercados. Puedes añadir esos mercados en el Paso 2.")
+            return tabla_seleccionable(df_display, clave)
+
+        ids_seleccionados = []
+        if len(df_disponibles) > 0:
+            st.caption(f"Ordenados según tu objetivo de inversión. {criterio}")
+            ids_seleccionados = _lista(df_disponibles, "tabla_proyectos")
         elif fuera_de_mercado:
-            st.info(f"Ahora mismo no hay proyectos disponibles en los mercados que has elegido. Hay "
-                    f"{fuera_de_mercado} en otros mercados: puedes añadirlos en el Paso 2.")
+            st.info("Ahora mismo no hay proyectos disponibles en los mercados que has elegido.")
         else:
             st.info("Ahora mismo no hay proyectos disponibles.")
+        # Los de otros mercados, debajo, por si quiere incluir alguno
+        if fuera_de_mercado:
+            plural = 's' if fuera_de_mercado != 1 else ''
+            st.markdown("")
+            st.markdown(f"**Hay {fuera_de_mercado} proyecto{plural} más en otros mercados que no seleccionaste "
+                        f"en el Paso 2. Te {'los' if plural else 'lo'} indicamos a continuación.**")
+            ids_seleccionados += _lista(df_otros, "tabla_otros_mercados")
 
         # ========== GUARDAR SELECCIÓN ==========
         ids_seleccionados = list(dict.fromkeys(ids_seleccionados))  # sin duplicados, en orden
