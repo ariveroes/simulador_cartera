@@ -533,10 +533,9 @@ def cargar_todas_ofertas_secundario(df_proyectos=None):
     
     return todas_ofertas
 
-# En la tabla OTC no se muestran los proyectos que terminan en menos de estos
-# meses (en primera emisión sí): les queda
-# tan poco que su rentabilidad anualizada sale disparada y no es comparable.
-MESES_MINIMOS_HASTA_FIN = 3
+# En el Paso 4 no se muestran los proyectos que terminan en menos de estos meses:
+# les queda tan poco que su rentabilidad anualizada sale disparada y no es comparable.
+MESES_MINIMOS_HASTA_FIN = 4
 
 
 def termina_pronto(fecha_fin, meses=MESES_MINIMOS_HASTA_FIN):
