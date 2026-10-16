@@ -86,10 +86,10 @@ def mostrar():
             if fuera_de_mercado:
                 plural = 's' if fuera_de_mercado != 1 else ''
                 st.caption(f"Hay {fuera_de_mercado} proyecto{plural} más disponible{plural} en otros "
-                           "mercados. Puedes añadir esos mercados en el Paso 3.")
+                           "mercados. Puedes añadir esos mercados en el Paso 2.")
         elif fuera_de_mercado:
             st.info(f"Ahora mismo no hay proyectos disponibles en los mercados que has elegido. Hay "
-                    f"{fuera_de_mercado} en otros mercados: puedes añadirlos en el Paso 3.")
+                    f"{fuera_de_mercado} en otros mercados: puedes añadirlos en el Paso 2.")
         else:
             st.info("Ahora mismo no hay proyectos disponibles.")
 
@@ -227,6 +227,8 @@ def mostrar():
         tokens_totales = sum(f[2] for f in filas_calc)
         rent_media = (sum((f[4]['anual'] or 0.0) * f[3] for f in filas_calc) / importe_repartido
                       if importe_repartido > 0 else 0.0)
+        rent_total_media = (sum((f[4]['total'] or 0.0) * f[3] for f in filas_calc) / importe_repartido
+                            if importe_repartido > 0 else 0.0)
 
 
         # ----- Estilos de esta sección -----
@@ -243,6 +245,25 @@ def mostrar():
         .st-key-kpi_importe div[data-baseweb="input"] {{ min-height: 38px; }}
         .st-key-kpi_importe input {{ font-size: 22px; font-weight: 800; color: {COLOR_NAVY}; padding: 2px 8px; }}
         .st-key-kpi_pendiente button {{ padding: 2px 10px; min-height: 28px; font-size: 12px; }}
+        /* Repartido + estatus y las dos rentabilidades: dos tarjetas una encima de otra.
+           Importe y pendiente ocupan toda la altura de la franja. */
+        [class*="st-key-kpipar_"] {{ gap: 0.75rem !important; height: 100%; }}
+        [class*="st-key-kpipar_"] > * {{ flex: 1 1 0; }}
+        [class*="st-key-kpipar_"] [class*="st-key-kpi_"] {{ min-height: 0; height: 100%; }}
+        [data-testid="stHorizontalBlock"]:has(.st-key-kpi_importe) {{ align-items: stretch; }}
+        [data-testid="stHorizontalBlock"]:has(.st-key-kpi_importe) > [data-testid="stColumn"] > div,
+        .st-key-kpi_importe, .st-key-kpi_pendiente {{ height: 100%; }}
+        [data-testid="stLayoutWrapper"]:has(> .st-key-kpi_importe),
+        [data-testid="stLayoutWrapper"]:has(> .st-key-kpi_pendiente),
+        [data-testid="stLayoutWrapper"]:has(> [class*="st-key-kpipar_"]) {{ flex: 1 1 auto; height: 100%; }}
+        .st-key-js_enfocar {{ height: 0 !important; overflow: hidden; margin: 0 !important; }}
+        /* Aviso cuando el importe no llega para el estatus */
+        .st-key-aviso_estatus {{
+            background: {COLOR_AMBAR_CLARO}; border: 1px solid #f6c56b; border-radius: 12px;
+            padding: 14px 18px; margin: 14px 0 4px 0; gap: 0.6rem;
+        }}
+        .st-key-aviso_estatus p {{ margin-bottom: 0; }}
+        .st-key-aviso_estatus [data-testid="stMarkdownContainer"] {{ margin-bottom: 0 !important; }}
 
         .st-key-tabla_cartera {{
             background: #ffffff; border: 1px solid {COLOR_BORDE}; border-radius: 12px; padding: 4px 6px;
@@ -268,15 +289,14 @@ def mostrar():
         .barra-pct > div {{ background: {COLOR_AMBAR}; border-radius: 4px; height: 8px; }}
 
         @media (max-width: 640px) {{
-            /* Indicadores: el importe ocupa todo el ancho y los otros tres van en una fila */
+            /* Indicadores: importe a todo el ancho; repartido + estatus y las dos
+               rentabilidades de dos en dos; pendiente a todo el ancho */
             [data-testid="stHorizontalBlock"]:has(.st-key-kpi_importe) {{ flex-wrap: wrap; gap: 0.5rem; }}
             [data-testid="stHorizontalBlock"]:has(.st-key-kpi_importe) > [data-testid="stColumn"] {{
-                flex: 1 1 calc(33% - 0.5rem) !important; min-width: calc(33% - 0.5rem) !important;
-                width: calc(33% - 0.5rem) !important;
+                flex: 1 1 100% !important; min-width: 100% !important; width: 100% !important;
             }}
-            [data-testid="stHorizontalBlock"]:has(.st-key-kpi_importe) > [data-testid="stColumn"]:first-child {{
-                flex-basis: 100% !important; min-width: 100% !important; width: 100% !important;
-            }}
+            [class*="st-key-kpipar_"] {{ flex-direction: row !important; gap: 0.5rem !important; }}
+            [class*="st-key-kpipar_"] > * {{ flex: 1 1 0 !important; min-width: 0 !important; width: auto !important; }}
             [class*="st-key-kpi_"] {{ min-height: 0; padding: 10px 10px 8px 10px; }}
             .kpi-valor {{ font-size: 17px; }}
             .kpi-titulo {{ font-size: 10.5px; letter-spacing: 0.2px; }}
@@ -307,14 +327,51 @@ def mostrar():
                 return st.container(border=True)
 
         # ----- 1) Franja de indicadores -----
-        k1, k2, k3, k4 = st.columns(4)
+        # Ordenador: importe | repartido + estatus | rent. anualizada + total | pendiente.
+        # Móvil: importe; repartido y estatus; las dos rentabilidades; pendiente.
+        def _kpi_par(clave):
+            try:
+                return st.container(key=f"kpipar_{clave}")
+            except TypeError:
+                return st.container()
+
+        datos_p4 = st.session_state.datos_cliente
+        divisa_datos_p4 = datos_p4.get('divisa') or 'EUR'
+
+        def _coste_de(est):
+            return coste_estatus_cliente({'estatus': est, 'divisa': divisa_datos_p4})
+
+        def _subir_importe():
+            st.session_state.resaltar_importe = True
+            st.session_state.enfocar_importe = True
+
+        def _cambiar_estatus(nuevo):
+            st.session_state.datos_cliente['estatus'] = nuevo
+            st.session_state.pop('resaltar_importe', None)
+            for p in list(st.session_state.tokens_compra):
+                _olvidar_widgets(p)
+
+        k1, k2, k3, k4 = st.columns([1.25, 1, 1, 1])
         with k1, _kpi("importe"):
             st.markdown("<div class='kpi-titulo'>IMPORTE A INVERTIR</div>", unsafe_allow_html=True)
             st.text_input("Importe a invertir", key="input_importe", on_change=_cambiar_importe,
                           label_visibility="collapsed")
             importe_capital_p4 = importe_cliente(st.session_state.datos_cliente)
             importe_total_p4 = max(0.0, importe_capital_p4 - coste_estatus_p4)
-            if coste_estatus_p4 > 0:
+            no_llega = coste_estatus_p4 > 0 and importe_total_p4 <= 0
+            if not no_llega:
+                st.session_state.pop('resaltar_importe', None)
+            if no_llega and st.session_state.get('resaltar_importe'):
+                # «Subir importe de inversión»: la casilla se marca en rojo hasta que llegue
+                st.markdown(
+                    f"<style>.st-key-kpi_importe {{ border-color: {COLOR_ROJO} !important; "
+                    f"background: #fef2f2 !important; }} .st-key-kpi_importe div[data-baseweb='input'] "
+                    f"{{ border: 1.5px solid {COLOR_ROJO} !important; }}</style>"
+                    + html_seguro(
+                        f"<div class='kpi-sub' style='color:{COLOR_ROJO}; font-weight:700; margin-top:2px;'>"
+                        f"Necesitas más de {es(coste_estatus_p4, 0)} {simbolo_cliente_p4} para el estatus "
+                        f"{estatus_p4}</div>"), unsafe_allow_html=True)
+            elif coste_estatus_p4 > 0:
                 st.markdown(html_seguro(
                     f"<div class='kpi-sub' style='color:{COLOR_NAVY}; margin-top:2px;'>"
                     f"<b>{es(importe_total_p4, 0)} {simbolo_cliente_p4}</b> a inmuebles y "
@@ -325,15 +382,41 @@ def mostrar():
                                     "punto medio de ese rango; puedes cambiarlo por el importe exacto que "
                                     "quieras invertir.</div>"), unsafe_allow_html=True)
 
-        with k2, _kpi("repartido"):
-            st.markdown(html_seguro(
-                f"<div class='kpi-titulo'>REPARTIDO</div>"
-                f"<div class='kpi-valor'>{es(importe_repartido, 0)} {simbolo_cliente_p4}</div>"
-                f"<div class='kpi-sub'>{len(ids_validos)} "
-                f"proyecto{'s' if len(ids_validos) != 1 else ''}</div>"), unsafe_allow_html=True)
+        with k2, _kpi_par("reparto"):
+            with _kpi("repartido"):
+                st.markdown(html_seguro(
+                    f"<div class='kpi-titulo'>REPARTIDO</div>"
+                    f"<div class='kpi-valor'>{'—' if no_llega else f'{es(importe_repartido, 0)} {simbolo_cliente_p4}'}</div>"
+                    f"<div class='kpi-sub'>{len(ids_validos)} "
+                    f"proyecto{'s' if len(ids_validos) != 1 else ''}</div>"), unsafe_allow_html=True)
+            with _kpi("estatus"):
+                if coste_estatus_p4 > 0:
+                    valor_est = f"{es(coste_estatus_p4, 0)} {simbolo_cliente_p4}"
+                    sub_est = f"{estatus_p4} · a plazo fijo durante 2 años"
+                else:
+                    valor_est, sub_est = "—", "Sin estatus (Reentel)"
+                st.markdown(html_seguro(
+                    f"<div class='kpi-titulo'>EN ESTATUS</div>"
+                    f"<div class='kpi-valor'>{valor_est}</div>"
+                    f"<div class='kpi-sub'>{sub_est}</div>"), unsafe_allow_html=True)
 
-        with k3, _kpi("pendiente"):
-            if not ids_validos:
+        with k3, _kpi_par("rentab"):
+            hay_reparto = importe_repartido > 0
+            with _kpi("rentabilidad"):
+                st.markdown(html_seguro(
+                    f"<div class='kpi-titulo'>RENT. ANUALIZADA</div>"
+                    f"<div class='kpi-valor'>{es(rent_media, 2) + ' %' if hay_reparto else '—'}</div>"
+                    f"<div class='kpi-sub'>estimada · {estatus_p4} · al precio de compra</div>"),
+                    unsafe_allow_html=True)
+            with _kpi("rent_total"):
+                st.markdown(html_seguro(
+                    f"<div class='kpi-titulo'>RENT. TOTAL</div>"
+                    f"<div class='kpi-valor'>{es(rent_total_media, 2) + ' %' if hay_reparto else '—'}</div>"
+                    f"<div class='kpi-sub'>estimada · {estatus_p4} · hasta el final de cada proyecto</div>"),
+                    unsafe_allow_html=True)
+
+        with k4, _kpi("pendiente"):
+            if not ids_validos or no_llega:
                 titulo, valor, color = "PENDIENTE", "—", COLOR_GRIS_CLARO
             elif abs(pendiente) <= tolerancia:
                 titulo, valor, color = "PENDIENTE", "✓ Todo repartido", COLOR_VERDE
@@ -344,7 +427,7 @@ def mostrar():
             st.markdown(html_seguro(f"<div class='kpi-titulo'>{titulo}</div>"
                                     f"<div class='kpi-valor' style='color:{color};'>{valor}</div>"),
                         unsafe_allow_html=True)
-            if ids_validos and abs(pendiente) > tolerancia and importe_repartido > 0:
+            if ids_validos and not no_llega and abs(pendiente) > tolerancia and importe_repartido > 0:
                 def _usar_repartido(valor):
                     st.session_state.datos_cliente['capital_ajustado'] = valor
                     st.session_state.input_importe = _texto_importe(valor)
@@ -356,17 +439,44 @@ def mostrar():
                           help="Cambia el importe a invertir para que coincida con lo que has repartido"
                                + (" más lo que va a tu estatus" if coste_estatus_p4 > 0 else ""))
 
-        with k4, _kpi("rentabilidad"):
-            st.markdown(html_seguro(
-                f"<div class='kpi-titulo'>RENT. ANUALIZADA</div>"
-                f"<div class='kpi-valor'>{es(rent_media, 2) + ' %' if importe_repartido > 0 else '—'}</div>"
-                f"<div class='kpi-sub'>estimada · {estatus_p4} · al precio de compra</div>"),
-                unsafe_allow_html=True)
+        # ----- Aviso: el importe no llega para el estatus elegido -----
+        if no_llega:
+            opciones = [("Subir importe de inversión", "btn_subir_importe_sec", _subir_importe, ())]
+            coste_pro = _coste_de('ReentelPro')
+            if estatus_p4 == 'SuperReentel' and importe_capital_p4 - coste_pro > 0:
+                opciones.append(("Elegir ReentelPro", "btn_elegir_pro_sec", _cambiar_estatus, ('ReentelPro',)))
+            opciones.append(("Continuar sin estatus", "btn_sin_estatus_sec", _cambiar_estatus, ('Reentel',)))
+            with st.container(key="aviso_estatus"):
+                st.markdown(html_seguro(
+                    f"<div style='color:{COLOR_NAVY}; font-size:15px;'>Con <b>{es(importe_capital_p4, 0)} "
+                    f"{simbolo_cliente_p4}</b> no llega para el estatus <b>{estatus_p4}</b>, que requiere "
+                    f"<b>{es(coste_estatus_p4, 0)} {simbolo_cliente_p4}</b>. En este caso, puedes:</div>"),
+                    unsafe_allow_html=True)
+                cols_aviso = st.columns(len(opciones))
+                for col, (texto, clave, accion, args) in zip(cols_aviso, opciones):
+                    col.button(texto, key=clave, on_click=accion, args=args, use_container_width=True)
 
-        if coste_estatus_p4 > 0 and importe_total_p4 <= 0:
-            st.warning(md(f"Con {es(importe_capital_p4, 0)} {simbolo_cliente_p4} no llega para el estatus "
-                          f"{estatus_p4}, que requiere {es(coste_estatus_p4, 0)} {simbolo_cliente_p4}. Sube el "
-                          "importe a invertir o vuelve al Paso 2 para elegir otro estatus."))
+        # Tras pulsar «Subir importe de inversión», el cursor va a la casilla del importe
+        if st.session_state.pop('enfocar_importe', False):
+            with st.container(key="js_enfocar"):
+                _script = """
+                <script>
+                (function () {
+                    const doc = window.parent.document;
+                    const ir = () => {
+                        const i = doc.querySelector('.st-key-input_importe input');
+                        if (!i) return;
+                        i.scrollIntoView({block: 'center'}); i.focus(); i.select();
+                    };
+                    setTimeout(ir, 100); setTimeout(ir, 400);
+                })();
+                </script>
+                """
+                if hasattr(st, "iframe"):
+                    st.iframe(_script, height=1)
+                else:
+                    import streamlit.components.v1 as _componentes
+                    _componentes.html(_script, height=0)
 
         # ----- 2) Barra de reparto -----
         if ids_validos and importe_total_p4 > 0:
