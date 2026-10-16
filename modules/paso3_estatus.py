@@ -6,7 +6,7 @@ from modules.comun import *  # noqa: F401,F403  (constantes, colores y funciones
 
 def mostrar():
     st.markdown("## Paso 3: ¿Qué estatus quieres considerar?")
-    st.markdown(f"<p style='color:{COLOR_NAVY}; font-size:16px; line-height:1.6; max-width:820px; "
+    st.markdown(f"<p style='color:{COLOR_NAVY}; font-size:16px; line-height:1.6; "
                 f"margin:4px 0 18px 0;'>El Estatus eleva tu categoría en Reental y multiplica los beneficios "
                 f"de tu capital. Está diseñado para inversores que buscan maximizar sus rendimientos, dándote "
                 f"acceso prioritario a las mejores oportunidades inmobiliarias.</p>", unsafe_allow_html=True)
