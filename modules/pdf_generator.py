@@ -350,7 +350,7 @@ def _resumen(c, R):
         _caja(c, x, y, mitad, 88)
         filas = [(f"Valor inversión estimada ({'€' if moneda == 'EUR' else '$'}) en inmuebles",
                   fmt(en(R.get("importe_inmuebles"), moneda)), 11, TXT),
-                 ("Adquisición de estatus", fmt(en(R.get("coste_estatus"), moneda)), 11, TXT),
+                 ("Importe en estatus", fmt(en(R.get("coste_estatus"), moneda)), 11, TXT),
                  ("Valor total inversión (incl. estatus)", fmt(en(R.get("capital_total"), moneda)), 14, ORO)]
         fy = y + 64
         for j, (etq, val, tam, col) in enumerate(filas):
@@ -406,8 +406,8 @@ def _resumen(c, R):
             fy -= 20
 
     _parrafo(c, M, y - 8, ancho,
-             f"Tipo de cambio aplicado: 1 € = {_n(tc, 4)} $ (referencia BCE). El coste del estatus se descuenta "
-             "del importe a invertir. Las rentabilidades se ponderan por el % de la cartera invertido en cada "
+             f"Tipo de cambio aplicado: 1 € = {_n(tc, 4)} $ (referencia BCE). Lo que va al estatus sigue siendo del cliente: "
+             "queda inmovilizado 2 años y genera su propio rendimiento. Las rentabilidades se ponderan por el % de la cartera invertido en cada "
              "proyecto.", 7.5, TENUE)
 
 
