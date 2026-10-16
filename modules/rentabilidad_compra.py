@@ -74,3 +74,60 @@ def rentabilidad_ajustada(row, estatus: str, precio_compra=None) -> dict:
     anual = total * 12 / meses_anualizar if meses_anualizar > 0 else None
     return {"renta": renta_aj, "plusvalia": plusv_aj, "total": total,
             "anual": anual, "meses": meses_anualizar}
+
+
+# ─── Ganancia a un plazo, cobrando cada cosa cuando se paga ─────────────────
+# Rentabilidad anual a la que se reinvierte lo cobrado (rentas, y capital +
+# beneficio cuando un proyecto termina), según el estatus del cliente.
+TASA_REINVERSION = {"Reentel": 11.0, "ReentelPro": 13.0, "SuperReentel": 16.0}
+
+
+def frecuencia_pagos(tipologia) -> int:
+    """Cada cuántos meses paga rentas el proyecto (0 = solo al final, tipo bullet)."""
+    t = str(tipologia or "").lower()
+    if "mensual" in t:
+        return 1
+    if "trimestral" in t:
+        return 3
+    if "semestral" in t:
+        return 6
+    if "anual" in t and "final" not in t:
+        return 12
+    return 0
+
+
+def ganancia_proyecto(importe, row, estatus: str, precio_compra, meses_plazo) -> float:
+    """Ganancia de invertir `importe` en el proyecto al cabo de `meses_plazo` meses.
+
+    - Las rentas se cobran cuando se pagan (cada mes, cada trimestre…) y desde ese
+      momento se reinvierten a TASA_REINVERSION del estatus.
+    - La plusvalía (y todo el beneficio de los proyectos que pagan al final) se va
+      ganando poco a poco, pero no se reinvierte hasta que el proyecto termina.
+    - Al terminar, el capital y la plusvalía se reinvierten a TASA_REINVERSION.
+    """
+    if not importe or importe <= 0:
+        return 0.0
+    r = rentabilidad_ajustada(row, estatus, precio_compra)
+    fin = max(int(round(r["meses"] or 0)), 0)               # meses hasta que termina
+    meses_renta = min(int(round(_num(row.get("Meses Pendientes")) or 0)), fin)
+    inicio_renta = fin - meses_renta                         # la renta se cobra al final del plazo del proyecto
+    f = frecuencia_pagos(row.get("Tipología de Dividendo"))
+    renta = r["renta"] if f else 0.0
+    plusvalia = r["plusvalia"] if f else r["total"]          # bullet: todo se cobra al final
+    tasa = TASA_REINVERSION.get(estatus or "Reentel", 11.0) / 100 / 12
+    H = int(meses_plazo)
+
+    def crece(cantidad, desde_mes):                          # lo cobrado en `desde_mes`, reinvertido hasta H
+        return cantidad * (1 + tasa) ** max(H - desde_mes, 0)
+
+    ganancia = 0.0
+    if f and renta:
+        cobro = importe * renta / 100 * f / 12
+        for m in range(inicio_renta + f, min(fin, H) + 1, f):
+            ganancia += crece(cobro, m)
+    if fin <= H:
+        ganancia += crece(importe * plusvalia / 100, fin)    # plusvalía cobrada al terminar
+        ganancia += crece(importe, fin) - importe            # el capital vuelve y se reinvierte
+    elif fin > 0:
+        ganancia += importe * plusvalia / 100 * H / fin      # aún no cobrada: se va ganando, sin reinvertir
+    return ganancia
