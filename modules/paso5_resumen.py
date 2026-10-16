@@ -172,7 +172,7 @@ def mostrar():
             ("CAPITAL TOTAL", fmt(capital_total), "inmuebles + estatus"),
             ("EN INMUEBLES", fmt(importe_inmuebles),
              fmt(convertir(importe_inmuebles, divisa_cliente, otra_divisa), otro_simbolo)),
-            ("EN ESTATUS", fmt(coste_estatus), {estatus} · a plazo fijo durante 2 años"),
+            ("EN ESTATUS", fmt(coste_estatus), f"{es(rnt_estatus, 0)} RNT · {estatus} · inmovilizado 2 años"),
             ("INMUEBLES", f"{len(filas_tabla)}", "proyectos en cartera"),
             ("RENT. ANUALIZADA", f"{es(rentabilidad_media, 2)} %", f"media ponderada · {estatus}"),
             ("RENT. TOTAL", f"{es(rentabilidad_total_media, 2)} %", f"media ponderada · {estatus}"),
@@ -183,7 +183,7 @@ def mostrar():
                 col.markdown(tarjeta(titulo, valor, sub), unsafe_allow_html=True)
         
         st.caption(("Tu importe se reparte entre inmuebles y estatus. Lo que va al estatus sigue siendo tuyo: "
-                    "queda a plazo fijo durante 2 años y **genera su propio rendimiento**. Pero lo más interesante es que **aumenta la rentabilidad de tus inmuebles**. "
+                    "queda inmovilizado 2 años y genera su propio rendimiento, además del de los inmuebles. "
                     if coste_estatus > 0 else "")
                    + "Las rentabilidades se calculan con el precio de compra de cada proyecto y los meses de "
                    "renta que le quedan, y se ponderan por el % de la cartera invertido en cada uno.")
