@@ -108,6 +108,8 @@ def aplicar_estilos():
         .st-key-telefono [data-testid="stMarkdownContainer"] {{ margin-bottom: 0 !important; }}
 
         /* Marco invisible que sube la página al cambiar de paso */
+        /* Desplegables estrechos (prefijo del teléfono): la lista se ve entera */
+        [data-testid="stSelectboxVirtualDropdown"] {{ min-width: 270px; }}
         .st-key-subir_arriba, .st-key-js_prefijo {{ height: 0 !important; overflow: hidden; margin: 0 !important; }}
 
         /* ===== Botón para agendar una reunión: círculo flotante arriba a la derecha ===== */
@@ -229,7 +231,7 @@ def aplicar_estilos():
             /* Teléfono: prefijo y número en la misma línea */
             .st-key-telefono [data-testid="stHorizontalBlock"] {{ flex-wrap: nowrap !important; gap: 0.5rem; }}
             .st-key-telefono [data-testid="stColumn"]:first-child {{
-                flex: 0 0 47% !important; min-width: 0 !important; width: 47% !important;
+                flex: 0 0 34% !important; min-width: 0 !important; width: 34% !important;
             }}
             .st-key-telefono [data-testid="stColumn"]:last-child {{
                 flex: 1 1 0 !important; min-width: 0 !important; width: auto !important;
