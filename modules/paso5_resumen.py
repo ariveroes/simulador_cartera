@@ -176,7 +176,7 @@ def mostrar():
             ("INMUEBLES", f"{len(filas_tabla)}", "proyectos en cartera"),
             ("EN INMUEBLES", fmt(importe_inmuebles),
              fmt(convertir(importe_inmuebles, divisa_cliente, otra_divisa), otro_simbolo)),
-            (("EN ESTATUS", fmt(coste_estatus), f"{estatus} · a plazo fijo durante 2 años") if coste_estatus > 0
+            (("EN ESTATUS", fmt(coste_estatus), f"{estatus} · permanencia de 2 años") if coste_estatus > 0
              else ("EN ESTATUS", "—", "Sin estatus (Reentel)")),
             ("RENT. TOTAL", f"{es(rentabilidad_total_media, 2)} %", f"media ponderada · {estatus}"),
             ("RENT. ANUALIZADA", f"{es(rentabilidad_media, 2)} %", f"media ponderada · {estatus}"),
@@ -187,7 +187,7 @@ def mostrar():
                 col.markdown(tarjeta(titulo, valor, sub), unsafe_allow_html=True)
         
         st.caption(("Tu importe se reparte entre inmuebles y estatus. Lo que va al estatus sigue siendo tuyo: "
-                    "queda a plazo fijo durante 2 años y **genera su propio rendimiento**. Pero lo más interesante es que **aumenta la rentabilidad de tus inmuebles**. "
+                    "tiene una permanencia de 2 años y **genera su propio rendimiento**. Pero lo más interesante es que **aumenta la rentabilidad de tus inmuebles**. "
                     if coste_estatus > 0 else "")
                    + "Las rentabilidades se calculan con el precio de compra de cada proyecto y los meses de "
                    "renta que le quedan, y se ponderan por el % de la cartera invertido en cada uno.")
@@ -636,8 +636,8 @@ def mostrar():
                 st.session_state.paso_actual = 4
                 st.rerun()
         st.markdown(f"<div style='font-size:12.5px; color:{COLOR_GRIS}; margin:8px 2px 0 2px;'>"
-                    f"La ganancia final incluye la de los inmuebles y la del estatus (un rendimiento estimado del "
-                    f"{es(RENDIMIENTO_ESTATUS, 1)} % anual sobre el importe en estatus). El cálculo considera la reinversión de "
+                    f"La ganancia final incluye la de los inmuebles y la del estatus (la remuneración del importe con "
+                    f"permanencia). El cálculo considera la reinversión de "
                     f"los beneficios obtenidos, beneficiándose del interés compuesto: las rentas se reinvierten cuando "
                     f"se cobran; lo que se paga al final del proyecto no se reinvierte hasta que termina, y entonces el "
                     f"capital y el beneficio se reinvierten a un {es(TASA_REINVERSION['Reentel'], 0)} % anual con Reentel, "
