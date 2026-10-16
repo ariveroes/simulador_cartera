@@ -6,6 +6,7 @@ from modules.comun import *  # noqa: F401,F403  (constantes, colores y funciones
 
 def mostrar():
     import altair as alt
+    from modules.rentabilidad_compra import TASA_REINVERSION
     
     st.markdown("## Paso 5: Tu cartera está lista")
     st.markdown("")
@@ -330,8 +331,22 @@ def mostrar():
         
         MESES_COMPARATIVA = 36
         
-        def ganancia_inmobiliaria(importe, rent_anual_pct, meses, est='Reentel'):
-            return CalculadoraCartera(est).calcular_proyeccion(importe, rent_anual_pct / 100, meses) - importe
+        def ganancia_inmobiliaria(importe, meses, est='Reentel'):
+            """Ganancia de repartir `importe` como la cartera (mismos % por proyecto), proyecto a
+            proyecto: las rentas se reinvierten al cobrarse; lo que se paga al final (plusvalía,
+            proyectos bullet) no se reinvierte hasta que el proyecto termina; y al terminar, el
+            capital y el beneficio se reinvierten a la tasa del estatus (ver rentabilidad_compra)."""
+            from modules.rentabilidad_compra import ganancia_proyecto
+            total = 0.0
+            for proyecto in proyectos_cartera:
+                fila = df_proy[df_proy['ID'] == proyecto['id']]
+                if len(fila) == 0:
+                    continue
+                row = fila.iloc[0]
+                peso = distribuciones.get(proyecto['id'], {}).get('porcentaje', 0)
+                total += ganancia_proyecto(importe * peso / 100, row, est,
+                                           precio_compra_en_divisa_proyecto(proyecto['id'], row), meses)
+            return total
         
         def ganancia_estatus(coste, meses):
             return coste * RENDIMIENTO_ESTATUS / 100 * meses / 12
@@ -341,7 +356,7 @@ def mostrar():
             rent_est = media_cartera(est, 'anual')
             coste_est = convertir(RNT_POR_ESTATUS.get(est, 0) * precio_rnt, 'USD', divisa_cliente)
             inmuebles_est = max(0.0, capital_total - coste_est)
-            ganancia = (ganancia_inmobiliaria(inmuebles_est, rent_est, MESES_COMPARATIVA, est)
+            ganancia = (ganancia_inmobiliaria(inmuebles_est, MESES_COMPARATIVA, est)
                         + ganancia_estatus(coste_est, MESES_COMPARATIVA))
             comparativa_pdf.append({
                 'estatus': est,
@@ -357,8 +372,8 @@ def mostrar():
         
         escenarios_pdf = []
         for meses in [6, 12, 24, 36]:
-            g_rnt = ganancia_inmobiliaria(capital_total, rent_anual_media_pdf['Reentel'], meses)
-            g_est = (ganancia_inmobiliaria(importe_inmuebles, rent_anual_media_pdf[estatus], meses, estatus)
+            g_rnt = ganancia_inmobiliaria(capital_total, meses, 'Reentel')
+            g_est = (ganancia_inmobiliaria(importe_inmuebles, meses, estatus)
                      + ganancia_estatus(coste_estatus, meses))
             escenarios_pdf.append({
                 'meses': meses,
@@ -384,7 +399,7 @@ def mostrar():
         
         def ganancia_final(est, meses):
             r = reparto_estatus[est]
-            return (ganancia_inmobiliaria(r['inmuebles'], r['rent'], meses, est)
+            return (ganancia_inmobiliaria(r['inmuebles'], meses, est)
                     + ganancia_estatus(r['coste'], meses))
         
         # Texto: solo el estatus elegido frente a Reentel (la gráfica muestra los tres)
@@ -471,7 +486,11 @@ def mostrar():
         st.markdown(f"<div style='font-size:12.5px; color:{COLOR_GRIS}; margin:8px 2px 0 2px;'>"
                     f"La ganancia final incluye la de los inmuebles y la del estatus (un rendimiento estimado del "
                     f"{es(RENDIMIENTO_ESTATUS, 1)} % anual sobre el importe en estatus). El cálculo considera la reinversión de "
-                    f"los beneficios obtenidos, beneficiándose del interés compuesto. Las cifras son estimaciones "
+                    f"los beneficios obtenidos, beneficiándose del interés compuesto: las rentas se reinvierten cuando "
+                    f"se cobran; lo que se paga al final del proyecto no se reinvierte hasta que termina, y entonces el "
+                    f"capital y el beneficio se reinvierten a un {es(TASA_REINVERSION['Reentel'], 0)} % anual con Reentel, "
+                    f"{es(TASA_REINVERSION['ReentelPro'], 0)} % con ReentelPro y {es(TASA_REINVERSION['SuperReentel'], 0)} % "
+                    f"con SuperReentel. Las cifras son estimaciones "
                     f"y no garantizan resultados futuros.</div>", unsafe_allow_html=True)
         
         # ----- Llamada a agendar una reunión (el objetivo de la herramienta) -----
