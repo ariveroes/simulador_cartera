@@ -22,8 +22,8 @@ def mostrar():
         # ========== PROYECTOS DISPONIBLES (UNA SOLA LISTA) ==========
         # Todo lo que se puede comprar hoy, sin distinguir de dónde sale:
         #  - los proyectos que se están financiando, al precio de emisión;
-        #  - los que tienen tokens a la venta, a su precio más bajo (salvo los que
-        #    terminan en menos de MESES_MINIMOS_HASTA_FIN meses).
+        #  - los que tienen tokens a la venta, a su precio más bajo.
+        # En los dos casos, sin los que terminan en menos de MESES_MINIMOS_HASTA_FIN meses.
         ofertas_por_proy = agrupar_ofertas_por_proyecto(cargar_todas_ofertas_secundario(df_proyectos_todos))
 
         precio_por_id = {}      # precio de compra de un token, en la divisa del proyecto
@@ -34,6 +34,10 @@ def mostrar():
             if pid is None or str(pid).strip() == '' or (isinstance(pid, float) and pid != pid):
                 continue
             div_proy = divisa_proyecto(row)
+            # Fuera los que terminan en menos de MESES_MINIMOS_HASTA_FIN meses (su
+            # rentabilidad anualizada sale disparada)
+            if termina_pronto(row.get('fecha_fin_calculo')):
+                continue
             if str(row.get('ESTADO', '')).upper() == 'FINANCIÁNDOSE':
                 precio, origen = _num(row.get('Precio Emisión', 0)), 'Emisión'
             else:
@@ -41,7 +45,7 @@ def mostrar():
                            or ofertas_por_proy.get(str(row.get('Token Address', '')).lower()) or [])
                 precios = [convertir_divisa(_num(o.get('precio_venta'), 0.0), o.get('divisa', 'USD'), div_proy)
                            for o in ofertas if _num(o.get('precio_venta'), 0.0) > 0]
-                if not precios or termina_pronto(row.get('fecha_fin_calculo')):
+                if not precios:
                     continue
                 precio, origen = min(precios), 'Mercado'
             if not precio or precio <= 0:
