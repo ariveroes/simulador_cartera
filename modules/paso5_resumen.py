@@ -172,7 +172,7 @@ def mostrar():
             ("CAPITAL TOTAL", fmt(capital_total), "inmuebles + estatus"),
             ("EN INMUEBLES", fmt(importe_inmuebles),
              fmt(convertir(importe_inmuebles, divisa_cliente, otra_divisa), otro_simbolo)),
-            ("EN ESTATUS", fmt(coste_estatus), f"{es(rnt_estatus, 0)} RNT · {estatus} · inmovilizado 2 años"),
+            ("EN ESTATUS", fmt(coste_estatus), {estatus} · a plazo fijo durante 2 años"),
             ("INMUEBLES", f"{len(filas_tabla)}", "proyectos en cartera"),
             ("RENT. ANUALIZADA", f"{es(rentabilidad_media, 2)} %", f"media ponderada · {estatus}"),
             ("RENT. TOTAL", f"{es(rentabilidad_total_media, 2)} %", f"media ponderada · {estatus}"),
