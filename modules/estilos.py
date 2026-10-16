@@ -158,6 +158,13 @@ def aplicar_estilos():
                 flex: 1 1 calc(33.333% - 1rem) !important; min-width: calc(33.333% - 1rem) !important;
             }}
             .st-key-kpis_resumen .tarjeta {{ box-sizing: border-box; margin-bottom: 0 !important; }}
+            /* Orden en ordenador: capital, en inmuebles, en estatus / inmuebles, rent. total, rent. anualizada */
+            .st-key-kpis_resumen [data-testid="stColumn"]:nth-child(1) {{ order: 1; }}
+            .st-key-kpis_resumen [data-testid="stColumn"]:nth-child(2) {{ order: 4; }}
+            .st-key-kpis_resumen [data-testid="stColumn"]:nth-child(3) {{ order: 2; }}
+            .st-key-kpis_resumen [data-testid="stColumn"]:nth-child(4) {{ order: 3; }}
+            .st-key-kpis_resumen [data-testid="stColumn"]:nth-child(5) {{ order: 5; }}
+            .st-key-kpis_resumen [data-testid="stColumn"]:nth-child(6) {{ order: 6; }}
             .st-key-kpis_resumen [data-testid="stMarkdownContainer"] {{ margin-bottom: 0 !important; }}
         }}
 
