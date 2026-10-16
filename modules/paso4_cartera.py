@@ -316,9 +316,10 @@ def mostrar():
             importe_total_p4 = max(0.0, importe_capital_p4 - coste_estatus_p4)
             if coste_estatus_p4 > 0:
                 st.markdown(html_seguro(
-                    f"<div class='kpi-sub' style='color:{COLOR_NAVY}; margin-top:2px;'>Estatus {estatus_p4}: "
-                    f"−{es(coste_estatus_p4, 0)} {simbolo_cliente_p4} · <b>Para inmuebles: "
-                    f"{es(importe_total_p4, 0)} {simbolo_cliente_p4}</b></div>"), unsafe_allow_html=True)
+                    f"<div class='kpi-sub' style='color:{COLOR_NAVY}; margin-top:2px;'>"
+                    f"<b>{es(importe_total_p4, 0)} {simbolo_cliente_p4}</b> a inmuebles y "
+                    f"<b>{es(coste_estatus_p4, 0)} {simbolo_cliente_p4}</b> a tu estatus {estatus_p4} "
+                    f"(siguen siendo tuyos y también generan rendimiento)</div>"), unsafe_allow_html=True)
             rango = st.session_state.datos_cliente.get('capital', '')
             st.markdown(html_seguro(f"<div class='kpi-sub'>En el Paso 1 elegiste «{rango}». Te proponemos el "
                                     "punto medio de ese rango; puedes cambiarlo por el importe exacto que "
@@ -353,7 +354,7 @@ def mostrar():
                 st.button(md(f"Usar {es(importe_ajustado, 0)} {simbolo_cliente_p4} como importe"),
                           key="btn_ajustar_capital_sec", on_click=_usar_repartido, args=(importe_ajustado,),
                           help="Cambia el importe a invertir para que coincida con lo que has repartido"
-                               + (" más el coste del estatus" if coste_estatus_p4 > 0 else ""))
+                               + (" más lo que va a tu estatus" if coste_estatus_p4 > 0 else ""))
 
         with k4, _kpi("rentabilidad"):
             st.markdown(html_seguro(
@@ -364,7 +365,7 @@ def mostrar():
 
         if coste_estatus_p4 > 0 and importe_total_p4 <= 0:
             st.warning(md(f"Con {es(importe_capital_p4, 0)} {simbolo_cliente_p4} no llega para el estatus "
-                          f"{estatus_p4}, que cuesta {es(coste_estatus_p4, 0)} {simbolo_cliente_p4}. Sube el "
+                          f"{estatus_p4}, que requiere {es(coste_estatus_p4, 0)} {simbolo_cliente_p4}. Sube el "
                           "importe a invertir o vuelve al Paso 2 para elegir otro estatus."))
 
         # ----- 2) Barra de reparto -----
