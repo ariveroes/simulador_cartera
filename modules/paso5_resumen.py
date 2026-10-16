@@ -44,17 +44,9 @@ def mostrar():
             </div>
             """
         
-        # ========== 2) SUPUESTOS DE MERCADO ==========
-        st.markdown("### Supuestos de mercado")
+        # Supuestos de mercado (no se muestran; se usan en los cálculos y en el PDF)
         tipo_cambio = tipo_cambio_actual()
         precio_rnt = precio_rnt_actual()
-        
-        tarjetas_supuestos = [
-            ("TIPO DE CAMBIO", f"{es(tipo_cambio, 4)}", "USD por 1 € · referencia BCE"),
-        ]
-        for titulo, valor, sub in tarjetas_supuestos:
-            st.markdown(f"<div style='max-width:420px;'>{tarjeta(titulo, valor, sub)}</div>",
-                        unsafe_allow_html=True)
         
         def convertir(importe, desde, hacia):
             desde = 'USD' if str(desde).upper() in ('USD', 'USDT') else 'EUR'
@@ -63,9 +55,7 @@ def mostrar():
                 return importe
             return importe * tipo_cambio if desde == 'EUR' else importe / tipo_cambio
         
-        st.markdown("---")
-        
-        # ========== 3) TU CARTERA DE INVERSIÓN ==========
+        # ========== TU CARTERA DE INVERSIÓN ==========
         st.markdown("### Tu cartera de inversión")
         
         # El importe a invertir es el total: se descuenta el estatus y el resto va a inmuebles
@@ -114,6 +104,7 @@ def mostrar():
                 total += (r[campo] or 0.0) * peso / 100
             return total
         rentabilidad_media = 0.0
+        rentabilidad_total_media = 0.0
         
         for proyecto in proyectos_cartera:
             proyecto_id = proyecto['id']
@@ -135,6 +126,7 @@ def mostrar():
             rent_anual = r_est['anual'] or 0.0
             rent_total = r_est['total']
             rentabilidad_media += rent_anual * peso / 100
+            rentabilidad_total_media += (rent_total or 0.0) * peso / 100
             
             tipologia = str(row.get(col_tipologia, '') or '').strip() if col_tipologia else ''
             
@@ -175,19 +167,23 @@ def mostrar():
             })
         
         # ----- Tarjetas resumen -----
+        # Ordenador: dos filas de tres (importes arriba, rentabilidades abajo). Móvil: de dos en dos.
         tarjetas = [
-            ("INMUEBLES", f"{len(filas_tabla)}", "proyectos en cartera"),
+            ("CAPITAL TOTAL", fmt(capital_total), "inmuebles + estatus"),
             ("EN INMUEBLES", fmt(importe_inmuebles),
              fmt(convertir(importe_inmuebles, divisa_cliente, otra_divisa), otro_simbolo)),
-            ("COSTE DEL ESTATUS", fmt(coste_estatus), f"{es(rnt_estatus, 0)} RNT · {estatus}"),
-            ("CAPITAL TOTAL", fmt(capital_total), "inmuebles + estatus"),
+            ("EN ESTATUS", fmt(coste_estatus), f"{es(rnt_estatus, 0)} RNT · {estatus} · inmovilizado 2 años"),
+            ("INMUEBLES", f"{len(filas_tabla)}", "proyectos en cartera"),
             ("RENT. ANUALIZADA", f"{es(rentabilidad_media, 2)} %", f"media ponderada · {estatus}"),
+            ("RENT. TOTAL", f"{es(rentabilidad_total_media, 2)} %", f"media ponderada · {estatus}"),
         ]
-        cols = st.columns(5)
-        for col, (titulo, valor, sub) in zip(cols, tarjetas):
-            col.markdown(tarjeta(titulo, valor, sub), unsafe_allow_html=True)
+        with st.container(key="kpis_resumen"):
+            cols = st.columns(6)
+            for col, (titulo, valor, sub) in zip(cols, tarjetas):
+                col.markdown(tarjeta(titulo, valor, sub), unsafe_allow_html=True)
         
-        st.caption(("El coste del estatus se descuenta de tu importe a invertir; el resto va a inmuebles. "
+        st.caption(("Tu importe se reparte entre inmuebles y estatus. Lo que va al estatus sigue siendo tuyo: "
+                    "queda inmovilizado 2 años y genera su propio rendimiento, además del de los inmuebles. "
                     if coste_estatus > 0 else "")
                    + "Las rentabilidades se calculan con el precio de compra de cada proyecto y los meses de "
                    "renta que le quedan, y se ponderan por el % de la cartera invertido en cada uno.")
@@ -449,7 +445,7 @@ def mostrar():
             unsafe_allow_html=True)
         st.markdown(f"<div style='font-size:12.5px; color:{COLOR_GRIS}; margin:8px 2px 0 2px;'>"
                     f"La ganancia final incluye la de los inmuebles y la del estatus (un rendimiento estimado del "
-                    f"{es(RENDIMIENTO_ESTATUS, 1)} % anual sobre su coste). El cálculo considera la reinversión de "
+                    f"{es(RENDIMIENTO_ESTATUS, 1)} % anual sobre el importe en estatus). El cálculo considera la reinversión de "
                     f"los beneficios obtenidos, beneficiándose del interés compuesto. Las cifras son estimaciones "
                     f"y no garantizan resultados futuros.</div>", unsafe_allow_html=True)
         
