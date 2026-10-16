@@ -183,7 +183,7 @@ def mostrar():
                 col.markdown(tarjeta(titulo, valor, sub), unsafe_allow_html=True)
         
         st.caption(("Tu importe se reparte entre inmuebles y estatus. Lo que va al estatus sigue siendo tuyo: "
-                    "queda inmovilizado 2 años y genera su propio rendimiento, además del de los inmuebles. "
+                    "queda a plazo fijo durante 2 años y genera su propio rendimiento. Pero lo más interesante es que aumenta tu rentabilidad de los proyectos inmobiliarios. "
                     if coste_estatus > 0 else "")
                    + "Las rentabilidades se calculan con el precio de compra de cada proyecto y los meses de "
                    "renta que le quedan, y se ponderan por el % de la cartera invertido en cada uno.")
