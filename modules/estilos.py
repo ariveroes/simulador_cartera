@@ -148,6 +148,17 @@ def aplicar_estilos():
             a.cta-flotante .cta-circulo::after {{ animation: none; opacity: 0; }}
         }}
 
+        /* ===== Tarjetas de resumen del Paso 5 (ordenador): tres por fila ===== */
+        @media (min-width: 641px) {{
+            .st-key-kpis_resumen {{ margin-bottom: 0.6rem; }}
+            .st-key-kpis_resumen [data-testid="stHorizontalBlock"] {{ flex-wrap: wrap; row-gap: 1rem !important; }}
+            .st-key-kpis_resumen [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {{
+                flex: 1 1 calc(33.333% - 1rem) !important; min-width: calc(33.333% - 1rem) !important;
+            }}
+            .st-key-kpis_resumen .tarjeta {{ box-sizing: border-box; margin-bottom: 0 !important; }}
+            .st-key-kpis_resumen [data-testid="stMarkdownContainer"] {{ margin-bottom: 0 !important; }}
+        }}
+
         /* ===== Tablas (ordenador) y tarjetas (móvil) con los mismos datos ===== */
         [class*="st-key-vista_tarjetas_"] {{ display: none; }}
         [class*="st-key-tm_"], .tm-tarjeta {{
