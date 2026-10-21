@@ -38,6 +38,17 @@ def mostrar():
         except Exception:
             return ""
 
+    def _ir_al_paso4():
+        """Carga los proyectos y pasa al Paso 4."""
+        try:
+            st.session_state.df_proyectos = cargar_todos_proyectos()
+            st.session_state.paso_actual = 4
+            st.rerun()
+        except Exception as e:
+            print(f"❌ Error cargando proyectos: {e}")
+            traceback.print_exc()
+            st.error("No hemos podido cargar los proyectos. Inténtalo de nuevo en unos minutos.")
+
     for col, (nombre_est, clave, texto) in zip(st.columns(3), OPCIONES_ESTATUS):
         elegido = estatus_seleccionado == nombre_est
         with col:
@@ -55,10 +66,11 @@ def mostrar():
                 f"<div style='color:{COLOR_NAVY}; font-size:15px; line-height:1.55;'>{texto}</div></div>",
                 unsafe_allow_html=True)
             # El elegido lleva el botón relleno; los demás, de contorno
+            # Al elegir un estatus se pasa directamente al Paso 4
             if st.button("✓ Elegido" if elegido else f"Elegir {nombre_est}",
                          key=f"{clave}{'' if elegido else '_sec'}", use_container_width=True):
                 st.session_state.datos_cliente['estatus'] = nombre_est
-                st.rerun()
+                _ir_al_paso4()
     
     st.markdown('<div style="margin-bottom: 20px;"></div>', unsafe_allow_html=True)
     
@@ -82,14 +94,7 @@ def mostrar():
         # Validar que haya un estatus elegido; al seguir se cargan los proyectos del Paso 4
         if estatus_seleccionado is not None:
             if st.button("Siguiente >", use_container_width=True, key="btn_paso3_next"):
-                try:
-                    st.session_state.df_proyectos = cargar_todos_proyectos()
-                    st.session_state.paso_actual = 4
-                    st.rerun()
-                except Exception as e:
-                    print(f"❌ Error cargando proyectos: {e}")
-                    traceback.print_exc()
-                    st.error("No hemos podido cargar los proyectos. Inténtalo de nuevo en unos minutos.")
+                _ir_al_paso4()
         else:
             st.button("Siguiente >", use_container_width=True, disabled=True, key="btn_paso3_next_disabled")
             st.caption("Para continuar, elige un estatus.")
