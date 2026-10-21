@@ -91,6 +91,10 @@ def mostrar():
             if 'dossier' in df_sub.columns:
                 dossier_por_id = dict(zip(df_sub['ID'], df_sub['dossier']))
                 df_display['Dossier'] = df_display['ID'].map(dossier_por_id).fillna('')
+            # La primera vez, los 3 primeros de la lista (los que mejor encajan) salen ya marcados
+            if clave == "tabla_proyectos" and not st.session_state.get('preseleccion_hecha'):
+                st.session_state.sel_tablas[clave] = set(df_display['ID'].head(3))
+                st.session_state.preseleccion_hecha = True
             return tabla_seleccionable(df_display, clave)
 
         ids_seleccionados = []
