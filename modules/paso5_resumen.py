@@ -461,7 +461,6 @@ def mostrar():
         g36 = {est: ganancia_final(est, MESES_COMPARATIVA) for est in ESTATUS_COMPARATIVA}
         hay_sugeridos = False
         ofrecer_super = False
-        ofrecer_importe = None
         if estatus != 'Reentel':
             mensaje = (f"A {MESES_COMPARATIVA} meses, la ganancia final es de <b style='color:{color_est};'>"
                        f"{fmt(g36[estatus])}</b> con {estatus} y <b>{fmt(g36['Reentel'])}</b> con Reentel")
@@ -506,67 +505,17 @@ def mostrar():
                                 f"conseguir mayor beneficio:<ul style='margin:6px 0 0 0; padding-left:20px;'>"
                                 f"{filas_sug}</ul>")
                     hay_sugeridos = True
-                elif not st.session_state.get('oferta_importe_rechazada'):
-                    # Con este importe ningún proyecto hace que el estatus compense: se le enseña,
-                    # en positivo, a partir de qué importe saca todo su potencial
-                    def _umbral(g_est, g_rnt):
-                        lo, hi = capital_total, max(capital_total * 20, 500000.0)
-                        if g_est(hi) <= g_rnt(hi):
-                            return None
-                        for _ in range(30):
-                            mid = (lo + hi) / 2
-                            lo, hi = (lo, mid) if g_est(mid) > g_rnt(mid) else (mid, hi)
-                        return hi
-
-                    def _g_cartera_est(cap):
-                        return (ganancia_inmobiliaria(cap - coste_e, MESES_COMPARATIVA, estatus)
-                                + ganancia_estatus(coste_e, MESES_COMPARATIVA))
-
-                    def _g_cartera_rnt(cap):
-                        return ganancia_inmobiliaria(cap, MESES_COMPARATIVA, 'Reentel')
-
-                    umbral, ej_est, ej_rnt, proyecto_ej = None, _g_cartera_est, _g_cartera_rnt, None
-                    # ¿Tiene algún proyecto al que el estatus le suba la rentabilidad?
-                    premiada = False
-                    for p_c in proyectos_cartera:
-                        fila_p = df_proy[df_proy['ID'] == p_c['id']]
-                        if len(fila_p):
-                            row_p = fila_p.iloc[0]
-                            precio_p = precio_compra_en_divisa_proyecto(p_c['id'], row_p)
-                            if (_rent_aj(row_p, estatus, precio_p)['total']
-                                    > _rent_aj(row_p, 'Reentel', precio_p)['total'] + 0.01):
-                                premiada = True
-                    if premiada:
-                        umbral = _umbral(_g_cartera_est, _g_cartera_rnt)
-                    if umbral is None:
-                        # Su cartera no la premia el estatus: se usa el mejor proyecto disponible
-                        for cand in st.session_state.get('candidatos_estatus', []):
-                            fila_c = df_proy[df_proy['ID'] == cand['id']]
-                            if len(fila_c) == 0:
-                                continue
-                            row_c, precio_c = fila_c.iloc[0], cand['precio']
-
-                            def _ge(cap, row_c=row_c, precio_c=precio_c):
-                                return (ganancia_proyecto(cap - coste_e, row_c, estatus, precio_c, MESES_COMPARATIVA)
-                                        + ganancia_estatus(coste_e, MESES_COMPARATIVA))
-
-                            def _gr(cap, row_c=row_c, precio_c=precio_c):
-                                return ganancia_proyecto(cap, row_c, 'Reentel', precio_c, MESES_COMPARATIVA)
-                            u = _umbral(_ge, _gr)
-                            if u is not None and (umbral is None or u < umbral):
-                                umbral, ej_est, ej_rnt = u, _ge, _gr
-                                proyecto_ej = row_c.get('Nombre del proyecto', '')
-                    if umbral is not None:
-                        importe_ej = math.ceil(umbral / 5000) * 5000
-                        if importe_ej <= umbral:
-                            importe_ej += 5000
-                        con_proyecto = (f" con proyectos como <b>{proyecto_ej}</b>" if proyecto_ej else "")
-                        mensaje += (f"<br><br>El estatus <b style='color:{color_est};'>{estatus}</b> saca todo su "
-                                    f"potencial a partir de unos <b>{es(round(umbral, -2), 0)} {simbolo}</b> de "
-                                    f"inversión{con_proyecto}. Por ejemplo, con <b>{es(importe_ej, 0)} {simbolo}</b> tu "
-                                    f"ganancia estimada a {MESES_COMPARATIVA} meses sería de "
-                                    f"<b>{fmt(ej_est(importe_ej))}</b> (frente a {fmt(ej_rnt(importe_ej))} sin estatus).")
-                        ofrecer_importe = importe_ej
+                else:
+                    # Con este importe ningún proyecto hace que el estatus compense: en vez de dar una
+                    # cifra que pueda echar para atrás, se invita a hablarlo con el equipo
+                    mensaje += (f"<br><br>¿Quieres saber a partir de qué importe te conviene incluir el estatus "
+                                f"<b style='color:{color_est};'>{estatus}</b> en tu estrategia, o cómo sacarle el "
+                                f"máximo partido con el mismo dinero invertido? Nuestro equipo te lo explica en una "
+                                f"reunión sin compromiso."
+                                f"<div style='margin-top:12px;'><a href='{URL_AGENDA}' target='_blank' rel='noopener' "
+                                f"style='display:inline-block; background:{COLOR_NAVY}; color:#ffffff; "
+                                f"text-decoration:none; font-weight:700; padding:10px 20px; border-radius:10px;'>"
+                                f"Agendar reunión</a></div>")
             # Eligió ReentelPro y SuperReentel le daría claramente más con el mismo importe
             if (estatus == 'ReentelPro' and reparto_estatus['SuperReentel']['inmuebles'] > 0
                     and not st.session_state.get('oferta_super_rechazada')):
@@ -596,24 +545,6 @@ def mostrar():
             f"<div style='background:{COLOR_AMBAR_CLARO}; border:1px solid {COLOR_AMBAR}; border-radius:10px; "
             f"padding:14px 18px; margin-top:16px; color:{COLOR_NAVY}; font-size:15px;'>{mensaje}</div>"),
             unsafe_allow_html=True)
-        if ofrecer_importe:
-            def _ver_con_importe(nuevo):
-                # Vuelve al Paso 4 con ese importe. Los % de la cartera se mantienen.
-                anterior_inm = importe_inmuebles
-                nuevo_inm = max(0.0, nuevo - coste_estatus)
-                factor = nuevo_inm / anterior_inm if anterior_inm else 1.0
-                for p in list(st.session_state.tokens_compra):
-                    st.session_state.tokens_compra[p] *= factor
-                    st.session_state.pop(f"pct_{p}", None)
-                st.session_state.datos_cliente['capital_ajustado'] = nuevo
-                st.session_state.input_importe = f"{es(nuevo, 0)} {simbolo}"
-                st.session_state.paso_actual = 4
-            c_si, c_no, _ = st.columns([1.2, 1, 0.8])
-            c_si.button(f"Ver mi cartera con {es(ofrecer_importe, 0)} {simbolo}", key="btn_ver_importe",
-                        on_click=_ver_con_importe, args=(ofrecer_importe,), use_container_width=True)
-            c_no.button("Mantener mi importe", key="btn_mantener_importe_sec",
-                        on_click=lambda: st.session_state.update(oferta_importe_rechazada=True),
-                        use_container_width=True)
         if ofrecer_super:
             def _subir_a_super():
                 # Pasa a SuperReentel sin salir del Paso 5. Los % de la cartera se mantienen;
@@ -744,7 +675,7 @@ def mostrar():
                 st.session_state.modo_reparto = "Por igual"
                 st.session_state.pop('input_importe', None)
                 st.session_state.pop('oferta_super_rechazada', None)
-                st.session_state.pop('oferta_importe_rechazada', None)
+                st.session_state.pop('preseleccion_hecha', None)
                 st.rerun()
     else:
         st.error("No hay cartera para mostrar")
