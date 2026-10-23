@@ -307,16 +307,21 @@ def _portada(c, R, datos_cliente, hoy):
     _caja(c, M + 15, 150, 320, 64, fill=C("#101b2b"), stroke=C("#1f2b3d"))
     c.setFillColor(C("#16202f"))
     c.rect(M + 16, 184, 318, 29, stroke=0, fill=1)
-    _texto(c, M + 32, 194, "Estatus*", 11, TXT, bold=True)
-    _texto(c, M + 32, 162, f"{R.get('estatus', 'Reentel')} RNT", 13, ORO, bold=True)
+    if R.get("estatus", "Reentel") != "Reentel":
+        _texto(c, M + 32, 194, "Estatus*", 11, TXT, bold=True)
+        _texto(c, M + 32, 162, f"{R.get('estatus', 'Reentel')} RNT", 13, ORO, bold=True)
+    else:
+        _texto(c, M + 32, 194, "Inversión simulada", 11, TXT, bold=True)
+        _texto(c, M + 32, 162, _dinero(R.get("capital_total"), R.get("divisa", "EUR")), 13, ORO, bold=True)
 
     w1 = _texto(c, M + 15, 92, "Elaborado por el servicio ", 14, MUTED)
     _texto(c, M + 15 + w1, 92, "Reental Wealth", 14, ORO, bold=True)
     _texto(c, W - M - 15, 92, hoy.strftime("%d/%m/%Y"), 12, MUTED, anchor="r")
 
     _parrafo(c, M + 15, 64, W - 2 * M - 30,
-             "*Los inversores en Reental cuentan con 3 categorías: SuperReentel (hasta un 50% más de "
-             "rendimiento), ReentelPro y Reentel. Más info: https://www.reental.co/rnt-token. "
+             ("*Los inversores en Reental cuentan con 3 categorías: SuperReentel (hasta un 50% más de "
+              "rendimiento), ReentelPro y Reentel. Más info: https://www.reental.co/rnt-token. "
+              if R.get("estatus", "Reentel") != "Reentel" else "") +
              "Este documento es una simulación informativa: no constituye asesoramiento ni oferta de inversión "
              "y las rentabilidades estimadas no garantizan resultados futuros.", 7.5, TENUE)
 
@@ -348,15 +353,21 @@ def _resumen(c, R):
     for i, (moneda, fmt) in enumerate((("EUR", _eur), ("USD", _usd))):
         x = M + i * (mitad + 12)
         _caja(c, x, y, mitad, 88)
-        filas = [(f"Valor inversión estimada ({'€' if moneda == 'EUR' else '$'}) en inmuebles",
-                  fmt(en(R.get("importe_inmuebles"), moneda)), 11, TXT),
-                 ("Importe en estatus", fmt(en(R.get("coste_estatus"), moneda)), 11, TXT),
-                 ("Valor total inversión (incl. estatus)", fmt(en(R.get("capital_total"), moneda)), 14, ORO)]
+        if (R.get("coste_estatus") or 0) > 0:
+            filas = [(f"Valor inversión estimada ({'€' if moneda == 'EUR' else '$'}) en inmuebles",
+                      fmt(en(R.get("importe_inmuebles"), moneda)), 11, TXT),
+                     ("Importe en estatus", fmt(en(R.get("coste_estatus"), moneda)), 11, TXT),
+                     ("Valor total inversión (incl. estatus)", fmt(en(R.get("capital_total"), moneda)), 14, ORO)]
+        else:
+            filas = [(f"Inversión en inmuebles ({'€' if moneda == 'EUR' else '$'})",
+                      fmt(en(R.get("importe_inmuebles"), moneda)), 11, TXT),
+                     ("Valor total inversión", fmt(en(R.get("capital_total"), moneda)), 14, ORO)]
+        ultima = len(filas) - 1
         fy = y + 64
         for j, (etq, val, tam, col) in enumerate(filas):
-            _texto(c, x + 16, fy, etq, 9, BLANCO if j == 2 else MUTED, bold=(j == 2))
-            _texto(c, x + mitad - 16, fy - (2 if j == 2 else 0), val, tam, col, bold=True, anchor="r")
-            if j < 2:
+            _texto(c, x + 16, fy, etq, 9, BLANCO if j == ultima else MUTED, bold=(j == ultima))
+            _texto(c, x + mitad - 16, fy - (2 if j == ultima else 0), val, tam, col, bold=True, anchor="r")
+            if j < ultima:
                 c.setStrokeColor(BORDE)
                 c.setLineWidth(0.6 if j == 0 else 1.2)
                 c.line(x + 16, fy - 9, x + mitad - 16, fy - 9)
@@ -385,9 +396,22 @@ def _resumen(c, R):
     rent_anual = R.get("rent_anual_media", {})
     rent_total = R.get("rent_total_media", {})
     esc36 = (R.get("escenarios") or [{}])[-1]
-    for i, (nombre, color, fondo_badge, color_badge, clave) in enumerate((
-            ("Reentel (Base)", AZUL_CLARO, C("#1e3a6e"), AZUL_CLARO, "Reentel"),
-            (f"{ep} (Propuesto)", ORO, C("#c17f00"), BG, ep))):
+    opt = R.get("estatus_optimo") if R.get("optimizada") else None
+    if ep != "Reentel":
+        cajas = (("Reentel (Base)", AZUL_CLARO, C("#1e3a6e"), AZUL_CLARO, "Reentel"),
+                 (f"{ep} (Propuesto)", ORO, C("#c17f00"), BG, ep))
+    else:
+        cajas = (("Tu cartera", AZUL_CLARO, C("#1e3a6e"), AZUL_CLARO, "Reentel"),)
+        if opt:
+            cajas += (("Tu cartera optimizada", ORO, C("#c17f00"), BG, opt),)
+    if len(cajas) == 1:
+        # Sin cartera optimizada: a la derecha, la invitación a hablar con el equipo
+        x = M + mitad + 12
+        _caja(c, x, y, mitad, 100, fill=C("#241f17"), stroke=C("#5a4520"))
+        _parrafo(c, x + 16, y + 80, mitad - 32,
+                 "<b>¿Quieres que revisemos juntos tu cartera para sacarle el máximo partido?</b><br/>"
+                 "Agenda una llamada con nuestro equipo.", 10, TXT)
+    for i, (nombre, color, fondo_badge, color_badge, clave) in enumerate(cajas):
         x = M + i * (mitad + 12)
         _caja(c, x, y, mitad, 100)
         _pastilla(c, x + 16, y + 74, nombre, fondo_badge, color_badge, 8.5)
@@ -406,9 +430,12 @@ def _resumen(c, R):
             fy -= 20
 
     _parrafo(c, M, y - 8, ancho,
-             f"Tipo de cambio aplicado: 1 € = {_n(tc, 4)} $ (referencia BCE). Lo que va al estatus sigue siendo del cliente: "
-             "tiene una permanencia de 2 años y genera su propio rendimiento. Las rentabilidades se ponderan por el % de la cartera invertido en cada "
-             "proyecto.", 7.5, TENUE)
+             f"Tipo de cambio aplicado: 1 € = {_n(tc, 4)} $ (referencia BCE). "
+             + ("Lo que va al estatus sigue siendo del cliente: tiene una permanencia de 2 años y genera su propio "
+                "rendimiento. " if ep != "Reentel" else "")
+             + ("La cartera optimizada tiene los mismos proyectos y el mismo importe total, con unas condiciones que "
+                "nuestro equipo te explicará. " if ep == "Reentel" and opt else "")
+             + "Las rentabilidades se ponderan por el % de la cartera invertido en cada proyecto.", 7.5, TENUE)
 
 
 def _reinversion(c, R):
@@ -421,14 +448,22 @@ def _reinversion(c, R):
     if not esc:
         return
 
-    series = [("Ganancia Reentel", [e["g_rnt"] for e in esc], AZUL2)]
-    if ep != "Reentel":
-        series += [(f"Ganancia {ep}", [e["g_est"] for e in esc], ORO)]
+    # Sin estatus: «Tu cartera» y, si mejora, «Tu cartera optimizada» (sin nombrar el estatus)
+    opt = bool(R.get("optimizada")) and ep == "Reentel"
+    hay_segunda = ep != "Reentel" or opt
+    nom_base = "Reentel" if ep != "Reentel" else "tu cartera"
+    nom_segunda = ep if ep != "Reentel" else "tu cartera optimizada"
+    series = [(f"Ganancia {nom_base}", [e["g_rnt"] for e in esc], AZUL2)]
+    if hay_segunda:
+        series += [(f"Ganancia {nom_segunda}", [e["g_est"] for e in esc], ORO)]
 
     alto_graf = 205
     y -= alto_graf + 34
     _caja(c, M, y, ancho, alto_graf + 34)
-    _texto(c, M + 16, y + alto_graf + 14, f"Ganancia total — Reentel vs {ep}", 10, ORO, bold=True)
+    _texto(c, M + 16, y + alto_graf + 14,
+           (f"Ganancia total — Reentel vs {ep}" if ep != "Reentel" else
+            "Ganancia total — tu cartera vs tu cartera optimizada" if opt else "Ganancia total de tu cartera"),
+           10, ORO, bold=True)
 
     d = Drawing(ancho - 40, alto_graf - 30)
     bc = VerticalBarChart()
@@ -467,13 +502,13 @@ def _reinversion(c, R):
     # Tabla
     oro, verde, azul = "#f5a623", "#7ecba1", "#7ab0f0"
     filas = [["Escenario"] + [f"{e['meses']} meses" for e in esc],
-             ["<b>Ganancia Reentel</b>"] + [_dinero(e["g_rnt"], divisa) for e in esc]]
-    if ep != "Reentel":
-        filas += [[f"<font color='{oro}'><b>Ganancia {ep} </b></font>"] +
+             [f"<b>Ganancia {nom_base}</b>"] + [_dinero(e["g_rnt"], divisa) for e in esc]]
+    if hay_segunda:
+        filas += [[f"<font color='{oro}'><b>Ganancia {nom_segunda} </b></font>"] +
                   [f"<font color='{oro}'><b>{_dinero(e['g_est'], divisa)}</b></font>" for e in esc]]
-    filas += [["Rent. acumulada Reentel"] + [_pct(e["rent_rnt"]) for e in esc]]
-    if ep != "Reentel":
-        filas += [[f"<font color='{oro}'>Rent. acumulada {ep} </font>"] +
+    filas += [[f"Rent. acumulada {nom_base}"] + [_pct(e["rent_rnt"]) for e in esc]]
+    if hay_segunda:
+        filas += [[f"<font color='{oro}'>Rent. acumulada {nom_segunda} </font>"] +
                   [f"<font color='{oro}'><b>{_pct(e['rent_est'])}</b></font>" for e in esc]]
     n = len(esc)
     y -= 10
@@ -483,7 +518,11 @@ def _reinversion(c, R):
     # Mensaje destacado
     ult = esc[-1]
     _caja(c, M, y - 34, ancho, 34, fill=C("#241f17"), stroke=C("#5a4520"))
-    if ep != "Reentel":
+    if opt:
+        msg = (f"Podrías conseguir hasta <font color='{oro}'><b>{_dinero(R.get('extra_optimizada'), divisa)} más"
+               f"</b></font> sin invertir ni un solo {'euro' if divisa == 'EUR' else 'dólar'} más. "
+               f"¿Quieres saber cómo? Agenda una llamada con nuestro equipo.")
+    elif ep != "Reentel":
         msg = (f"Con <font color='{oro}'><b>{ep}</b></font>, la ganancia a {ult['meses']} meses alcanza "
                f"<font color='{oro}'><b>{_dinero(ult['g_est'], divisa)}</b></font> vs "
                f"{_dinero(ult['g_rnt'], divisa)} del estatus base. Rentabilidad acumulada: "
@@ -554,7 +593,8 @@ def _activos(c, R, proyectos, con_barras):
     _fondo(c, BG)
     ep = R.get("estatus", "Reentel")
     divisa = R.get("divisa", "EUR")
-    y = _cabecera(c, "RESUMEN DE ACTIVOS — RENTABILIDADES POR ESTATUS")
+    y = _cabecera(c, "RESUMEN DE ACTIVOS — RENTABILIDADES POR ESTATUS" if ep != "Reentel"
+                  else "RESUMEN DE ACTIVOS — RENTABILIDADES")
     ancho = W - 2 * M
     oro = "#f5a623"
 
@@ -574,7 +614,13 @@ def _activos(c, R, proyectos, con_barras):
             f"<font color='{oro}'><b>{_pct(p.get('rent_anu_est'))}</b></font>",
             p.get("fecha_fin") or "—",
         ])
-    alto = _tabla(c, M, y, filas, [ancho * k for k in (0.20, 0.11, 0.11, 0.13, 0.09, 0.09, 0.09, 0.09, 0.09)])
+    anchos = (0.20, 0.11, 0.11, 0.13, 0.09, 0.09, 0.09, 0.09, 0.09)
+    if ep == "Reentel":
+        # Sin estatus: una sola columna de rentabilidad total y otra de anualizada
+        filas = [[f[i] for i in (0, 1, 2, 3, 4, 6, 8)] for f in filas]
+        filas[0][4], filas[0][5] = "Rent. total", "Rent. anual"
+        anchos = (0.24, 0.13, 0.13, 0.14, 0.12, 0.12, 0.12)
+    alto = _tabla(c, M, y, filas, [ancho * k for k in anchos])
     y -= alto + 14
 
     if con_barras and proyectos:
@@ -586,8 +632,10 @@ def _barras_rentabilidad(c, R, proyectos, y_top):
     ancho = W - 2 * M
     mitad = (ancho - 14) / 2
     for i, (titulo, k_rnt, k_est) in enumerate((
-            (f"Rentabilidad total — Reentel + incremento {ep}", "rent_tot_rnt", "rent_tot_est"),
-            (f"Rentabilidad anualizada — Reentel + incremento {ep}", "rent_anu_rnt", "rent_anu_est"))):
+            ("Rentabilidad total" + (f" — Reentel + incremento {ep}" if ep != "Reentel" else ""),
+             "rent_tot_rnt", "rent_tot_est"),
+            ("Rentabilidad anualizada" + (f" — Reentel + incremento {ep}" if ep != "Reentel" else ""),
+             "rent_anu_rnt", "rent_anu_est"))):
         x = M + i * (mitad + 14)
         orden = sorted(proyectos, key=lambda p: -(p.get(k_est) or 0))
         alto = 40 + len(orden) * 25
@@ -640,11 +688,12 @@ def _ficha(c, R, p, x, y, w, h):
     yy = y + h - 30
     _texto(c, der, yy, "Rentabilidad total estimada", 8, MUTED)
     yy -= 22
-    ancho_b = _pastilla(c, der, yy, f"{ep}: {_pct(p.get('rent_tot_est'))}", ORO, BG, 8.5)
+    ancho_b = _pastilla(c, der, yy, (f"{ep}: " if ep != "Reentel" else "") + _pct(p.get('rent_tot_est')),
+                        ORO, BG, 8.5)
     if ep != "Reentel":
         _pastilla(c, der + ancho_b + 6, yy, f"Reentel: {_pct(p.get('rent_tot_rnt'))}", C("#26374f"), TXT, 8.5)
     yy -= 26
-    _texto(c, der, yy, f"Rent. anualizada ({ep})", 8, MUTED)
+    _texto(c, der, yy, f"Rent. anualizada ({ep})" if ep != "Reentel" else "Rent. anualizada", 8, MUTED)
     _texto(c, der, yy - 18, _pct(p.get("rent_anu_est")), 16, ORO, bold=True)
     if ep != "Reentel":
         yy -= 42
