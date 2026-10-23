@@ -76,8 +76,16 @@ def mostrar():
             if st.button("Siguiente >", use_container_width=True, key="btn_paso2_next"):
                 st.session_state.datos_cliente['objetivo'] = objetivo
                 st.session_state.datos_cliente['mercados'] = mercados_seleccionados
-                st.session_state.paso_actual = 3
-                st.rerun()
+                st.session_state.datos_cliente['estatus'] = None   # la simulación es sin estatus
+                # Se cargan los proyectos y se pasa al Paso 3 (cartera)
+                try:
+                    st.session_state.df_proyectos = cargar_todos_proyectos()
+                    st.session_state.paso_actual = 3
+                    st.rerun()
+                except Exception as e:
+                    print(f"❌ Error cargando proyectos: {e}")
+                    traceback.print_exc()
+                    st.error("No hemos podido cargar los proyectos. Inténtalo de nuevo en unos minutos.")
         else:
             st.button("Siguiente >", use_container_width=True, disabled=True, key="btn_paso2_next_disabled")
             faltan = [n for n, ok in (("el objetivo de inversión", objetivo is not None),
