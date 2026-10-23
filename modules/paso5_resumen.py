@@ -124,7 +124,8 @@ def mostrar():
             tipo_precio = info_precio.get('tipo', 'Emisión')
             precio_conv = convertir(precio, divisa_precio, divisa_cliente)
             
-            r_est = rent_proyecto(proyecto_id, estatus)
+            # Rentabilidades «hasta»: las de las mejores condiciones (SuperReentel)
+            r_est = rent_proyecto(proyecto_id, 'SuperReentel')
             r_rnt = rent_proyecto(proyecto_id, 'Reentel')
             rent_anual = r_est['anual'] or 0.0
             rent_total = r_est['total']
@@ -139,8 +140,8 @@ def mostrar():
                 'Precio de compra': fmt(precio_conv),
                 'Tipo de dividendo': tipologia or '-',
                 'Importe invertido': fmt(importe_inmuebles * peso / 100),
-                'Rentabilidad anualizada': rent_anual,
-                'Rentabilidad total': rent_total,
+                'Rent. anualizada (hasta)': rent_anual,
+                'Rent. total (hasta)': rent_total,
                 '% cartera': peso,
             })
             
@@ -176,8 +177,8 @@ def mostrar():
             ("IMPORTE INVERTIDO", fmt(capital_total),
              fmt(convertir(capital_total, divisa_cliente, otra_divisa), otro_simbolo)),
             ("INMUEBLES", f"{len(filas_tabla)}", "proyectos en cartera"),
-            ("RENT. TOTAL", f"{es(rentabilidad_total_media, 2)} %", "media ponderada"),
-            ("RENT. ANUALIZADA", f"{es(rentabilidad_media, 2)} %", "media ponderada"),
+            ("RENT. TOTAL", f"Hasta {es(rentabilidad_total_media, 2)} %", "media ponderada"),
+            ("RENT. ANUALIZADA", f"Hasta {es(rentabilidad_media, 2)} %", "media ponderada"),
         ]
         with st.container(key="kpis_resumen"):
             cols = st.columns(len(tarjetas))
@@ -187,7 +188,8 @@ def mostrar():
         st.caption(("Tu importe se reparte entre inmuebles y estatus. Lo que va al estatus sigue siendo tuyo: "
                     "tiene una permanencia de 2 años y **genera su propio rendimiento**. Pero lo más interesante es que **aumenta la rentabilidad de tus inmuebles**. "
                     if coste_estatus > 0 else "")
-                   + "Las rentabilidades se calculan con el precio de compra de cada proyecto y los meses de "
+                   + "Rentabilidades máximas estimadas, con las mejores condiciones disponibles en Reental. "
+                   "Se calculan con el precio de compra de cada proyecto y los meses de "
                    "renta que le quedan, y se ponderan por el % de la cartera invertido en cada uno.")
         st.markdown("")
         
@@ -201,8 +203,8 @@ def mostrar():
                     hide_index=True,
                     column_config={
                         'Proyecto': st.column_config.Column(pinned=True),
-                        'Rentabilidad anualizada': st.column_config.NumberColumn(format='%.2f%%'),
-                        'Rentabilidad total': st.column_config.NumberColumn(format='%.2f%%'),
+                        'Rent. anualizada (hasta)': st.column_config.NumberColumn(format='%.2f%%'),
+                        'Rent. total (hasta)': st.column_config.NumberColumn(format='%.2f%%'),
                         '% cartera': st.column_config.NumberColumn(format='%.1f%%'),
                     }
                 )
@@ -217,8 +219,8 @@ def mostrar():
                         f"<div class='tm-datos dos'>"
                         f"<div><span>Invertido</span><b>{f['Importe invertido']}</b></div>"
                         f"<div><span>Precio de compra</span><b>{f['Precio de compra']}</b></div>"
-                        f"<div><span>Rent. anual</span><b>{es(f['Rentabilidad anualizada'], 2)} %</b></div>"
-                        f"<div><span>Rent. total</span><b>{es(f['Rentabilidad total'] or 0, 2)} %</b></div>"
+                        f"<div><span>Rent. anual</span><b>hasta {es(f['Rent. anualizada (hasta)'], 2)} %</b></div>"
+                        f"<div><span>Rent. total</span><b>hasta {es(f['Rent. total (hasta)'] or 0, 2)} %</b></div>"
                         f"</div></div>"), unsafe_allow_html=True)
         
         # ----- Gráficos -----
@@ -503,6 +505,7 @@ def mostrar():
             'comparativa': comparativa_pdf,
             'meses': MESES_COMPARATIVA,
             'optimizada': hay_mejora,
+            'rent_hasta': {'anual': rentabilidad_media, 'total': rentabilidad_total_media},
             'estatus_optimo': mejor if hay_mejora else None,
             'extra_optimizada': extra if hay_mejora else 0.0,
         }
