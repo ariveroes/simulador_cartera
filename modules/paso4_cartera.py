@@ -78,8 +78,10 @@ def mostrar():
 
         def _lista(df_sub, clave):
             """Tarjetas para elegir proyectos, ordenadas según el objetivo. Devuelve los IDs marcados."""
-            df_display = preparar_proyectos_para_paso4(df_sub, estatus)
-            df_display = aplicar_rentabilidad_ajustada(df_display, df_sub, estatus, precio_por_id)
+            # Rentabilidades «hasta»: las de las mejores condiciones (SuperReentel). Así suben
+            # en la lista los proyectos que más mejoran con el estatus.
+            df_display = preparar_proyectos_para_paso4(df_sub, 'SuperReentel')
+            df_display = aplicar_rentabilidad_ajustada(df_display, df_sub, 'SuperReentel', precio_por_id)
             simbolo_por_id = {row['ID']: ('$' if divisa_proyecto(row) == 'USD' else '€')
                               for _, row in df_sub.iterrows()}
             df_display['Precio'] = df_display['ID'].map(
@@ -97,11 +99,12 @@ def mostrar():
             if clave == "tabla_proyectos" and not st.session_state.get('preseleccion_hecha'):
                 st.session_state.sel_tablas[clave] = set(df_display['ID'].head(3))
                 st.session_state.preseleccion_hecha = True
-            return tabla_seleccionable(df_display, clave)
+            return tabla_seleccionable(df_display, clave, prefijo_rent="Hasta ")
 
         ids_seleccionados = []
         if len(df_disponibles) > 0:
-            st.caption(f"Ordenados según tu objetivo de inversión. {criterio}")
+            st.caption(f"Ordenados según tu objetivo de inversión. {criterio} Rentabilidades máximas estimadas, "
+                       "con las mejores condiciones disponibles en Reental.")
             ids_seleccionados = _lista(df_disponibles, "tabla_proyectos")
         elif fuera_de_mercado:
             st.info("Ahora mismo no hay proyectos disponibles en los mercados que has elegido.")
@@ -242,7 +245,7 @@ def mostrar():
             importe_repartido += importe
             row = filas_por_id[pid]
             precio_proy = convertir_divisa(o['precio'], o['divisa'], divisa_proyecto(row))
-            rent = rentabilidad_ajustada(row, estatus_p4, precio_proy)
+            rent = rentabilidad_ajustada(row, 'SuperReentel', precio_proy)   # rentabilidad «hasta»
             filas_calc.append((pid, o, tokens, importe, rent))
         pendiente = importe_total_p4 - importe_repartido
         tolerancia = max(1.0, importe_total_p4 * 0.0005)
@@ -423,14 +426,14 @@ def mostrar():
             with _kpi("rentabilidad"):
                 st.markdown(html_seguro(
                     f"<div class='kpi-titulo'>RENT. ANUALIZADA</div>"
-                    f"<div class='kpi-valor'>{es(rent_media, 2) + ' %' if hay_reparto else '—'}</div>"
+                    f"<div class='kpi-valor'>{'Hasta ' + es(rent_media, 2) + ' %' if hay_reparto else '—'}</div>"
                     f"<div class='kpi-sub'>estimada · al precio de compra</div>"),
                     unsafe_allow_html=True)
             with _kpi("rent_total"):
                 st.markdown(html_seguro(
                     f"<div class='kpi-titulo'>RENT. TOTAL</div>"
-                    f"<div class='kpi-valor'>{es(rent_total_media, 2) + ' %' if hay_reparto else '—'}</div>"
-                    f"<div class='kpi-sub'>estimada · hasta el final de cada proyecto</div>"),
+                    f"<div class='kpi-valor'>{'Hasta ' + es(rent_total_media, 2) + ' %' if hay_reparto else '—'}</div>"
+                    f"<div class='kpi-sub'>estimada · al terminar cada proyecto</div>"),
                     unsafe_allow_html=True)
 
         with k4, _kpi("pendiente"):
@@ -599,7 +602,7 @@ def mostrar():
                         if col_tipo:
                             detalles.append(_dividendo_corto(row.get(col_tipo)))
                         if rent['anual'] is not None:
-                            detalles.append(f"{es(rent['anual'], 1)} % anual")
+                            detalles.append(f"hasta {es(rent['anual'], 1)} % anual")
                         c_nom.markdown(f"<div class='proy-nombre'>{nombre}</div>"
                                        f"<div class='proy-sub'>{' · '.join(d for d in detalles if d)}</div>",
                                        unsafe_allow_html=True)
