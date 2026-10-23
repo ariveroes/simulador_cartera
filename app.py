@@ -3,11 +3,10 @@ SIMULADOR DE CARTERA INMOBILIARIA REENTAL - FASE 3 COMPLETA
 Streamlit App - Simulador de cartera inmobiliaria (Reental Wealth)
 
 Pasos:
-1. Datos cliente (nombre, email, capital, divisa)
+1. Datos cliente (nombre, email, teléfono, capital, divisa)
 2. Estrategia (objetivo y mercados)
-3. Estatus (Reentel, ReentelPro, SuperReentel)
-4. Cartera (proyectos disponibles ordenados según las preferencias + reparto)
-5. Resumen (tabla cartera + proyecciones + descargar PDF)
+3. Cartera (proyectos disponibles ordenados según las preferencias + reparto)
+4. Resumen (tabla cartera + tu cartera optimizada + descargar PDF)
 
 ESTRUCTURA DE ARCHIVOS
   app.py                      → este archivo: configuración, cabecera, navegación entre pasos y pie
@@ -15,9 +14,9 @@ ESTRUCTURA DE ARCHIVOS
   modules/estilos.py          → CSS de toda la app
   modules/paso1_datos.py      → Paso 1: datos del cliente
   modules/paso2_preferencias.py → Paso 2: objetivo y mercados
-  modules/paso3_estatus.py    → Paso 3: estatus
-  modules/paso4_cartera.py    → Paso 4: proyectos y reparto de la cartera
-  modules/paso5_resumen.py    → Paso 5: resumen, comparativa y PDF
+  modules/paso3_estatus.py    → (ya no se muestra) elección del estatus
+  modules/paso4_cartera.py    → Paso 3: proyectos y reparto de la cartera
+  modules/paso5_resumen.py    → Paso 4: resumen, cartera optimizada y PDF
 """
 
 import streamlit as st
@@ -32,7 +31,7 @@ st.set_page_config(
 
 from modules.comun import *  # noqa: F401,F403
 from modules.estilos import aplicar_estilos
-from modules import paso1_datos, paso2_preferencias, paso3_estatus, paso4_cartera, paso5_resumen
+from modules import paso1_datos, paso2_preferencias, paso4_cartera, paso5_resumen
 
 aplicar_estilos()
 
@@ -84,25 +83,25 @@ if st.session_state.paso_actual == 1:
         Esta herramienta, desarrollada por Reental Wealth, te permitirá simular una cartera inmobiliaria <b>adaptada a tu perfil</b>: tu capital disponible, tu objetivo de inversión y los mercados
         que prefieras.</p>
     <p style="color: {COLOR_NAVY}; font-size: 15px; line-height: 1.55; margin: 0;">
-        En solo cinco pasos verás <b>qué proyectos encajan contigo</b> y la rentabilidad estimada de tu cartera. Al final podrás descargar un resumen
+        En solo cuatro pasos verás <b>qué proyectos encajan contigo</b> y la rentabilidad estimada de tu cartera. Al final podrás descargar un resumen
         en PDF.</p>
 </div>
 """, unsafe_allow_html=True)
 
 # ========== PROGRESS BAR ==========
-progress_value = (st.session_state.paso_actual - 1) / 4
+progress_value = (st.session_state.paso_actual - 1) / 3
 col1, col2 = st.columns([3, 1])
 with col1:
     st.progress(progress_value)
 with col2:
-    st.write(f"**Paso {st.session_state.paso_actual}/5**")
+    st.write(f"**Paso {st.session_state.paso_actual}/4**")
 
 st.markdown("")
 
 # ========== BOTÓN FLOTANTE PARA AGENDAR (pasos 1 a 4) ==========
 # El objetivo de la herramienta es que el cliente agende una reunión: el botón
 # está siempre a mano. En el Paso 5 lo sustituye un recuadro destacado.
-if st.session_state.paso_actual < 5:
+if st.session_state.paso_actual < 4:
     ICONO_CHAT = ("<svg viewBox='0 0 24 24' fill='none' stroke='#1f2937' stroke-width='2.2' "
                   "stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>"
                   "<path d='M7.9 20A9 9 0 1 0 4 16.1L2 22Z'/>"
@@ -118,7 +117,9 @@ if st.session_state.paso_actual < 5:
                 unsafe_allow_html=True)
 
 # ========== PASO ACTUAL ==========
-PASOS = {1: paso1_datos, 2: paso2_preferencias, 3: paso3_estatus, 4: paso4_cartera, 5: paso5_resumen}
+# El paso del estatus (paso3_estatus.py) ya no se muestra: la simulación es sin estatus y el
+# estatus solo aparece al final como «cartera optimizada». Para recuperarlo, volver a ponerlo aquí.
+PASOS = {1: paso1_datos, 2: paso2_preferencias, 3: paso4_cartera, 4: paso5_resumen}
 PASOS.get(st.session_state.paso_actual, paso1_datos).mostrar()
 
 
