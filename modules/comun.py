@@ -415,6 +415,16 @@ def catalogo_otc(proyectos):
         if pid:
             por_id[pid.lower()] = p
 
+    # Si no se puede abrir el Sheet OTC (p. ej. es privado y no está compartido con la
+    # cuenta de servicio del simulador), no se muestra nada de OTC: sin las reservas,
+    # el stock de Reental parecería disponible aunque ya esté comprometido.
+    try:
+        otc_storage._libro().worksheet("Ofertas")
+    except Exception as e:
+        print(f"❌ No se puede leer el Sheet OTC ({otc_storage.SPREADSHEET_ID}): {e}. "
+              "Compártelo (Lector) con el client_email de [gcp_service_account] de los Secrets.")
+        return {"catalogo": {}, "precios": {}, "error": "sin_acceso_sheet"}
+
     reservas = otc_storage.read_list("Reservas")
     ofertas = otc_storage.read_list("Ofertas")
 
@@ -484,6 +494,9 @@ def cargar_ofertas_otc(df_proyectos=None):
                 'canal': 'Oferta de tercero', 'origen_precio': 'precio de la oferta',
             })
 
+    if res.get("error") == "sin_acceso_sheet":
+        st.warning("Ahora mismo no hemos podido revisar todos los proyectos disponibles. "
+                   "Inténtalo de nuevo en unos minutos.")
     if res.get("error") == "falta_clave":
         print("❌ Falta la clave de Etherscan en los Secrets ([etherscan] api_key)")
         st.warning("Ahora mismo no hemos podido revisar todos los proyectos disponibles. "
