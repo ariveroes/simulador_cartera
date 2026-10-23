@@ -1,5 +1,5 @@
 """
-PASO 5 - Resumen de la cartera, comparativa por estatus y PDF.
+PASO 4 (archivo paso5_resumen.py) - Resumen de la cartera, tu cartera optimizada y PDF.
 """
 from modules.comun import *  # noqa: F401,F403  (constantes, colores y funciones comunes)
 
@@ -8,7 +8,7 @@ def mostrar():
     import altair as alt
     from modules.rentabilidad_compra import TASA_REINVERSION
     
-    st.markdown("## Paso 5: Tu cartera está lista")
+    st.markdown("## Paso 4: Tu cartera está lista")
     st.markdown("")
     
     datos = st.session_state.datos_cliente
@@ -19,7 +19,9 @@ def mostrar():
     df_proy = st.session_state.df_proyectos
     
     if len(proyectos_cartera) > 0:
-        estatus = datos.get('estatus') or 'Reentel'
+        # La simulación es siempre sin estatus (Reentel); el estatus solo se usa para
+        # calcular la «cartera optimizada» del final
+        estatus = 'Reentel'
         divisa_cliente = (datos.get('divisa') or 'EUR').upper()
         simbolo = '€' if divisa_cliente == 'EUR' else '$'
         otra_divisa = 'USD' if divisa_cliente == 'EUR' else 'EUR'
@@ -168,21 +170,17 @@ def mostrar():
             })
         
         # ----- Tarjetas resumen -----
-        # Móvil (de dos en dos): capital total | inmuebles; en inmuebles | en estatus;
-        # rent. total | rent. anualizada. En ordenador (de tres en tres) estilos.py las
-        # reordena: importes arriba; nº de inmuebles y rentabilidades abajo.
+        # Móvil: de dos en dos (importe | inmuebles; rent. total | rent. anualizada).
+        # Ordenador: las cuatro en una fila.
         tarjetas = [
-            ("CAPITAL TOTAL", fmt(capital_total), "inmuebles + estatus"),
+            ("IMPORTE INVERTIDO", fmt(capital_total),
+             fmt(convertir(capital_total, divisa_cliente, otra_divisa), otro_simbolo)),
             ("INMUEBLES", f"{len(filas_tabla)}", "proyectos en cartera"),
-            ("EN INMUEBLES", fmt(importe_inmuebles),
-             fmt(convertir(importe_inmuebles, divisa_cliente, otra_divisa), otro_simbolo)),
-            (("EN ESTATUS", fmt(coste_estatus), f"{estatus} · permanencia de 2 años") if coste_estatus > 0
-             else ("EN ESTATUS", "—", "Sin estatus (Reentel)")),
-            ("RENT. TOTAL", f"{es(rentabilidad_total_media, 2)} %", f"media ponderada · {estatus}"),
-            ("RENT. ANUALIZADA", f"{es(rentabilidad_media, 2)} %", f"media ponderada · {estatus}"),
+            ("RENT. TOTAL", f"{es(rentabilidad_total_media, 2)} %", "media ponderada"),
+            ("RENT. ANUALIZADA", f"{es(rentabilidad_media, 2)} %", "media ponderada"),
         ]
         with st.container(key="kpis_resumen"):
-            cols = st.columns(6)
+            cols = st.columns(len(tarjetas))
             for col, (titulo, valor, sub) in zip(cols, tarjetas):
                 col.markdown(tarjeta(titulo, valor, sub), unsafe_allow_html=True)
         
@@ -322,20 +320,21 @@ def mostrar():
         
         st.markdown("---")
         
-        # ========== COMPARATIVA POR ESTATUS ==========
-        # Mismo modelo que la hoja de cálculo de Reental Wealth: con el MISMO importe
-        # total, Reentel lo invierte todo en inmuebles; un estatus superior invierte
-        # en inmuebles lo que queda tras pagar el estatus, y el estatus rinde
-        # RENDIMIENTO_ESTATUS % anual sobre su coste (sin reinvertir).
-        st.markdown("### Comparativa por estatus")
+        # ========== TU CARTERA vs TU CARTERA OPTIMIZADA ==========
+        # El cliente simula sin estatus (Reentel: todo el importe a inmuebles). La «cartera
+        # optimizada» es la misma cartera con el mismo importe total y el mejor estatus
+        # (parte del importe va al estatus, que rinde RENDIMIENTO_ESTATUS % anual y sube la
+        # rentabilidad de los inmuebles). No se nombra el estatus: lo explica el equipo en la llamada.
+        st.markdown("### ¿Cuánto puede ganar tu cartera?")
         
         MESES_COMPARATIVA = 36
+        PLAZOS_COMPARATIVA = [6, 12, 24, 36, 60]
         
         def ganancia_inmobiliaria(importe, meses, est='Reentel'):
             """Ganancia de repartir `importe` como la cartera (mismos % por proyecto), proyecto a
             proyecto: las rentas se reinvierten al cobrarse; lo que se paga al final (plusvalía,
             proyectos bullet) no se reinvierte hasta que el proyecto termina; y al terminar, el
-            capital y el beneficio se reinvierten a la tasa del estatus (ver rentabilidad_compra)."""
+            capital y el beneficio se reinvierten (ver rentabilidad_compra)."""
             from modules.rentabilidad_compra import ganancia_proyecto
             total = 0.0
             for proyecto in proyectos_cartera:
@@ -351,78 +350,54 @@ def mostrar():
         def ganancia_estatus(coste, meses):
             return coste * RENDIMIENTO_ESTATUS / 100 * meses / 12
         
-        comparativa_pdf = []
-        for est in ['Reentel', 'ReentelPro', 'SuperReentel']:
-            rent_est = media_cartera(est, 'anual')
-            coste_est = convertir(RNT_POR_ESTATUS.get(est, 0) * precio_rnt, 'USD', divisa_cliente)
-            inmuebles_est = max(0.0, capital_total - coste_est)
-            ganancia = (ganancia_inmobiliaria(inmuebles_est, MESES_COMPARATIVA, est)
-                        + ganancia_estatus(coste_est, MESES_COMPARATIVA))
-            comparativa_pdf.append({
-                'estatus': est,
-                'rent_anual': rent_est,
-                'ganancia': ganancia,
-                'rent_cartera': (ganancia / inmuebles_est * 100) if inmuebles_est else 0,
-                'rent_total': (ganancia / capital_total * 100) if capital_total else 0,
-                'coste': coste_est,
-            })
-        
-        rent_anual_media_pdf = {est: media_cartera(est, 'anual') for est in {'Reentel', estatus}}
-        rent_total_media_pdf = {est: media_cartera(est, 'total') for est in {'Reentel', estatus}}
-        
-        escenarios_pdf = []
-        for meses in [6, 12, 24, 36]:
-            g_rnt = ganancia_inmobiliaria(capital_total, meses, 'Reentel')
-            g_est = (ganancia_inmobiliaria(importe_inmuebles, meses, estatus)
-                     + ganancia_estatus(coste_estatus, meses))
-            escenarios_pdf.append({
-                'meses': meses,
-                'g_rnt': g_rnt,
-                'g_est': g_est,
-                'g_est_staking': g_est,
-                'rent_rnt': (g_rnt / capital_total * 100) if capital_total else 0,
-                'rent_est': (g_est / capital_total * 100) if capital_total else 0,
-            })
-        
-        # ----- Los tres estatus con el mismo importe total -----
-        # Reentel lo invierte todo en inmuebles; ReentelPro y SuperReentel invierten
-        # lo que queda tras pagar el estatus, y el estatus rinde RENDIMIENTO_ESTATUS %.
-        ESTATUS_COMPARATIVA = ['Reentel', 'ReentelPro', 'SuperReentel']
-        COLOR_ESTATUS = {'Reentel': COLOR_NAVY, 'ReentelPro': '#878d96', 'SuperReentel': COLOR_AMBAR}
-        PLAZOS_COMPARATIVA = [6, 12, 24, 36, 60]
-        
         reparto_estatus = {}
-        for est in ESTATUS_COMPARATIVA:
+        for est in ['Reentel', 'ReentelPro', 'SuperReentel']:
             coste_e = convertir(RNT_POR_ESTATUS.get(est, 0) * precio_rnt, 'USD', divisa_cliente)
-            reparto_estatus[est] = {'coste': coste_e, 'inmuebles': max(0.0, capital_total - coste_e),
-                                    'rent': media_cartera(est, 'anual')}
+            reparto_estatus[est] = {'coste': coste_e, 'inmuebles': max(0.0, capital_total - coste_e)}
         
         def ganancia_final(est, meses):
             r = reparto_estatus[est]
             return (ganancia_inmobiliaria(r['inmuebles'], meses, est)
                     + ganancia_estatus(r['coste'], meses))
         
-        # Texto: solo el estatus elegido frente a Reentel (la gráfica muestra los tres)
-        color_est = COLOR_AMBAR_OSCURO if estatus == 'SuperReentel' else COLOR_NAVY
-        if estatus != 'Reentel':
-            r = reparto_estatus[estatus]
-            texto_reparto = (f"Con el mismo importe total (<b>{fmt(capital_total)}</b>): con <b>Reentel</b> todo va "
-                             f"a inmuebles; con <b style='color:{color_est};'>{estatus}</b>, {fmt(r['inmuebles'])} "
-                             f"van a inmuebles y {fmt(r['coste'])} al estatus.")
-        else:
-            texto_reparto = (f"Sin estatus (<b>Reentel</b>), todo tu importe (<b>{fmt(capital_total)}</b>) va a "
-                             f"inmuebles. La gráfica muestra la ganancia final con cada estatus.")
-        st.markdown(html_seguro(
-            f"<div style='font-size:14px; color:{COLOR_NAVY}; margin:2px 0 10px 0;'>{texto_reparto}</div>"),
-            unsafe_allow_html=True)
+        # Mejor estatus para esta cartera e importe (solo si mejora claramente a 36 meses)
+        g36 = {est: ganancia_final(est, MESES_COMPARATIVA) for est in reparto_estatus}
+        posibles = [e for e in ('ReentelPro', 'SuperReentel') if reparto_estatus[e]['inmuebles'] > 0]
+        mejor = max(posibles, key=lambda e: g36[e]) if posibles else None
+        extra = (g36[mejor] - g36['Reentel']) if mejor else 0.0
+        hay_mejora = bool(mejor) and extra > max(50.0, g36['Reentel'] * 0.03)
         
-        orden_series = [f"Ganancia final {est}" for est in ESTATUS_COMPARATIVA]
+        rent_anual_media_pdf = {'Reentel': media_cartera('Reentel', 'anual')}
+        rent_total_media_pdf = {'Reentel': media_cartera('Reentel', 'total')}
+        if hay_mejora:
+            rent_anual_media_pdf[mejor] = media_cartera(mejor, 'anual')
+            rent_total_media_pdf[mejor] = media_cartera(mejor, 'total')
+        
+        escenarios_pdf = []
+        for meses in [6, 12, 24, 36]:
+            g_rnt = ganancia_final('Reentel', meses)
+            g_est = ganancia_final(mejor, meses) if hay_mejora else g_rnt
+            escenarios_pdf.append({
+                'meses': meses, 'g_rnt': g_rnt, 'g_est': g_est, 'g_est_staking': g_est,
+                'rent_rnt': (g_rnt / capital_total * 100) if capital_total else 0,
+                'rent_est': (g_est / capital_total * 100) if capital_total else 0,
+            })
+        comparativa_pdf = [{'estatus': est, 'ganancia': g36[est], 'coste': reparto_estatus[est]['coste']}
+                           for est in reparto_estatus]
+        
+        # ----- Gráfica: tu cartera (y tu cartera optimizada, si mejora) -----
+        series = [("Tu cartera", 'Reentel', COLOR_NAVY)]
+        if hay_mejora:
+            series.append(("Tu cartera optimizada", mejor, COLOR_AMBAR))
+        orden_series = [s_[0] for s_ in series]
         orden_plazos = [f"{m} meses" for m in PLAZOS_COMPARATIVA]
-        datos_barras = pd.DataFrame([
-            {'Plazo': f"{m} meses", 'Escenario': f"Ganancia final {est}", 'Ganancia': ganancia_final(est, m),
-             'texto': es(ganancia_final(est, m), 0), 'texto_tooltip': fmt(ganancia_final(est, m))}
-            for m in PLAZOS_COMPARATIVA for est in ESTATUS_COMPARATIVA
-        ])
+        filas_barras = []
+        for m in PLAZOS_COMPARATIVA:
+            for nombre_s, est_s, _ in series:
+                g = ganancia_final(est_s, m)
+                filas_barras.append({'Plazo': f"{m} meses", 'Escenario': nombre_s, 'Ganancia': g,
+                                     'texto': es(g, 0), 'texto_tooltip': fmt(g)})
+        datos_barras = pd.DataFrame(filas_barras)
         
         # Etiquetas del eje con el formato de número de la divisa del cliente
         formato_eje = ("replace(format(datum.value, ',.0f'), regexp(',', 'g'), '.')"
@@ -437,8 +412,7 @@ def mostrar():
             cornerRadiusTopLeft=4, cornerRadiusTopRight=4).encode(
             x=eje_x, xOffset=desplazamiento, y=eje_y,
             color=alt.Color('Escenario:N', sort=orden_series,
-                            scale=alt.Scale(domain=orden_series,
-                                            range=[COLOR_ESTATUS[e] for e in ESTATUS_COMPARATIVA]),
+                            scale=alt.Scale(domain=orden_series, range=[s_[2] for s_ in series]),
                             legend=alt.Legend(orient='bottom', title=None, labelFontSize=12,
                                               symbolType='square', labelLimit=0, direction='vertical')),
             tooltip=[alt.Tooltip('Escenario:N', title='Escenario'),
@@ -453,141 +427,47 @@ def mostrar():
             x=eje_x, xOffset=desplazamiento, y=eje_y, text='texto:N')
         
         st.markdown(f"<div style='font-size:16px; font-weight:700; color:{COLOR_NAVY}; margin:6px 0 4px 0;'>"
-                    f"Ganancia final por estatus</div>", unsafe_allow_html=True)
+                    f"Ganancia estimada de tu cartera</div>", unsafe_allow_html=True)
         st.altair_chart((barras + etiquetas).properties(height=360).configure_view(stroke=None),
                         use_container_width=True)
         
-        # Mensaje destacado (a 36 meses): el estatus elegido frente a Reentel
-        g36 = {est: ganancia_final(est, MESES_COMPARATIVA) for est in ESTATUS_COMPARATIVA}
-        hay_sugeridos = False
-        ofrecer_super = False
-        if estatus != 'Reentel':
-            mensaje = (f"A {MESES_COMPARATIVA} meses, la ganancia final es de <b style='color:{color_est};'>"
-                       f"{fmt(g36[estatus])}</b> con {estatus} y <b>{fmt(g36['Reentel'])}</b> con Reentel")
-            diferencia = g36[estatus] - g36['Reentel']
-            moneda = "euro" if divisa_cliente == 'EUR' else "dólar"
-            mensaje += (f" → <b>{fmt(diferencia)} más</b>, <b style='color:{COLOR_AMBAR_OSCURO};'>sin invertir ni "
-                        f"un solo {moneda} más</b>."
-                        if diferencia > 0 else ".")
-            if diferencia <= 0:
-                # El estatus no compensa con estos proyectos: se sugieren otros disponibles con los
-                # que sí (más ganancia a 36 meses con el estatus que con Reentel, con el mismo importe)
-                from modules.rentabilidad_compra import ganancia_proyecto, rentabilidad_ajustada as _rent_aj
-                ids_cartera = {p['id'] for p in proyectos_cartera}
-                coste_e = reparto_estatus[estatus]['coste']
-                sugeridos = []
-                for cand in st.session_state.get('candidatos_estatus', []):
-                    if cand['id'] in ids_cartera or capital_total - coste_e <= 0:
-                        continue
-                    fila_c = df_proy[df_proy['ID'] == cand['id']]
-                    if len(fila_c) == 0:
-                        continue
-                    row_c = fila_c.iloc[0]
-                    g_e = (ganancia_proyecto(capital_total - coste_e, row_c, estatus, cand['precio'], MESES_COMPARATIVA)
-                           + ganancia_estatus(coste_e, MESES_COMPARATIVA))
-                    g_r = ganancia_proyecto(capital_total, row_c, 'Reentel', cand['precio'], MESES_COMPARATIVA)
-                    if g_e > g_r:
-                        sugeridos.append((not cand['en_mercado'], -g_e, row_c, cand['precio']))
-                sugeridos = sorted(sugeridos, key=lambda x: (x[0], x[1]))[:3]
-                if sugeridos:
-                    filas_sug = ""
-                    for _, _, row_c, precio_c in sugeridos:
-                        anual_c = _rent_aj(row_c, estatus, precio_c)['anual']
-                        dossier_c = str(row_c.get('dossier', '') or '').strip()
-                        enlace_c = (f" · <a href='{dossier_c}' target='_blank' rel='noopener' "
-                                    f"style='color:{COLOR_AMBAR_OSCURO};'>Ver dossier ↗</a>"
-                                    if dossier_c.lower().startswith('http') else "")
-                        filas_sug += (f"<li style='margin:4px 0;'><b>{row_c.get('Nombre del proyecto', '')}</b> · "
-                                      f"{row_c.get('Ubicación', '')} · "
-                                      f"{es(anual_c, 2) + ' % anual con ' + estatus if anual_c is not None else ''}"
-                                      f"{enlace_c}</li>")
-                    mensaje += (f"<br><br>Hay otros proyectos disponibles con los que tu estatus te permitiría "
-                                f"conseguir mayor beneficio:<ul style='margin:6px 0 0 0; padding-left:20px;'>"
-                                f"{filas_sug}</ul>")
-                    hay_sugeridos = True
-                else:
-                    # Con este importe ningún proyecto hace que el estatus compense: en vez de dar una
-                    # cifra que pueda echar para atrás, se invita a hablarlo con el equipo
-                    mensaje += (f"<br><br>¿Quieres saber a partir de qué importe te conviene incluir el estatus "
-                                f"<b style='color:{color_est};'>{estatus}</b> en tu estrategia, o cómo sacarle el "
-                                f"máximo partido con el mismo dinero invertido? Nuestro equipo te lo explica en una "
-                                f"reunión sin compromiso."
-                                f"<div style='margin-top:12px;'><a href='{URL_AGENDA}' target='_blank' rel='noopener' "
-                                f"style='display:inline-block; background:{COLOR_NAVY}; color:#ffffff; "
-                                f"text-decoration:none; font-weight:700; padding:10px 20px; border-radius:10px;'>"
-                                f"Agendar reunión</a></div>")
-            # Eligió ReentelPro y SuperReentel le daría claramente más con el mismo importe
-            if (estatus == 'ReentelPro' and reparto_estatus['SuperReentel']['inmuebles'] > 0
-                    and not st.session_state.get('oferta_super_rechazada')):
-                extra_sr = g36['SuperReentel'] - g36['ReentelPro']
-                if extra_sr > max(50.0, g36['ReentelPro'] * 0.03):
-                    mensaje += (f"<br><br>Con el estatus <b style='color:{COLOR_AMBAR_OSCURO};'>SuperReentel</b> "
-                                f"podrías conseguir hasta <b>{fmt(extra_sr)} más</b> que con ReentelPro, "
-                                f"<b style='color:{COLOR_AMBAR_OSCURO};'>sin invertir ni un solo {moneda} más</b>."
-                                f"<br><br><b>¿Quieres subir tu estatus a SuperReentel?</b>")
-                    ofrecer_super = True
-        else:
-            mensaje = (f"A {MESES_COMPARATIVA} meses, la ganancia final con Reentel es de "
-                       f"<b>{fmt(g36['Reentel'])}</b>.")
-            # Si un estatus le saldría claramente mejor con el mismo importe, se le dice
-            posibles = [e for e in ESTATUS_COMPARATIVA[1:] if reparto_estatus[e]['inmuebles'] > 0]
-            if posibles:
-                mejor = max(posibles, key=lambda e: g36[e])
-                extra = g36[mejor] - g36['Reentel']
-                if extra > max(50.0, g36['Reentel'] * 0.03):
-                    color_mejor = COLOR_AMBAR_OSCURO if mejor == 'SuperReentel' else COLOR_NAVY
-                    moneda = "euro" if divisa_cliente == 'EUR' else "dólar"
-                    mensaje += (f"<br><br>En el Paso 3, elegiste continuar sin estatus. Sin embargo, podrías "
-                                f"conseguir hasta <b>{fmt(extra)} más</b> <b style='color:{COLOR_AMBAR_OSCURO};'>sin invertir "
-                                f"ni un solo {moneda} más</b>, "
-                                f"solo eligiendo el estatus de <b style='color:{color_mejor};'>{mejor}</b>.")
+        # Mensaje a 36 meses
+        mensaje = (f"A {MESES_COMPARATIVA} meses, la ganancia final estimada de tu cartera es de "
+                   f"<b>{fmt(g36['Reentel'])}</b>")
+        mensaje += (f", y de <b style='color:{COLOR_AMBAR_OSCURO};'>{fmt(g36[mejor])}</b> con tu cartera "
+                    f"optimizada." if hay_mejora else ".")
         st.markdown(html_seguro(
             f"<div style='background:{COLOR_AMBAR_CLARO}; border:1px solid {COLOR_AMBAR}; border-radius:10px; "
             f"padding:14px 18px; margin-top:16px; color:{COLOR_NAVY}; font-size:15px;'>{mensaje}</div>"),
             unsafe_allow_html=True)
-        if ofrecer_super:
-            def _subir_a_super():
-                # Pasa a SuperReentel sin salir del Paso 5. Los % de la cartera se mantienen;
-                # en el Paso 4 los importes se ajustan a lo que queda para inmuebles.
-                nuevo_inm = reparto_estatus['SuperReentel']['inmuebles']
-                factor = nuevo_inm / importe_inmuebles if importe_inmuebles else 1.0
-                for p in list(st.session_state.tokens_compra):
-                    st.session_state.tokens_compra[p] *= factor
-                    st.session_state.pop(f"pct_{p}", None)
-                st.session_state.datos_cliente['estatus'] = 'SuperReentel'
-            c_si, c_no, _ = st.columns([1, 1.3, 0.7])
-            c_si.button("Sí, sube mi estatus", key="btn_subir_super", on_click=_subir_a_super,
-                        use_container_width=True)
-            c_no.button(f"No, me quedo como estoy ({estatus})", key="btn_quedarme_sec",
-                        on_click=lambda: st.session_state.update(oferta_super_rechazada=True),
-                        use_container_width=True)
-        if hay_sugeridos:
-            c_sug, _ = st.columns([1, 2])
-            if c_sug.button("Volver al Paso 4 para añadirlos", key="btn_volver_p4_sec", use_container_width=True):
-                st.session_state.paso_actual = 4
-                st.rerun()
         st.markdown(f"<div style='font-size:12.5px; color:{COLOR_GRIS}; margin:8px 2px 0 2px;'>"
-                    f"La ganancia final incluye la de los inmuebles y la del estatus (la remuneración del importe con "
-                    f"permanencia). El cálculo considera la reinversión de "
-                    f"los beneficios obtenidos, beneficiándose del interés compuesto: las rentas se reinvierten cuando "
-                    f"se cobran; lo que se paga al final del proyecto no se reinvierte hasta que termina, y entonces el "
-                    f"capital y el beneficio se reinvierten a un {es(TASA_REINVERSION['Reentel'], 0)} % anual con Reentel, "
-                    f"{es(TASA_REINVERSION['ReentelPro'], 0)} % con ReentelPro y {es(TASA_REINVERSION['SuperReentel'], 0)} % "
-                    f"con SuperReentel. Las cifras son estimaciones "
-                    f"y no garantizan resultados futuros.</div>", unsafe_allow_html=True)
+                    f"El cálculo considera la reinversión de los beneficios obtenidos, beneficiándose del interés "
+                    f"compuesto: las rentas se reinvierten cuando se cobran; lo que se paga al final del proyecto no "
+                    f"se reinvierte hasta que termina, y entonces el capital y el beneficio se reinvierten."
+                    + (" La cartera optimizada tiene los mismos proyectos y el mismo importe total, con unas "
+                       "condiciones que nuestro equipo te explicará." if hay_mejora else "")
+                    + " Las cifras son estimaciones y no garantizan resultados futuros.</div>",
+                    unsafe_allow_html=True)
         
-        # ----- Llamada a agendar una reunión (el objetivo de la herramienta) -----
+        # ----- Llamada a agendar (el objetivo de la herramienta) -----
+        moneda = "euro" if divisa_cliente == 'EUR' else "dólar"
+        if hay_mejora:
+            titulo_cta = (f"Podrías conseguir hasta <span style='color:{COLOR_AMBAR_OSCURO};'>{fmt(extra)} más</span> "
+                          f"sin invertir ni un solo {moneda} más")
+            texto_cta = "¿Quieres saber cómo? Agenda una llamada con nuestro equipo."
+        else:
+            titulo_cta = "¿Quieres que revisemos juntos tu cartera para sacarle el máximo partido?"
+            texto_cta = "Agenda una llamada con nuestro equipo."
         st.markdown(html_seguro(
             f"<div style='background:{COLOR_AMBAR_CLARO}; border:2px solid {COLOR_AMBAR}; border-radius:14px; "
             f"padding:22px 24px; margin:28px 0 8px 0; display:flex; flex-wrap:wrap; gap:14px 24px; "
             f"align-items:center; justify-content:space-between;'>"
             f"<div style='flex:1 1 320px; color:{COLOR_NAVY};'>"
-            f"<div style='font-size:19px; font-weight:800; margin-bottom:4px;'>¿Quieres revisar tu cartera con "
-            f"nuestro equipo?</div>"
-            f"<div style='font-size:15px;'>Agenda una reunión sin compromiso.</div></div>"
+            f"<div style='font-size:19px; font-weight:800; margin-bottom:4px;'>{titulo_cta}</div>"
+            f"<div style='font-size:15px;'>{texto_cta}</div></div>"
             f"<a href='{URL_AGENDA}' target='_blank' rel='noopener' style='background:{COLOR_NAVY}; "
             f"color:#ffffff; text-decoration:none; font-weight:700; padding:13px 22px; border-radius:10px; "
-            f"white-space:nowrap;'>Agendar reunión</a></div>"), unsafe_allow_html=True)
+            f"white-space:nowrap;'>Agendar llamada</a></div>"), unsafe_allow_html=True)
         
         st.markdown("---")
         
@@ -622,6 +502,9 @@ def mostrar():
             'repartos': repartos_pdf,
             'comparativa': comparativa_pdf,
             'meses': MESES_COMPARATIVA,
+            'optimizada': hay_mejora,
+            'estatus_optimo': mejor if hay_mejora else None,
+            'extra_optimizada': extra if hay_mejora else 0.0,
         }
         
         # Guardar el lead con la cartera simulada (una sola vez por cartera)
@@ -631,7 +514,12 @@ def mostrar():
         if st.session_state.get('lead_cartera_guardada') != firma_cartera:
             if 'lead_id' not in st.session_state:
                 st.session_state.lead_id = uuid.uuid4().hex[:10]
-            leads.guardar(st.session_state.lead_id, "Cartera generada", datos,
+            # En la columna «Estatus» del Sheet, lo que podría ganar de más con el mejor
+            # estatus (para que el equipo comercial sepa de qué hablar en la llamada)
+            datos_lead = dict(datos)
+            datos_lead['estatus'] = (f"Sin estatus · potencial: +{fmt(extra)} a {MESES_COMPARATIVA} meses con {mejor}"
+                                     if hay_mejora else "Sin estatus · sin mejora con estatus")
+            leads.guardar(st.session_state.lead_id, "Cartera generada", datos_lead,
                           cartera=cartera_txt, importe=fmt(capital_total))
             st.session_state.lead_cartera_guardada = firma_cartera
         
@@ -659,7 +547,7 @@ def mostrar():
         col1, col2, col3 = st.columns([1, 1, 1])
         with col1:
             if st.button("< Atrás", use_container_width=True, key="btn_paso5_back"):
-                st.session_state.paso_actual = 4
+                st.session_state.paso_actual = 3
                 st.rerun()
         
         with col3:
