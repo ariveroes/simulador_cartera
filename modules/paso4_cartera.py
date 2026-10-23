@@ -1,11 +1,11 @@
 """
-PASO 4 - Proyectos disponibles y reparto de la cartera.
+PASO 3 (archivo paso4_cartera.py) - Proyectos disponibles y reparto de la cartera.
 """
 from modules.comun import *  # noqa: F401,F403  (constantes, colores y funciones comunes)
 
 
 def mostrar():
-    st.markdown("## Paso 4: Crea tu cartera de inversión")
+    st.markdown("## Paso 3: Crea tu cartera de inversión")
     st.markdown("Selecciona aquellos proyectos que quieras incluir en tu cartera")
     st.markdown("")
     
@@ -15,7 +15,9 @@ def mostrar():
         # Obtener parámetros
         mercados_seleccionados = st.session_state.datos_cliente.get('mercados', [])
         objetivo = st.session_state.datos_cliente.get('objetivo', '') or ''
-        estatus = st.session_state.datos_cliente.get('estatus', None)
+        # La simulación es siempre sin estatus (Reentel): el estatus solo aparece al final,
+        # en la «cartera optimizada» del resumen
+        estatus = None
         estatus_p4 = estatus or 'Reentel'
         ingresos_pasivos = 'ingresos' in objetivo.lower()
 
@@ -170,7 +172,7 @@ def mostrar():
         # El importe a invertir es el TOTAL: incluye lo que cuesta el estatus. Lo que
         # se reparte entre los proyectos es lo que queda después de descontarlo.
         importe_capital_p4 = importe_cliente(st.session_state.datos_cliente)
-        coste_estatus_p4 = coste_estatus_cliente(st.session_state.datos_cliente)
+        coste_estatus_p4 = 0.0   # sin estatus: todo el importe va a inmuebles
         importe_total_p4 = max(0.0, importe_capital_p4 - coste_estatus_p4)   # para inmuebles
         def _texto_importe(valor):
             """Importe con separador de miles y el símbolo dentro de la casilla: «50.000 €»."""
@@ -193,7 +195,7 @@ def mostrar():
         if 'input_importe' not in st.session_state:
             st.session_state.input_importe = _texto_importe(importe_capital_p4)
         modo = st.session_state.modo_reparto
-        estatus_p4 = st.session_state.datos_cliente.get('estatus') or 'Reentel'
+        estatus_p4 = 'Reentel'
 
         def _cambiar_importe():
             anterior = importe_cliente(st.session_state.datos_cliente)
@@ -409,16 +411,12 @@ def mostrar():
                     f"<div class='kpi-valor'>{'—' if no_llega else f'{es(importe_repartido, 0)} {simbolo_cliente_p4}'}</div>"
                     f"<div class='kpi-sub'>{len(ids_validos)} "
                     f"proyecto{'s' if len(ids_validos) != 1 else ''}</div>"), unsafe_allow_html=True)
-            with _kpi("estatus"):
-                if coste_estatus_p4 > 0:
-                    valor_est = f"{es(coste_estatus_p4, 0)} {simbolo_cliente_p4}"
-                    sub_est = f"{estatus_p4} · permanencia de 2 años"
-                else:
-                    valor_est, sub_est = "—", "Sin estatus (Reentel)"
-                st.markdown(html_seguro(
-                    f"<div class='kpi-titulo'>EN ESTATUS</div>"
-                    f"<div class='kpi-valor'>{valor_est}</div>"
-                    f"<div class='kpi-sub'>{sub_est}</div>"), unsafe_allow_html=True)
+            if coste_estatus_p4 > 0:          # (sin estatus no se muestra)
+                with _kpi("estatus"):
+                    st.markdown(html_seguro(
+                        f"<div class='kpi-titulo'>EN ESTATUS</div>"
+                        f"<div class='kpi-valor'>{es(coste_estatus_p4, 0)} {simbolo_cliente_p4}</div>"
+                        f"<div class='kpi-sub'>{estatus_p4} · permanencia de 2 años</div>"), unsafe_allow_html=True)
 
         with k3, _kpi_par("rentab"):
             hay_reparto = importe_repartido > 0
@@ -426,13 +424,13 @@ def mostrar():
                 st.markdown(html_seguro(
                     f"<div class='kpi-titulo'>RENT. ANUALIZADA</div>"
                     f"<div class='kpi-valor'>{es(rent_media, 2) + ' %' if hay_reparto else '—'}</div>"
-                    f"<div class='kpi-sub'>estimada · {estatus_p4} · al precio de compra</div>"),
+                    f"<div class='kpi-sub'>estimada · al precio de compra</div>"),
                     unsafe_allow_html=True)
             with _kpi("rent_total"):
                 st.markdown(html_seguro(
                     f"<div class='kpi-titulo'>RENT. TOTAL</div>"
                     f"<div class='kpi-valor'>{es(rent_total_media, 2) + ' %' if hay_reparto else '—'}</div>"
-                    f"<div class='kpi-sub'>estimada · {estatus_p4} · hasta el final de cada proyecto</div>"),
+                    f"<div class='kpi-sub'>estimada · hasta el final de cada proyecto</div>"),
                     unsafe_allow_html=True)
 
         with k4, _kpi("pendiente"):
@@ -658,7 +656,7 @@ def mostrar():
         col1, col2, col3 = st.columns([1, 1, 1])
         with col1:
             if st.button("< Atrás", use_container_width=True, key="btn_paso4_back"):
-                st.session_state.paso_actual = 3
+                st.session_state.paso_actual = 2
                 st.rerun()
 
         with col3:
@@ -674,7 +672,7 @@ def mostrar():
                         'proyectos': proyectos_seleccionados,
                         'distribuciones': st.session_state.cartera_selecciones
                     }
-                    st.session_state.paso_actual = 5
+                    st.session_state.paso_actual = 4
                     st.rerun()
             else:
                 st.button("Generar cartera >", use_container_width=True, disabled=True)
