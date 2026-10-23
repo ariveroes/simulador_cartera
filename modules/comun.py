@@ -797,13 +797,14 @@ def priorizar_rentas(df):
     return df.assign(_orden=orden).sort_values("_orden", kind="stable").drop(columns="_orden")
 
 
-def tabla_seleccionable(df_display, key):
+def tabla_seleccionable(df_display, key, prefijo_rent=""):
     """
     Muestra los proyectos para elegir, uno debajo de otro (en el ordenador y en el
     móvil), y devuelve la lista de IDs marcados en el mismo orden.
 
     Cada tarjeta: casilla con el nombre del proyecto y, debajo, país, rentabilidad
     anualizada y total, precio, tipo de rendimientos y enlace al dossier.
+    `prefijo_rent` va delante de las rentabilidades (p. ej. «Hasta »).
     """
     if df_display is None or len(df_display) == 0:
         return []
@@ -812,7 +813,7 @@ def tabla_seleccionable(df_display, key):
     
     def _pct(v):
         try:
-            return f"{es(float(v), 2)} %" if v is not None and v == v else "—"
+            return f"{prefijo_rent}{es(float(v), 2)} %" if v is not None and v == v else "—"
         except (TypeError, ValueError):
             return "—"
     
