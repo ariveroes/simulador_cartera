@@ -150,21 +150,10 @@ def aplicar_estilos():
             a.cta-flotante .cta-circulo::after {{ animation: none; opacity: 0; }}
         }}
 
-        /* ===== Tarjetas de resumen del Paso 5 (ordenador): tres por fila ===== */
+        /* ===== Tarjetas de resumen del resumen final (ordenador): las cuatro en una fila ===== */
         @media (min-width: 641px) {{
             .st-key-kpis_resumen {{ margin-bottom: 0.6rem; }}
-            .st-key-kpis_resumen [data-testid="stHorizontalBlock"] {{ flex-wrap: wrap; row-gap: 1rem !important; }}
-            .st-key-kpis_resumen [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {{
-                flex: 1 1 calc(33.333% - 1rem) !important; min-width: calc(33.333% - 1rem) !important;
-            }}
             .st-key-kpis_resumen .tarjeta {{ box-sizing: border-box; margin-bottom: 0 !important; }}
-            /* Orden en ordenador: capital, en inmuebles, en estatus / inmuebles, rent. total, rent. anualizada */
-            .st-key-kpis_resumen [data-testid="stColumn"]:nth-child(1) {{ order: 1; }}
-            .st-key-kpis_resumen [data-testid="stColumn"]:nth-child(2) {{ order: 4; }}
-            .st-key-kpis_resumen [data-testid="stColumn"]:nth-child(3) {{ order: 2; }}
-            .st-key-kpis_resumen [data-testid="stColumn"]:nth-child(4) {{ order: 3; }}
-            .st-key-kpis_resumen [data-testid="stColumn"]:nth-child(5) {{ order: 5; }}
-            .st-key-kpis_resumen [data-testid="stColumn"]:nth-child(6) {{ order: 6; }}
             .st-key-kpis_resumen [data-testid="stMarkdownContainer"] {{ margin-bottom: 0 !important; }}
         }}
         /* Tarjetas de resumen del Paso 5: todas las de una misma fila con la misma altura */
