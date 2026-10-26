@@ -117,8 +117,8 @@ def generar(titular: str, simbolo: str, capital: float, n_inmuebles: int, rent_t
     # Cuatro cifras (2 × 2)
     cifras = [("IMPORTE INVERTIDO", f"{_num(capital)} {simbolo}"),
               ("INMUEBLES", f"{n_inmuebles}"),
-              ("RENTABILIDAD TOTAL", f"Hasta {_num(rent_total, 2)} %"),
-              ("RENTABILIDAD ANUALIZADA", f"Hasta {_num(rent_anual, 2)} %")]
+              ("RENTABILIDAD TOTAL", f"Hasta {_num(rent_total, 1)} %"),
+              ("RENTABILIDAD ANUALIZADA", f"Hasta {_num(rent_anual, 1)} %")]
     hueco = 24
     ancho_t = (W - 2 * M - hueco) // 2
     alto_t = 150
