@@ -538,13 +538,32 @@ def mostrar():
             resumen=resumen_pdf
         )
         
-        st.download_button(
-            label="Descargar cartera en PDF",
-            data=pdf_buffer,
-            file_name=f"Cartera_{datos['nombre'].replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf",
-            mime="application/pdf",
-            use_container_width=True
-        )
+        # Imagen resumen (para mandarla por WhatsApp): cifras clave, gráfico y cartera optimizada
+        from modules import imagen_resumen
+        valores_series = [(nombre_s, color_s, [ganancia_final(est_s, m) for m in PLAZOS_COMPARATIVA])
+                          for nombre_s, est_s, color_s in series]
+        png_resumen = imagen_resumen.generar(
+            datos.get('nombre', ''), simbolo, capital_total, len(filas_tabla), rentabilidad_total_media,
+            rentabilidad_media, PLAZOS_COMPARATIVA, valores_series, hay_mejora, extra, moneda)
+        
+        nombre_archivo = f"Cartera_{datos['nombre'].replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}"
+        col_pdf, col_img = st.columns(2)
+        with col_pdf:
+            st.download_button(
+                label="Descargar cartera en PDF",
+                data=pdf_buffer,
+                file_name=f"{nombre_archivo}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
+        with col_img:
+            st.download_button(
+                label="Descargar resumen en imagen",
+                data=png_resumen,
+                file_name=f"{nombre_archivo}.png",
+                mime="image/png",
+                use_container_width=True
+            )
         
         st.markdown("")
         col1, col2, col3 = st.columns([1, 1, 1])
