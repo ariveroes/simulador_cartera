@@ -33,14 +33,39 @@ _ALTERNATIVAS = {False: ["DejaVuSans.ttf", "/usr/share/fonts/truetype/dejavu/Dej
                  True: ["DejaVuSans-Bold.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"]}
 
 
+_INCRUSTADA = {}
+
+
+def _fustat_incrustada(negrita):
+    """Los bytes de la fuente guardada dentro de fuente_fustat.py (siempre disponible)."""
+    if negrita not in _INCRUSTADA:
+        import base64
+        try:
+            from modules import fuente_fustat
+        except ImportError:
+            import fuente_fustat
+        texto = fuente_fustat.BOLD if negrita else fuente_fustat.REGULAR
+        _INCRUSTADA[negrita] = base64.b64decode("".join(texto.split()))
+    return _INCRUSTADA[negrita]
+
+
 def _fuente(tam, negrita=False):
     nombre = "Fustat-Bold.ttf" if negrita else "Fustat-Regular.ttf"
-    for ruta in [os.path.join(d, nombre) for d in _DIRS_FUENTES] + _ALTERNATIVAS[negrita]:
+    for ruta in [os.path.join(d, nombre) for d in _DIRS_FUENTES]:
         try:
             return ImageFont.truetype(ruta, tam)
         except OSError:
             continue
-    return ImageFont.load_default(size=tam)      # Pillow ≥ 10.1: escalable y con tildes
+    try:
+        return ImageFont.truetype(BytesIO(_fustat_incrustada(negrita)), tam)
+    except Exception:
+        pass
+    for ruta in _ALTERNATIVAS[negrita]:
+        try:
+            return ImageFont.truetype(ruta, tam)
+        except OSError:
+            continue
+    return ImageFont.load_default(size=tam)
 
 
 def _num(v, dec=0):
