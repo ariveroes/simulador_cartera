@@ -8,7 +8,6 @@ más. Formato 1080 px de ancho; el alto se ajusta al contenido (mínimo 1350, 4:
 from __future__ import annotations
 
 import os
-from datetime import datetime
 from io import BytesIO
 
 from PIL import Image, ImageDraw, ImageFont
@@ -25,14 +24,23 @@ BLANCO = "#ffffff"
 W, H_MAX = 1080, 2400
 M = 64
 
-_DIR_FUENTES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts")
+_AQUI = os.path.dirname(os.path.abspath(__file__))
+# Dónde buscar la fuente Fustat (la carpeta «fonts» puede estar en modules/ o en la raíz)
+_DIRS_FUENTES = [os.path.join(_AQUI, "fonts"), os.path.join(_AQUI, "..", "fonts"),
+                 os.path.join(_AQUI, "..", "static", "fonts")]
+# Si no está Fustat, otras con tildes que suelen estar instaladas
+_ALTERNATIVAS = {False: ["DejaVuSans.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"],
+                 True: ["DejaVuSans-Bold.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"]}
 
 
 def _fuente(tam, negrita=False):
-    try:
-        return ImageFont.truetype(os.path.join(_DIR_FUENTES, "Fustat-Bold.ttf" if negrita else "Fustat-Regular.ttf"), tam)
-    except OSError:
-        return ImageFont.load_default()
+    nombre = "Fustat-Bold.ttf" if negrita else "Fustat-Regular.ttf"
+    for ruta in [os.path.join(d, nombre) for d in _DIRS_FUENTES] + _ALTERNATIVAS[negrita]:
+        try:
+            return ImageFont.truetype(ruta, tam)
+        except OSError:
+            continue
+    return ImageFont.load_default(size=tam)      # Pillow ≥ 10.1: escalable y con tildes
 
 
 def _num(v, dec=0):
@@ -79,9 +87,7 @@ def generar(titular: str, simbolo: str, capital: float, n_inmuebles: int, rent_t
     while d.textlength(titulo, font=ft) > W - 2 * M and ft.size > 44:   # mejor en una sola línea
         ft = _fuente(ft.size - 1, True)
     y = _parrafo(d, M, 76, titulo, ft, NAVY, W - 2 * M, int(ft.size * 1.22))
-    sub = (f"{titular.strip()} · " if titular and titular.strip() else "") + datetime.now().strftime("%d/%m/%Y")
-    d.text((M, y + 8), sub, font=_fuente(30), fill=GRIS)
-    y += 70
+    y += 34
 
     # Cuatro cifras (2 × 2)
     cifras = [("IMPORTE INVERTIDO", f"{_num(capital)} {simbolo}"),
