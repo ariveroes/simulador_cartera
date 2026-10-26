@@ -117,8 +117,8 @@ def generar(titular: str, simbolo: str, capital: float, n_inmuebles: int, rent_t
     # Cuatro cifras (2 × 2)
     cifras = [("IMPORTE INVERTIDO", f"{_num(capital)} {simbolo}"),
               ("INMUEBLES", f"{n_inmuebles}"),
-              ("RENT. TOTAL", f"Hasta {_num(rent_total, 2)} %"),
-              ("RENT. ANUALIZADA", f"Hasta {_num(rent_anual, 2)} %")]
+              ("RENTABILIDAD TOTAL", f"Hasta {_num(rent_total, 2)} %"),
+              ("RENTABILIDAD ANUALIZADA", f"Hasta {_num(rent_anual, 2)} %")]
     hueco = 24
     ancho_t = (W - 2 * M - hueco) // 2
     alto_t = 150
@@ -185,7 +185,7 @@ def generar(titular: str, simbolo: str, capital: float, n_inmuebles: int, rent_t
         alto = 40 + 46 + 92 + 46 * len(lineas_fin) + 34
         d.rounded_rectangle([M, y, W - M, y + alto], radius=28, fill=AMBAR_CLARO, outline=AMBAR, width=4)
         d.text((M + 44, y + 36), "Podrías conseguir hasta", font=f_t, fill=NAVY)
-        d.text((M + 44, y + 80), f"{_num(extra)} {simbolo} más", font=f_v, fill=AMBAR_OSCURO)
+        d.text((M + 44, y + 80), f"{_num(extra)} {simbolo} más en 36 meses", font=f_v, fill=AMBAR_OSCURO)
         yy = y + 80 + 100
         for l in lineas_fin:
             d.text((M + 44, yy), l, font=f_t, fill=NAVY)
