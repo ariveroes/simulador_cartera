@@ -439,7 +439,9 @@ def catalogo_otc(proyectos):
         precios = otc_storage.read_dict("precios_otc")
     except Exception:
         precios = {}
-    return {"catalogo": cat, "precios": precios, "error": ""}
+    return {"catalogo": cat, "precios": precios, "error": "",
+            "n_ofertas": len(ofertas or []), "n_reservas": len(reservas or []),
+            "leido": datetime.now().strftime("%d/%m/%Y %H:%M")}
 
 
 def _precio_stock_reental(precios, addr):
@@ -857,6 +859,113 @@ def tabla_seleccionable(df_display, key, prefijo_rent=""):
     
     st.session_state.sel_tablas[key] = set(marcados)
     return marcados
+
+
+
+
+# ========== DIAGNÓSTICO OTC (oculto) ==========
+# Se abre añadiendo ?diagnostico=1 a la dirección del simulador (o ?diagnostico=<clave>
+# si en los Secrets hay [diagnostico] clave = "…"). Enseña qué lee del documento OTC y,
+# proyecto a proyecto, si aparece en el simulador y, si no, por qué.
+def diagnostico_otc_pedido():
+    valor = str(st.query_params.get("diagnostico", "") or "")
+    if not valor:
+        return False
+    try:
+        clave = str(st.secrets["diagnostico"]["clave"])
+    except Exception:
+        clave = "1"
+    return valor == clave
+
+
+def diagnostico_otc():
+    from modules import otc_storage
+    st.markdown("## Diagnóstico OTC")
+    st.caption("Solo para uso interno. Qué lee el simulador del documento OTC y por qué cada proyecto "
+               "aparece o no. Para salir, quita «?diagnostico=…» de la dirección.")
+
+    df = cargar_todos_proyectos()
+    if st.button("Volver a leer ahora (sin esperar los 15 minutos)"):
+        catalogo_otc.clear()
+    res = catalogo_otc(_proyectos_para_catalogo(df))
+
+    if res.get("error") == "sin_acceso_sheet":
+        st.error("❌ No puede leer el documento OTC. Compártelo como Lector con este correo: "
+                 f"**{_correo_cuenta_servicio()}**")
+        return
+    if res.get("error") == "falta_clave":
+        st.error("❌ Falta la clave de Etherscan en los Secrets ([etherscan] api_key).")
+        return
+    st.success(f"✅ Lee el documento OTC: {res.get('n_ofertas', '?')} ofertas y {res.get('n_reservas', '?')} "
+               f"reservas (leído el {res.get("leido", "?")} UTC; se vuelve a leer cada 15 minutos).")
+
+    por_addr = {str(r.get('Token Address', '') or '').strip().lower(): r for _, r in df.iterrows()}
+    cat = res.get("catalogo") or {}
+    precios = res.get("precios") or {}
+    filas = []
+    for addr, d in cat.items():
+        fila = por_addr.get(addr)
+        reental = d.get('reental') or 0.0
+        terceros = d.get('terceros') or []
+        validas = ([reental] if reental > MIN_TOKENS_OTC else []) + [
+            t['disponible'] for t in terceros if t['disponible'] > MIN_TOKENS_OTC and (t.get('precio') or 0) > 0]
+        fin = fila.get('fecha_fin_calculo') if fila is not None else None
+        if fila is None:
+            motivo = "No está en el Master con ese Token Address"
+        elif termina_pronto(fin):
+            motivo = (f"Termina en menos de {MESES_MINIMOS_HASTA_FIN} meses"
+                      + (f" (fin {fin.strftime('%m/%Y')})" if hasattr(fin, 'strftime') else ""))
+        elif not validas:
+            motivo = f"{MIN_TOKENS_OTC} tokens o menos en cada oferta"
+        else:
+            motivo = ""
+        filas.append({
+            "Proyecto": (fila.get('Nombre del proyecto') if fila is not None else d.get('nombre')) or addr[:10],
+            "ID": (fila.get('ID') if fila is not None else d.get('id')) or "",
+            "Estado (Master)": fila.get('ESTADO', '') if fila is not None else "",
+            "Stock Reental (tokens)": round(reental, 2),
+            "Precio stock": ("precio OTC" if _precio_stock_reental(precios, addr) is not None else "emisión")
+                            if reental > 0.001 else "",
+            "Ofertas de terceros": len(terceros),
+            "Tokens de terceros": round(sum(t['disponible'] for t in terceros), 2),
+            "Fin estimado": fin.strftime('%m/%Y') if hasattr(fin, 'strftime') else "—",
+            "¿Aparece?": "Sí" if not motivo else "No",
+            "Motivo": motivo,
+        })
+    if filas:
+        tabla = pd.DataFrame(filas).sort_values(["¿Aparece?", "Proyecto"], ascending=[False, True])
+        st.markdown(f"#### Proyectos con tokens a la venta ({len(filas)})")
+        st.dataframe(tabla, hide_index=True, use_container_width=True)
+    else:
+        st.info("El catálogo OTC está vacío: ningún proyecto tiene tokens disponibles.")
+
+    # Ofertas activas del documento que la cadena no confirma (no llegan al catálogo)
+    try:
+        ofertas = otc_storage.read_list("Ofertas")
+    except Exception:
+        ofertas = []
+    en_catalogo = {t.get('oferta_id') for d in cat.values() for t in (d.get('terceros') or [])}
+    descartadas = [{
+        "Proyecto": o.get('proyecto_nombre', ''), "Tokens en el documento": o.get('n_tokens', ''),
+        "Precio": o.get('precio_venta', ''), "Divisa": o.get('divisa', ''),
+    } for o in ofertas if o.get('estado') == 'activa' and o.get('id') not in en_catalogo]
+    if descartadas:
+        st.markdown(f"#### Ofertas activas en el documento que no se muestran ({len(descartadas)})")
+        st.caption("La cadena no confirma que haya tokens disponibles: la wallet del vendedor ya no los "
+                   "tiene, están reservados o entregados, o no se pudo leer la cadena en ese momento. "
+                   "La herramienta OTC de tu compañero usa el mismo criterio para lo «disponible».")
+        st.dataframe(pd.DataFrame(descartadas), hide_index=True, use_container_width=True)
+
+    st.caption(f"Además, los proyectos que se están financiando aparecen siempre a precio de emisión, "
+               f"aunque no tengan tokens en OTC. En el Paso 3, los de mercados no elegidos en el Paso 2 "
+               f"salen más abajo, en «otros mercados».")
+
+
+def _correo_cuenta_servicio():
+    try:
+        return str(st.secrets["gcp_service_account"]["client_email"])
+    except Exception:
+        return "el client_email de [gcp_service_account] en los Secrets"
 
 
 # Todo lo definido aquí se exporta (también lo que empieza por «_»)
