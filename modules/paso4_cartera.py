@@ -27,34 +27,8 @@ def mostrar():
         #  - los que tienen tokens a la venta, a su precio más bajo.
         # En los dos casos, sin los que terminan en menos de MESES_MINIMOS_HASTA_FIN meses.
         ofertas_por_proy = agrupar_ofertas_por_proyecto(cargar_todas_ofertas_secundario(df_proyectos_todos))
-
-        precio_por_id = {}      # precio de compra de un token, en la divisa del proyecto
-        origen_por_id = {}      # 'Emisión' o 'Mercado' (solo para uso interno)
-        filas_disponibles = []
-        for _, row in df_proyectos_todos.iterrows():
-            pid = row.get('ID')
-            if pid is None or str(pid).strip() == '' or (isinstance(pid, float) and pid != pid):
-                continue
-            div_proy = divisa_proyecto(row)
-            # Fuera los que terminan en menos de MESES_MINIMOS_HASTA_FIN meses (su
-            # rentabilidad anualizada sale disparada)
-            if termina_pronto(row.get('fecha_fin_calculo')):
-                continue
-            if str(row.get('ESTADO', '')).upper() == 'FINANCIÁNDOSE':
-                precio, origen = _num(row.get('Precio Emisión', 0)), 'Emisión'
-            else:
-                ofertas = (ofertas_por_proy.get(str(pid).lower())
-                           or ofertas_por_proy.get(str(row.get('Token Address', '')).lower()) or [])
-                precios = [convertir_divisa(_num(o.get('precio_venta'), 0.0), o.get('divisa', 'USD'), div_proy)
-                           for o in ofertas if _num(o.get('precio_venta'), 0.0) > 0]
-                if not precios:
-                    continue
-                precio, origen = min(precios), 'Mercado'
-            if not precio or precio <= 0:
-                continue
-            precio_por_id[pid] = precio
-            origen_por_id[pid] = origen
-            filas_disponibles.append(row)
+        filas_disponibles, precio_por_id, origen_por_id, _descartes = proyectos_comprables(
+            df_proyectos_todos, ofertas_por_proy)
 
         df_disponibles = pd.DataFrame(filas_disponibles)
         df_otros = df_disponibles.iloc[0:0]          # proyectos de mercados no elegidos en el Paso 2
