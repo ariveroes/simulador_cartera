@@ -571,7 +571,7 @@ def termina_pronto(fecha_fin, meses=MESES_MINIMOS_HASTA_FIN):
 
 
 # Mínimo de tokens disponibles para que una oferta OTC (o el stock de Reental)
-# aparezca en el simulador. Las que tengan esta cantidad o menos no se muestran.
+# aparezca en el simulador (esta cantidad sí se muestra; menos, no).
 MIN_TOKENS_OTC = 10
 
 
@@ -585,7 +585,7 @@ def agrupar_ofertas_por_proyecto(ofertas):
         if str(oferta.get('estado', '')).strip().lower() != 'activa':
             continue
         # Solo ofertas con un mínimo de tokens disponibles
-        if _num(oferta.get('n_tokens'), 0.0) <= MIN_TOKENS_OTC:
+        if _num(oferta.get('n_tokens'), 0.0) < MIN_TOKENS_OTC:
             continue
 
         # Usar proyecto_id o token_address como clave
@@ -863,6 +863,47 @@ def tabla_seleccionable(df_display, key, prefijo_rent=""):
 
 
 
+def proyectos_comprables(df_proyectos, ofertas_por_proy):
+    """Lo que se puede comprar hoy (la lista del Paso 3), con su precio.
+
+    - Los que se están financiando, al precio de emisión.
+    - Los que tienen tokens a la venta (al menos MIN_TOKENS_OTC), a su precio más bajo.
+    En los dos casos, sin los que terminan en menos de MESES_MINIMOS_HASTA_FIN meses.
+    Devuelve (filas, precio_por_id, origen_por_id, descartes) donde descartes es
+    {ID: motivo} de los proyectos que se quedan fuera (lo usa el diagnóstico).
+    """
+    precio_por_id, origen_por_id, filas, descartes = {}, {}, [], {}
+    for _, row in df_proyectos.iterrows():
+        pid = row.get('ID')
+        if pid is None or str(pid).strip() == '' or (isinstance(pid, float) and pid != pid):
+            continue
+        div_proy = divisa_proyecto(row)
+        if str(row.get('ESTADO', '')).upper() == 'FINANCIÁNDOSE':
+            precio, origen = _num(row.get('Precio Emisión', 0)), 'Emisión'
+        else:
+            ofertas = (ofertas_por_proy.get(str(pid).lower())
+                       or ofertas_por_proy.get(str(row.get('Token Address', '')).lower()) or [])
+            precios = [convertir_divisa(_num(o.get('precio_venta'), 0.0), o.get('divisa', 'USD'), div_proy)
+                       for o in ofertas if _num(o.get('precio_venta'), 0.0) > 0]
+            if not precios:
+                continue                    # sin tokens a la venta: no es un descarte, no está en venta
+            precio, origen = min(precios), 'Mercado'
+        # Fuera los que terminan en menos de MESES_MINIMOS_HASTA_FIN meses (su
+        # rentabilidad anualizada sale disparada)
+        fin = row.get('fecha_fin_calculo')
+        if termina_pronto(fin):
+            descartes[pid] = (f"Termina en menos de {MESES_MINIMOS_HASTA_FIN} meses"
+                              + (f" (fin {fin.strftime('%m/%Y')})" if hasattr(fin, 'strftime') else ""))
+            continue
+        if not precio or precio <= 0:
+            descartes[pid] = "Sin precio"
+            continue
+        precio_por_id[pid] = precio
+        origen_por_id[pid] = origen
+        filas.append(row)
+    return filas, precio_por_id, origen_por_id, descartes
+
+
 # ========== DIAGNÓSTICO OTC (oculto) ==========
 # Se abre añadiendo ?diagnostico=1 a la dirección del simulador (o ?diagnostico=<clave>
 # si en los Secrets hay [diagnostico] clave = "…"). Enseña qué lee del documento OTC y,
@@ -907,8 +948,8 @@ def diagnostico_otc():
         fila = por_addr.get(addr)
         reental = d.get('reental') or 0.0
         terceros = d.get('terceros') or []
-        validas = ([reental] if reental > MIN_TOKENS_OTC else []) + [
-            t['disponible'] for t in terceros if t['disponible'] > MIN_TOKENS_OTC and (t.get('precio') or 0) > 0]
+        validas = ([reental] if reental >= MIN_TOKENS_OTC else []) + [
+            t['disponible'] for t in terceros if t['disponible'] >= MIN_TOKENS_OTC and (t.get('precio') or 0) > 0]
         fin = fila.get('fecha_fin_calculo') if fila is not None else None
         if fila is None:
             motivo = "No está en el Master con ese Token Address"
@@ -916,7 +957,7 @@ def diagnostico_otc():
             motivo = (f"Termina en menos de {MESES_MINIMOS_HASTA_FIN} meses"
                       + (f" (fin {fin.strftime('%m/%Y')})" if hasattr(fin, 'strftime') else ""))
         elif not validas:
-            motivo = f"{MIN_TOKENS_OTC} tokens o menos en cada oferta"
+            motivo = f"Menos de {MIN_TOKENS_OTC} tokens en cada oferta"
         else:
             motivo = ""
         filas.append({
@@ -938,6 +979,28 @@ def diagnostico_otc():
         st.dataframe(tabla, hide_index=True, use_container_width=True)
     else:
         st.info("El catálogo OTC está vacío: ningún proyecto tiene tokens disponibles.")
+
+    # Exactamente lo que sale en el Paso 3 (misma función que usa el simulador)
+    ofertas_por_proy = agrupar_ofertas_por_proyecto(cargar_todas_ofertas_secundario(df))
+    filas_ok, precio_por_id, origen_por_id, descartes = proyectos_comprables(df, ofertas_por_proy)
+    tabla_paso3 = pd.DataFrame([{
+        "Proyecto": r.get('Nombre del proyecto', ''), "ID": r.get('ID', ''), "Mercado": r.get('Ubicación', ''),
+        "Estado (Master)": r.get('ESTADO', ''),
+        "De dónde sale": ("Financiándose (emisión, aunque no tenga OTC)" if origen_por_id[r.get('ID')] == 'Emisión'
+                          else "OTC"),
+        "Precio": f"{es(precio_por_id[r.get('ID')], 2)} {'$' if divisa_proyecto(r) == 'USD' else '€'}",
+        "Fin estimado": (r.get('fecha_fin_calculo').strftime('%m/%Y')
+                         if hasattr(r.get('fecha_fin_calculo'), 'strftime') else "—"),
+    } for r in filas_ok])
+    st.markdown(f"#### Lo que muestra el simulador en el Paso 3 ({len(tabla_paso3)})")
+    st.caption("Antes de repartirlos por mercados: los de mercados no elegidos en el Paso 2 salen más abajo, "
+               "en «otros mercados».")
+    if len(tabla_paso3):
+        st.dataframe(tabla_paso3.sort_values("Proyecto"), hide_index=True, use_container_width=True)
+    if descartes:
+        st.markdown(f"#### En venta pero fuera de la lista ({len(descartes)})")
+        st.dataframe(pd.DataFrame([{"ID": k, "Motivo": v} for k, v in descartes.items()]),
+                     hide_index=True, use_container_width=True)
 
     # Ofertas activas del documento que la cadena no confirma (no llegan al catálogo)
     try:
