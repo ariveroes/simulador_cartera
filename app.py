@@ -35,6 +35,11 @@ from modules import paso1_datos, paso2_preferencias, paso4_cartera, paso5_resume
 
 aplicar_estilos()
 
+# Diagnóstico OTC oculto (?diagnostico=1): sustituye a la app mientras esté en la dirección
+if diagnostico_otc_pedido():
+    diagnostico_otc()
+    st.stop()
+
 # ========== INICIALIZAR SESSION STATE ==========
 if 'paso_actual' not in st.session_state:
     st.session_state.paso_actual = 1
