@@ -600,6 +600,21 @@ def _num_es(v, dec=2):
     return _n(v, dec)
 
 
+def _url_dossier(p):
+    """Enlace al dossier del proyecto (columna «Link a Dossier Comercial» del Master) o ''."""
+    url = str(p.get("dossier") or "").strip()
+    return url if url.lower().startswith("http") else ""
+
+
+def _enlace_dossier(p):
+    """«Dossier» enlazado, para meterlo en una celda de la tabla (Paragraph)."""
+    url = _url_dossier(p)
+    if not url:
+        return ""
+    url = url.replace("&", "&amp;").replace("'", "%27")
+    return f"<a href='{url}' color='#f5a623'><u>Dossier</u></a>"
+
+
 def _activos(c, R, proyectos, con_barras):
     _fondo(c, BG)
     ep = R.get("estatus", "Reentel")
@@ -615,7 +630,8 @@ def _activos(c, R, proyectos, con_barras):
         estado = _norm_estado(p.get("estado"))
         fondo, color = ESTADO_COLORES.get(estado, ("#26374f", "#d3d9e2"))
         filas.append([
-            f"<font color='#ffffff'><b>{p['nombre']}</b></font><br/><font size='7' color='#8592a6'>{p.get('id', '')}</font>",
+            f"<font color='#ffffff'><b>{p['nombre']}</b></font><br/><font size='7' color='#8592a6'>{p.get('id', '')}</font>"
+            + (f"&nbsp;&nbsp;<font size='7'>{_enlace_dossier(p)}</font>" if _url_dossier(p) else ""),
             f"<font size='6.5' color='{color}'><b>{estado}</b></font>",
             p.get("ubicacion", "—"),
             _dinero(p.get("importe"), divisa),
@@ -682,7 +698,16 @@ def _ficha(c, R, p, x, y, w, h):
     yy = y + h - 30
     _texto(c, izq, yy, p["nombre"], 16, BLANCO, bold=True)
     yy -= 20
-    _pastilla(c, izq, yy - 2, str(p.get("id", "")), C("#26374f"), MUTED, 7.5)
+    ancho_id = _pastilla(c, izq, yy - 2, str(p.get("id", "")), C("#26374f"), MUTED, 7.5)
+    url = _url_dossier(p)
+    if url:
+        # «Dossier» en naranja, subrayado y con el enlace al dossier comercial
+        xd = izq + (ancho_id or 40) + 10
+        ancho_d = _texto(c, xd, yy + 2.5, "Dossier", 9, ORO, bold=True)
+        c.setStrokeColor(ORO)
+        c.setLineWidth(0.6)
+        c.line(xd, yy + 0.5, xd + ancho_d, yy + 0.5)
+        c.linkURL(url, (xd - 2, yy - 2, xd + ancho_d + 2, yy + 12), relative=0)
     yy -= 22
     lineas = [("Ubicación", p.get("ubicacion")), ("Inicio renta", p.get("fecha_inicio")),
               ("Fin estimado", p.get("fecha_fin")), ("Precio de compra", p.get("precio")),
