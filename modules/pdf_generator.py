@@ -698,16 +698,7 @@ def _ficha(c, R, p, x, y, w, h):
     yy = y + h - 30
     _texto(c, izq, yy, p["nombre"], 16, BLANCO, bold=True)
     yy -= 20
-    ancho_id = _pastilla(c, izq, yy - 2, str(p.get("id", "")), C("#26374f"), MUTED, 7.5)
-    url = _url_dossier(p)
-    if url:
-        # «Dossier» en naranja, subrayado y con el enlace al dossier comercial
-        xd = izq + (ancho_id or 40) + 10
-        ancho_d = _texto(c, xd, yy + 2.5, "Dossier", 9, ORO, bold=True)
-        c.setStrokeColor(ORO)
-        c.setLineWidth(0.6)
-        c.line(xd, yy + 0.5, xd + ancho_d, yy + 0.5)
-        c.linkURL(url, (xd - 2, yy - 2, xd + ancho_d + 2, yy + 12), relative=0)
+    _pastilla(c, izq, yy - 2, str(p.get("id", "")), C("#26374f"), MUTED, 7.5)
     yy -= 22
     lineas = [("Ubicación", p.get("ubicacion")), ("Inicio renta", p.get("fecha_inicio")),
               ("Fin estimado", p.get("fecha_fin")), ("Precio de compra", p.get("precio")),
@@ -737,6 +728,15 @@ def _ficha(c, R, p, x, y, w, h):
         yy -= 42
         _texto(c, der, yy, "Rent. anualizada (Reentel)", 8, MUTED)
         _texto(c, der, yy - 15, _pct(p.get("rent_anu_rnt")), 12, AZUL_CLARO, bold=True)
+    url = _url_dossier(p)
+    if url:
+        # «Dossier» en naranja, subrayado y con el enlace al dossier comercial
+        yd = yy - 48
+        ancho_d = _texto(c, der, yd, "Dossier", 10, ORO, bold=True)
+        c.setStrokeColor(ORO)
+        c.setLineWidth(0.6)
+        c.line(der, yd - 2, der + ancho_d, yd - 2)
+        c.linkURL(url, (der - 2, yd - 4, der + ancho_d + 2, yd + 11), relative=0)
 
 
 def _beneficios_wealth(c):
