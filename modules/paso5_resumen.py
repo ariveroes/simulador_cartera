@@ -151,6 +151,7 @@ def mostrar():
                 'ubicacion': str(row.get('Ubicación', '') or ''),
                 'estado': str(row.get('ESTADO', '') or ''),
                 'tipodiv': tipologia or '-',
+                'dossier': str(row.get('dossier', '') or '').strip(),
                 'precio': fmt(precio_conv),
                 'tipo_precio': tipo_precio,
                 'pct': peso,
